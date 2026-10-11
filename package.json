@@ -1,0 +1,27 @@
+{
+  "name": "@aantoniadis/skills",
+  "version": "0.1.0",
+  "description": "Skills for coding agents: understand code, plan changes, find defects, review PRs. OpenCode skill discovery plugin.",
+  "keywords": [
+    "opencode-plugin",
+    "opencode",
+    "skills"
+  ],
+  "license": "MIT",
+  "author": "aantoniadis",
+  "homepage": "https://github.com/aantoniadis/skills",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/aantoniadis/skills.git"
+  },
+  "main": "./opencode/skills.js",
+  "files": [
+    "opencode/",
+    "skills/",
+    "LICENSE",
+    "THIRD-PARTY-NOTICES.md",
+    "!**/node_modules/**",
+    "!**/__pycache__/**",
+    "!**/*.pyc"
+  ]
+}

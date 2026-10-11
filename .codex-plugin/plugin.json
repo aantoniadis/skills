@@ -1,0 +1,21 @@
+{
+  "name": "aantoniadis-skills",
+  "version": "0.1.0",
+  "description": "Skills for coding agents: understand code, plan changes, find defects, review PRs. Works with Matt Pocock's and HumanLayer's original skills, installed separately.",
+  "author": {
+    "name": "aantoniadis"
+  },
+  "license": "MIT",
+  "homepage": "https://github.com/aantoniadis/skills",
+  "repository": "https://github.com/aantoniadis/skills",
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "aantoniadis-skills",
+    "shortDescription": "Understand code, plan changes, find defects, review PRs.",
+    "longDescription": "Skills for coding agents: understand code, plan changes, find defects, review PRs. Works with Matt Pocock's and HumanLayer's original skills, installed separately.",
+    "developerName": "aantoniadis",
+    "category": "Productivity",
+    "capabilities": [],
+    "defaultPrompt": "Help me understand a code flow or plan a change using the bundled skills."
+  }
+}

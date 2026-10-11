@@ -1,0 +1,16 @@
+{
+  "name": "aantoniadis",
+  "owner": {
+    "name": "aantoniadis"
+  },
+  "plugins": [
+    {
+      "name": "aantoniadis-skills",
+      "source": "./",
+      "description": "Skills for coding agents: understand code, plan changes, find defects, review PRs. Works with Matt Pocock's and HumanLayer's original skills, installed separately."
+    }
+  ],
+  "metadata": {
+    "description": "Engineering skills by aantoniadis."
+  }
+}

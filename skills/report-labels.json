@@ -1,0 +1,119 @@
+{
+  "requirements": {
+    "title": "Requirement fulfillment",
+    "options": {
+      "Met": "Evidence supports the whole stated requirement within its conditions. Remaining evidence gaps must still be named.",
+      "Partial": "Some required conditions hold; the report names the remainder.",
+      "Unmet": "Evidence shows that a required condition fails.",
+      "Not verified": "Intent is clear, but evidence is insufficient to decide whether the requirement holds.",
+      "Needs clarification": "Intent is missing, ambiguous, or conflicting. Retain conflicting statements and label any candidate interpretation as inferred.",
+      "Not applicable": "A recorded, agreed scope decision excludes the requirement; the report links that decision and gives the reason."
+    }
+  },
+  "verification-results": {
+    "title": "Verification results",
+    "options": {
+      "Passed": "The recorded check met its expected outcome under the stated revision and conditions. This does not prove correctness outside that scope.",
+      "Failed": "The recorded check did not meet its expected outcome. The result alone does not establish the cause or whether this change introduced it.",
+      "Mixed": "The recorded checks or scenarios include both passing and failing outcomes; the report identifies which are which.",
+      "Not run": "No execution result is claimed for this entry. Reading source or proposing a check does not count as running it.",
+      "Blocked": "An identified obstruction prevented completion of the check. The report names it and retains any partial evidence."
+    }
+  },
+  "verification-origins": {
+    "title": "Verification evidence origins",
+    "options": {
+      "Executed here": "The check was executed in this session, including delegated execution. Its command, result, revision, conditions, and limits are recorded.",
+      "Recorded run": "The report cites an existing run, such as CI or an earlier experiment. Its original revision and conditions determine applicability.",
+      "Source inspected": "Relevant code or assertions were read. Execution is not established, so the result is Not run.",
+      "Proposed": "No execution evidence is claimed. The result is Not run or Blocked; Blocked names the obstruction that prevented the planned check."
+    }
+  },
+  "decisions": {
+    "title": "Decision statuses",
+    "options": {
+      "Agreed": "A recorded individual answer or an explicitly authorized autopilot policy settles the choice. The report identifies that authority; agreement does not establish implementation or verification.",
+      "Proposed": "A candidate for consideration; it has not been agreed.",
+      "Open": "The desired behavior or choice remains undecided.",
+      "Reopened": "A previously settled choice needs a new answer after changed evidence or scope. Its history is retained.",
+      "Superseded": "A historical choice has been replaced by another decision. The report links its replacement."
+    }
+  },
+  "questions": {
+    "title": "Question coverage",
+    "options": {
+      "Answered": "Evidence supports the answer to the scoped learning question.",
+      "Partial": "Part of the answer is supported; an explicit gap and the next useful check remain.",
+      "Unresolved": "No answer is established yet. The report names the gap and what would settle it."
+    }
+  },
+  "review-actions": {
+    "title": "Review actions",
+    "options": {
+      "you decide": "A behavior or tradeoff needs a choice from the reviewer or author.",
+      "check it": "Confirm a specific claim at the code or with a scoped run.",
+      "ask the author": "The author needs to supply information or confirm a choice the available evidence cannot settle.",
+      "read lightly": "Evidence covers the whole named part and its relevant preservation claim, so a lighter read is justified within that boundary.",
+      "no action": "The report records a known point that requires no action today. This is not approval of the whole change."
+    }
+  },
+  "review-evidence": {
+    "title": "Review evidence labels",
+    "options": {
+      "we ran it": "An executed run produced the stated observation or measurement within its recorded conditions. A retained earlier result keeps its original provenance and is identified as Recorded run in Verification.",
+      "read at the line": "The claim follows the inspected, pinned source lines; this is not a runtime result.",
+      "documented": "Quoted documentation or a recorded statement establishes intent, not implemented behavior.",
+      "reasoned, not run": "An inference from named evidence and reasoning; the predicted behavior was not executed.",
+      "not read": "The relevant source was not inspected. No behavior claim is established for that boundary.",
+      "unknown": "Available evidence does not settle the claim. The report states what would settle it."
+    }
+  },
+  "bug-evidence": {
+    "title": "Bug evidence",
+    "options": {
+      "we ran it": "A probe observed the Head result, and the Base result when it could run. The command and output identify that run and its conditions. A retained earlier card uses Recorded run in Verification; an unobserved Base value starts with predicted:.",
+      "suspected, not run": "The code suggests the bug, but no probe ran. The card's Base and Head values are predictions, and the card names the probe that would settle it."
+    }
+  },
+  "bug-origin": {
+    "title": "Bug origin",
+    "options": {
+      "new in this change": "The bug is absent at the base and present at the head, so this change introduces it. The evidence label says whether that was run or predicted.",
+      "pre-existing, made worse": "The bug already exists at the base; this change makes it reach more callers or makes its effect worse."
+    }
+  },
+  "intent-alignment": {
+    "title": "Intent alignment",
+    "options": {
+      "matches the stated intent": "Evidence supports the behavior described by the recorded intent within the stated scope.",
+      "partly matches the stated intent": "Evidence supports only part of the recorded intent; the report names the mismatch or remaining gap.",
+      "contradicts the stated intent": "Evidence shows behavior that conflicts with the recorded intent.",
+      "intent unclear": "The intended behavior cannot be settled from the available statements or their conflicts.",
+      "nobody asked for this": "The inspected intent sources do not establish this consequential behavior as requested. This does not by itself prove scope creep."
+    }
+  },
+  "finding-resolution": {
+    "title": "Finding resolution",
+    "options": {
+      "Open": "The finding still needs its settling check or decision.",
+      "Resolved": "Linked evidence settles the finding at the reviewed revision. Affected findings must be rechecked on a new head.",
+      "Accepted tradeoff": "The named decision maker accepted the consequence in a linked record. Acceptance does not change requirement fulfillment."
+    }
+  },
+  "reading-depth": {
+    "title": "Reading-plan depth",
+    "options": {
+      "Read": "Inspect the files needed to understand a consequential behavior or contract, in the useful reading order; any file type can belong here.",
+      "Skim": "Read the assigned portions needed to verify the stated scope; the reading plan explains why this depth is sufficient.",
+      "Skip": "The reading plan gives an evidence-based reason this material needs no further reading for the scoped question. File type alone does not justify skipping it."
+    }
+  },
+  "diagram-evidence": {
+    "title": "Diagram evidence",
+    "options": {
+      "observed": "An identified current or recorded run produced the behavior shown. Retain its source snapshot, conditions, and evidence limits.",
+      "source": "The diagram traces inspected source at its mapped lines. It does not claim runtime execution.",
+      "proposed": "The diagram shows candidate behavior not established as implemented. Proposed elements map to decisions, requirements, or proposals; existing behavior still maps to source lines. Agreement is stated separately."
+    }
+  }
+}

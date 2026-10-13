@@ -1,6 +1,6 @@
 {
   "name": "aantoniadis-skills",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Skills for coding agents: understand code, plan changes, find defects, review PRs. Works with Matt Pocock's and HumanLayer's original skills, installed separately.",
   "author": {
     "name": "aantoniadis"

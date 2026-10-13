@@ -64,7 +64,7 @@ runs the checkout directly.
 
 ### Original skills
 
-Our skills use six originals: Matt Pocock's `grilling`, `to-spec`,
+Our skills work with six originals: Matt Pocock's `grilling`, `to-spec`,
 `to-tickets`, and `implement`, and HumanLayer's `show-me` and `visual-pr`.
 Install them once per machine, one route per host:
 
@@ -80,12 +80,14 @@ npx skills@latest add mattpocock/skills -g
 npx skills@latest add humanlayer/skills --skill show-me --skill visual-pr -g
 ```
 
-`setup-tools` records where each copy is, and our skills read the originals
-from there unchanged, naming them `mattpocock:implement` or
-`humanlayer:visual-pr` ([skills/REFERENCES.md](skills/REFERENCES.md)). Direct
-use goes through the host's own registration, such as
-`/mattpocock-skills:implement` in Claude Code or `/implement` after an
-`npx skills` install.
+`setup-tools` records where each copy is. Our skills name them
+`mattpocock:implement` or `humanlayer:visual-pr`
+([skills/REFERENCES.md](skills/REFERENCES.md)) and respect each author's
+choice of who runs it: `plan-change` invokes `grilling` through the host; the
+other five are user-invoked, so our skills finish their own deliverable and
+hand you the command, such as `/mattpocock-skills:to-spec` in Claude Code or
+`/to-spec` after an `npx skills` install. Each original then runs its own
+workflow, unchanged.
 
 ## The skills
 

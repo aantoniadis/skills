@@ -17,7 +17,7 @@ when reusable preparation or repair would materially help.
 | Find untested changed behavior | Existing test and coverage commands; per-test contexts when supported and useful. |
 | Check compatibility with a declared dependency range | An isolated environment at the relevant versions and a focused operation through the changed path. |
 | Check or render a report | The shared renderer and its dependencies; a diagram backend only for a selected diagram. See [HTML-PAGES.md](HTML-PAGES.md). |
-| Use an original Matt Pocock or HumanLayer skill | The installed copy that setup-tools recorded; see [original skills](setup-tools/references/upstream-skills.md). |
+| Use an original Matt Pocock or HumanLayer skill | The host's skill tool for a model-invoked original, a handoff command for a user-invoked one, as [package references](REFERENCES.md) say; setup-tools records whether each is installed, see [original skills](setup-tools/references/upstream-skills.md). |
 
 ## Use a prepared operation
 

@@ -44,9 +44,10 @@ Prompt shape:
 
 ## Continue into planning
 
-For a view the skill's own list lacks, such as a component tree, a file tree, or a code-shape diff, this skill reads HumanLayer's original `show-me` while keeping
-ownership of the explanation and optional HTML companion. Give its note path
-to our `plan-change` to plan a change from those findings. The
-[combined workflow](workflow.md) continues through original spec/ticket drafting,
-implementation, and PR creation.
+For a visual recap, such as a component tree, a file tree, or a code-shape
+diff, run HumanLayer's original `show-me` afterwards; it is user-invoked, so
+this skill hands you the command and keeps ownership of the explanation and
+optional HTML companion. Give the note path to our `plan-change` to plan a
+change from those findings. The [combined workflow](workflow.md) continues
+through spec/ticket drafting, implementation, and PR creation.
 

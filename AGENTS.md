@@ -1,7 +1,7 @@
 # Authoring skills
 
-Before creating or editing agent-facing instructions, load Matt's original
-`writing-for-agents` from its installed copy, as [package references](skills/REFERENCES.md)
+Before creating or editing agent-facing instructions, invoke Matt's original
+`writing-for-agents` through the host, as [package references](skills/REFERENCES.md)
 say, and apply our [technical-English guide](skills/TECHNICAL-ENGLISH.md). Check that edits
 preserve conditions, permissions, obligations, and evidence limits.
 

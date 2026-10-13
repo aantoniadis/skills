@@ -45,8 +45,9 @@ Who needs this and the observable result.
 Routine coding choices remain with implementation. A default is an assumption
 unless the user or an explicitly authorized policy settles it. Record decisions
 that affect behavior, contracts, or later work; a full choice ledger is unnecessary.
-For a difficult interview, the original `mattpocock:grilling` is available, as
-[package references](../skills/REFERENCES.md) say, when explicitly selected.
+For a difficult interview, the original `mattpocock:grilling` is invoked
+through the host, as [package references](../skills/REFERENCES.md) say, when
+explicitly selected.
 
 ## 2. Choose useful checks
 
@@ -63,10 +64,11 @@ product behavior or only an environment gap.
 ## 3. Implement
 
 Implement the authorized change with the host's usual coding workflow. A new
-session or upstream implementation skill is optional. If selected, load
-`mattpocock:implement` as [package references](../skills/REFERENCES.md) say, with the
-scope, agreed behavior, and applicable evidence; its original workflow commits
-changes, so supply the user's actual commit boundaries.
+session or upstream implementation skill is optional. If selected, hand off to
+`mattpocock:implement` as [package references](../skills/REFERENCES.md) say:
+the user runs it with the scope, agreed behavior, and applicable evidence; its
+original workflow commits changes, so the command carries the user's actual
+commit boundaries.
 
 Resolve routine implementation choices using project conventions. Reopen a
 consequential decision when new evidence affects it, and pause only dependent

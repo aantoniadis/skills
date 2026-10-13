@@ -24,17 +24,18 @@ by whom, on what evidence.
 4. **Readiness.** Connect decisions to delivery slices, preserved behavior,
    acceptance outcomes, and checks. Missing consequential choices block their
    slices; planned implementation tests alone do not block a settled plan.
-5. **Handoff.** Produce self-contained specs or tickets when selected. Matt's
-   original helpers can draft within that scope; unavailable optional helpers
-   have a local drafting fallback. Check meaning and decision coverage before
-   delivery.
+5. **Handoff.** Produce self-contained specs or tickets when selected, or
+   hand you Matt's `to-spec` and `to-tickets` command when you want their
+   format and publication; those originals are user-invoked and synthesize
+   from the planning conversation. Local drafts get a meaning and decision
+   coverage check before delivery.
    Publish within existing authorization or present concrete drafts for approval.
    Include evidence and a feedback destination the next reader can access.
 
 Ordinary local checks need no new
 checkpoint; material unapproved costs, side effects, or scope changes do.
-Optional grilling helps with difficult choices. Explicitly selected original
-workflows retain their source dependencies and behavior.
+Optional grilling, invoked through the host, helps with difficult choices.
+An original you run yourself retains its own dependencies and behavior.
 
 Prompt shape:
 
@@ -45,8 +46,10 @@ Prompt shape:
 ## Continue with the originals
 
 Keep spec/ticket drafting in this planning workflow when you want its decision
-checks and scoped publication. Existing authorization carries forward; a new
-approval is needed only when the destination or content lacks it.
+checks and scoped publication; existing authorization carries forward, and a
+new approval is needed only when the destination or content lacks it. Take the
+`to-spec` and `to-tickets` handoff when you want Matt's format and tracker
+publication; you run those commands, and they synthesize from this session.
 The [combined workflow](workflow.md) shows the exact prompts for drafting,
 implementation in a fresh session, and PR creation. Review the draft's meaning:
 agent self-review and the presence of decision IDs do not establish that every

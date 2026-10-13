@@ -26,17 +26,19 @@ Matt's and HumanLayer's originals are installed through their own routes
 ([original skills](../README.md#original-skills)) and registered by the host:
 `/mattpocock-skills:implement` in Claude Code, `$mattpocock-skills:implement`
 in Codex, `/implement` or the `skill` tool in OpenCode; an `npx skills`
-install registers each as `/<name>`. Our skills find them through the tool
-record that `setup-tools` writes, as [package references](../skills/REFERENCES.md)
-say, and a call inside an original such as Matt's `/tdd` means the original
-installed beside it.
+install registers each as `/<name>`. Our skills keep each author's choice of
+who runs it, as [package references](../skills/REFERENCES.md) say: `grilling`
+is invoked through the host; `to-spec`, `to-tickets`, `implement`, `show-me`,
+and `visual-pr` are user-invoked, so our skill finishes its deliverable and
+hands you the command. A call inside an original such as Matt's `/tdd` means
+the original installed beside it.
 
 | Work | Skill that owns it | Original sources it uses |
 | --- | --- | --- |
 | Prepare investigation tools | Our `setup-tools` | None; a sign-in or activation step only a human can do gets short manual instructions |
-| Explain current code | Our `explain` | HumanLayer's `show-me` for views the skill's own list lacks: component trees, file trees, code-shape diffs |
+| Explain current code | Our `explain` | HumanLayer's `show-me`, run by you afterwards, for a visual recap: component trees, file trees, code-shape diffs |
 | Decide intended behavior | Our `plan-change` | Optional Matt `grilling`, or the selected original interview/domain mode |
-| Draft a spec and tickets from those decisions | Our `plan-change` owns the review and publication step | Optional Matt `to-spec` and `to-tickets`, scoped to local drafts; local fallback if unavailable |
+| Draft a spec and tickets from those decisions | Our `plan-change` drafts locally and owns review and publication, or hands you Matt's `to-spec` and `to-tickets` | Matt's originals, run by you, synthesize from the planning conversation and publish under their own workflow |
 | Implement an agreed ticket | Matt's `implement` | Matt's `tdd` where possible and `code-review` after implementation |
 | Find defects in a change | Our `find-bugs` | Project tools recorded during setup |
 | Create or update the PR | HumanLayer's `visual-pr` | Its original description template and visual references |
@@ -83,7 +85,7 @@ Use one concrete question that will inform the change:
 ```
 
 The note records the inspected revision, flow, evidence, and unknowns. Give its
-actual path to the planning step. HumanLayer's original `show-me` supplies views the skill's own list lacks; our skill still owns the explanation and optional HTML page.
+actual path to the planning step. For a visual recap, run HumanLayer's original `show-me` afterwards; our skill owns the explanation and optional HTML page.
 [How it works](explain.md).
 
 ## 3. Agree on the change
@@ -99,16 +101,28 @@ Routine coding choices remain with implementation. [How it works](plan-change.md
 
 ## 4. Draft, review, and publish the spec and tickets
 
-Keep this in the planning session so the agreed context is available:
+Two routes. Keep either in the planning session so the agreed context is
+available.
+
+Matt's format and tracker publication: when the plan is delivered,
+`plan-change` hands you the command, because `to-spec` and `to-tickets` are
+user-invoked and synthesize from the conversation so far:
 
 ```text
-/aantoniadis-skills:plan-change Prepare local spec and ticket drafts from <plan path> using Matt's original to-spec and to-tickets. Carry each agreed decision, preservation requirement, evidence limit, and feedback instruction into the affected drafts. Check readiness, then show the drafts and proposed statuses for publication approval.
+/mattpocock-skills:to-spec Use the plan at <plan path>.
+/mattpocock-skills:to-tickets Use the spec at <spec URL or path>.
 ```
 
-`plan-change` passes a drafting-only task to the originals, checks the results,
-and owns publication within your approval. Review the proposed slices and
-blocking edges. An unresolved behavior choice blocks its dependent work;
-implementation tests that are planned but not yet run are recorded as such.
+Our drafting and review:
+
+```text
+/aantoniadis-skills:plan-change Prepare local spec and ticket drafts from <plan path>. Carry each agreed decision, preservation requirement, evidence limit, and feedback instruction into the affected drafts. Check readiness, then show the drafts and proposed statuses for publication approval.
+```
+
+`plan-change` drafts from the plan, checks the results, and owns publication
+within your approval. Review the proposed slices and blocking edges. An
+unresolved behavior choice blocks its dependent work; implementation tests that
+are planned but not yet run are recorded as such.
 
 Read the drafts before approving them. Decision identifiers appearing in a
 ticket do not prove that its acceptance criteria preserve the decision's
@@ -214,6 +228,6 @@ an original follows its own workflow, not all of ours.
 When an original is not installed, the agent names the install command from
 [original skills](../skills/setup-tools/references/upstream-skills.md) and
 uses an authorized fallback or stops the dependent work. Our planning
-workflow allows direct local drafting when optional helpers are unavailable;
-an explicitly original-only request still needs its install.
+workflow drafts locally when you do not take the `to-spec` handoff; a request
+for Matt's format still needs its install.
 

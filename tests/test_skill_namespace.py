@@ -97,12 +97,14 @@ def check_references():
         if path.read_text().count("\n") > 100:
             assert "\n## Contents\n" in path.read_text(), path
     assert "mattpocock:implement" in skills["plan-change"].read_text()
-    # Naming an upstream helper does not run it: every sentence in a skill that names one says to load it.
+    # Naming an upstream helper does not run it: every sentence in a skill that names one says to invoke it
+    # (model-invoked) or hand off to it (user-invoked), never to load its files; REFERENCES.md defines both.
     for path in [*ROOT.glob("skills/*/SKILL.md"), *ROOT.glob("skills/*/references/*.md")]:
         prose = re.sub(r"(?ms)^(`{3,}|~{3,})[^\n]*\n.*?^\1[ \t]*$", "", path.read_text())
         for sentence in re.split(r"(?<=[.!?])\s+|\n\s*\n", prose):
             if re.search(r"(mattpocock|humanlayer):[a-z]", sentence):
-                assert re.search(r"\b[Ll]oad(s|ed|ing)?\b", sentence), (path, sentence.strip()[:120])
+                assert re.search(r"\b([Ii]nvoke[sd]?|[Hh]and(s|ed)? off)\b", sentence), (path, sentence.strip()[:120])
+                assert not re.search(r"\b[Ll]oad(s|ed|ing)?\b", sentence), (path, sentence.strip()[:120])
     # Every claim carries its evidence: each skill, and every reference that has the agent draw a diagram, points at the rule.
     for path in ROOT.glob("skills/**/*.md"):
         if "node_modules" in path.parts:

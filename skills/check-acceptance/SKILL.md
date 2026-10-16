@@ -12,17 +12,17 @@ bounded by its [evidence](../EVIDENCE.md).
 
 Tell the person who accepts delivered work, for each requirement, whether the code at one pinned revision meets it, with evidence. Also report delivered behavior in the feature's code that no requirement asked for and, when selected, defects in that code. Maintain one current Markdown report and, when requested, its self-contained HTML companion, written in the shape of [report-format.md](references/report-format.md), starting from [report-template.md](references/report-template.md).
 
-The check is read-only: it changes no application code, tests, or ticket state, and it never closes, labels, or reopens a ticket. The report gives counts and blockers, not a merge or ship verdict; the ship decision is the user's.
+The check is read-only: its only writes are the report directory and, within authorization, the comments step 7 drafts. The report gives counts and blockers, not a merge or ship verdict; the ship decision is the user's.
 
 ## 1. Kickoff and pin
 
-Hold the kickoff round from [asking](../ASKING.md) first, with the questions the request leaves open: how much codebase familiarity to assume; the deliverable, text (recommended) or text plus an HTML companion; whether to confirm the extracted requirement list before verification (recommended, but applied only when the user explicitly chooses it, as step 2 says) or run straight through; and *Search for bugs?*, *Yes* (recommended) or *No*. Apply a choice the request states without asking. The first delivery states every applied choice in its `Kickoff:` line.
+Hold the kickoff round from [asking](../ASKING.md) first, with the questions the request leaves open: how much codebase familiarity to assume; the deliverable, text (recommended) or text plus an HTML companion; whether to confirm the extracted requirement list before verification (recommended) or run straight through; and *Search for bugs?*, *Yes* (recommended) or *No*. Apply a choice the request states without asking. The confirm question is an exception to the [asking](../ASKING.md) rule that "go" applies the recommendations: "go", no answer, or a non-interactive session runs straight through. The first delivery states every applied choice in its `Kickoff:` line.
 
 Pin `head` as a full SHA: the checkout's HEAD, or a named branch resolved to its SHA. A `base` is optional and serves attribution only. When a base is inferable, such as the merge-base of a feature branch with the default branch, find it and state it as an assumption instead of asking. Write `head`, `base` when pinned, and `repository: owner/name` in the report's front matter. Record local modifications and relevant configuration; dirty source follows the [snapshot rule](../EVIDENCE.md#capture-a-local-snapshot).
 
 Create `report.md` at the location the caller supplied, else the routine location from [asking](../ASKING.md), with the review record `review.md` beside it and tool outputs and probes under `runs/`. The review record holds one run record per check and the consequential corrections, as in [pr-review-guide](../pr-review-guide/SKILL.md). Read the [local tool record](../TOOL-SETUP.md) if present.
 
-Collect the intent sources: GitHub issues and epics through `gh` (body, comments, sub-issues, linked PRs); Jira or Linear tickets through the host's MCP connector when connected; URLs; local files; a [plan-change](../plan-change/SKILL.md) plan, whose acceptance outcomes map one-to-one to requirements; pasted text. Record each source's collection time, because issues change. Name an inaccessible source as a gap; never invent its content.
+Collect the intent sources: GitHub issues and epics through `gh` (body, comments, sub-issues, linked PRs); Jira or Linear tickets through the host's MCP connector when connected; URLs; local files; a [plan-change](../plan-change/SKILL.md) plan, whose acceptance outcomes map one-to-one to requirements; pasted text. Record each source's collection time, because issues change. Name an inaccessible source as a gap.
 
 Done when the `Kickoff:` line is ready, `head` is a full SHA, the base is pinned, assumed with its reason, or recorded as absent, and every source is collected with its time or named as a gap.
 
@@ -31,10 +31,10 @@ Done when the `Kickoff:` line is ready, `head` is a full SHA, the base is pinned
 - Atomize each source into rows of one observable condition each, quoted and linked to the specific source: the issue, comment, ticket field, or plan heading.
 - Keep explicit acceptance criteria separate from requirements inferred from description prose, and label inferred ones *inferred*.
 - Deduplicate across sources; keep every source link on the merged row.
-- When a later comment revises the body, quote both. The **spec owner** is the person who owns the intent source, such as the issue author or the ticket's reporter. A later comment by the spec owner that states a new value or wording supersedes the body, as in "actually the header should be `Y`". Check the row against that comment, and name in the row the body wording that the comment replaced. When the spec owner wrote several comments that state a new value or wording, the latest one wins. A revision by anyone other than the spec owner, or one phrased as a question or a suggestion, as in "does the header need `status`?" or "maybe add `status`", leaves the row **Needs clarification**.
+- When a later comment revises the body, quote both. The **spec owner** is the person who owns the intent source, such as the issue author or the ticket's reporter. The spec owner's latest comment that states a new value or wording supersedes the body, as in "actually the header should be `Y`"; check the row against it. A revision by anyone other than the spec owner, or one phrased as a question or a suggestion, as in "does the header need `status`?" or "maybe add `status`", leaves the row **Needs clarification**.
 - A vague non-functional requirement, such as "fast" or "secure", is **Needs clarification**, with a measurable reading proposed and labeled *inferred*.
 
-When the user explicitly chose to confirm, show the list with each quote, source, reading, and flagged conflict, and stop once. This choice is an exception to the [asking](../ASKING.md) rule that "go" applies the recommendations: "go", no answer, or a non-interactive session runs straight through, and the `Kickoff:` line says so. The rows under *Requirements* are the list. When the list was not confirmed, a one-paragraph note above the first source heading states that and invites correction.
+When the user explicitly chose to confirm, show the list with each quote, source, reading, and flagged conflict, and stop once. The rows under *Requirements* are the list; an unconfirmed list gets the note [report-format.md](references/report-format.md#requirements) describes.
 
 Done when every reachable source is atomized into quoted, linked rows, and the user has seen the list when they explicitly chose to confirm it.
 
@@ -51,7 +51,7 @@ Attribution runs only with a base, and it answers a behavior question, not a bla
 
 - "Already existed" means the same requirement check holds at the base: the same source reading at the base, or the same probe run there. This is the same-scenario-at-both-snapshots rule of [pr-review-guide](../pr-review-guide/SKILL.md).
 - `git blame` is a lead only. Run `git blame -w -M -C`, with `--ignore-revs-file .git-blame-ignore-revs` when that file exists, and map a squash-merge commit to its PR.
-- When linked commits or PRs and blame disagree, the linked work wins. Unresolved attribution is `unknown`. Fulfillment and attribution are separate judgments: attribution never changes a row's status.
+- When linked commits or PRs and blame disagree, the linked work wins. Unresolved attribution is `unknown`. Attribution never changes a row's status.
 
 Done when every requirement has a traced entry point or a named gap, and the feature scope, interaction leads, and attribution method are recorded.
 
@@ -71,13 +71,13 @@ Done when every row's status meets the Met bar, and its evidence cell links pinn
 
 ## 5. Find delivered behavior nobody asked for
 
-Under *Nobody asked for this*, list delivered behavior inside the feature scope that no intent source supports, with the `intent-alignment` label *nobody asked for this*. A necessary implementation detail is not scope creep. This search covers the feature scope only, never the whole repository.
+Under *Nobody asked for this*, list delivered behavior inside the feature scope that no intent source supports, with the `intent-alignment` label *nobody asked for this*. A necessary implementation detail is not scope creep.
 
 Done when the section lists each such behavior with its pinned source, or states `None found:` with the scope inspected.
 
 ## 6. Search for bugs
 
-When selected, load [find-bugs](../find-bugs/SKILL.md) and follow it as a scoped helper, yourself or through native delegation. Supply the head, the base when pinned, the feature scope (commit set and traced files or symbols), the report directory, the local tool record when available, and hypotheses from the verification step. Keep its probe scripts, fixtures, logs, and environment records under the report directory's `runs/bugs/`, and keep the report, its presentation, and publication with this skill. Integrate returned defects as [bug cards](references/report-format.md#bug-origins):
+When selected, load [find-bugs](../find-bugs/SKILL.md) and follow it as a scoped helper, yourself or through native delegation. Supply the head, the base when pinned, the feature scope (commit set and traced files or symbols), the report directory, the local tool record when available, and hypotheses from the verification step. Keep its probe scripts, fixtures, logs, and environment records under the report directory's `runs/bugs/`. Integrate returned defects as bug cards with the [acceptance origins](references/report-format.md#bug-origins):
 
 - A bug that breaks a requirement sets that row to Partial or Unmet and links its card.
 - Every other bug gets its own card.
@@ -90,7 +90,7 @@ Done when every returned defect has a card and its requirement row is updated, o
 
 Compare the bottom line, attention items, rows, bug cards, and questions with their evidence; use a [second reader](../FRESH-REVIEW.md) when useful. Before every delivery, after the last edit, run `python3 <package>/skills/render_page.py <report.md> --check --acceptance --sync-labels`, including for text-only reports, with `--repo <checkout>` when the report sits outside the checkout. Repair structural failures and rerun before presenting the report as complete. For HTML delivery, read and apply the [shared page workflow](../HTML-PAGES.md) with the page notes of report-format.md.
 
-Reply with the absolute report link, counts by status, and the top gaps. Then hand off gaps and Unmet rows to `/aantoniadis-skills:plan-change` or to `mattpocock:implement` as [package references](../REFERENCES.md) say, and bugs to `/aantoniadis-skills:fix-bug` (`$` instead of `/` in Codex). Each command carries the report path and the rows it concerns. Send Needs clarification rows to the spec owner as questions.
+Reply with the absolute report link, counts by status, and the top gaps. Then hand off gaps and Unmet rows to `/aantoniadis-skills:plan-change` or to `mattpocock:implement` as [package references](../REFERENCES.md) say, and bugs to `/aantoniadis-skills:fix-bug`. Each command carries the report path and the rows it concerns. Send Needs clarification rows to the spec owner as questions.
 
 When the user requests it, draft one comment per issue or ticket with its rows, statuses, evidence links, and the pinned head. Post only within authorization, as [asking](../ASKING.md) describes, and record each posted URL in the review record.
 

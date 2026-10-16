@@ -27,9 +27,9 @@ Use these headings as written and in this order, because the checker looks for t
 Put one `### <source title>` per issue, ticket, or spec, each title distinct, and under it pr-review-guide's four-column table. Each row is one observable condition, quoted and linked to its specific source: the issue, comment, ticket field, or plan heading. Label a requirement inferred from description prose *inferred*. A row merged from several sources sits under one source heading and links every source. Text between `## Requirements` and the first source heading is prose only: when the list was not confirmed, one paragraph there states that and invites correction.
 
 - The intent cell links its source, unless the row is Needs clarification for missing intent.
-- The evidence cell links pinned source, a run record, or a bug card, or states an explicit gap: `not verified`, `not inspected`, or `unknown`. A Met row links pinned source or a run record; a gap word alone does not support Met. An acceptance report has no *Behavior changes* section to link.
+- The evidence cell links pinned source, a run record, or a bug card, or states an explicit gap: `not verified`, `not inspected`, or `unknown`. A Met row links pinned source or a run record. An acceptance report has no *Behavior changes* section to link.
 - A bug that breaks a requirement sets the row to Partial or Unmet, and the evidence cell links its card.
-- With a base pinned, the evidence cell can state whether the requirement already held at the base, or `unknown`; attribution never changes the status.
+- With a base pinned, the evidence cell can state whether the requirement already held at the base, or `unknown`.
 
 ## Nobody asked for this
 
@@ -48,7 +48,7 @@ With a base pinned, every card attributes its origin, and *no base pinned* fails
 
 ## Questions for the author
 
-Keep two labeled lists, `**Spec owner:**` and `**Author:**`. The **spec owner** owns the intent sources and decides what was asked: Needs clarification rows and conflicting intent go to them. The **author** is whoever wrote the feature code, the same person the *ask the author* phrase means. Each question links its evidence: a source heading, an attention item, or a bug card. A list with no question states none, with the reason.
+Keep two labeled lists, `**Spec owner:**` and `**Author:**`. The **spec owner** is the person who owns the intent source, such as the issue author or the ticket's reporter: Needs clarification rows and conflicting intent go to them. The **author** is whoever wrote the feature code, the same person the *ask the author* phrase means. Each question links its evidence: a source heading, an attention item, or a bug card. A list with no question states none, with the reason.
 
 ## Evidence and record
 

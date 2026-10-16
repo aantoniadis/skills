@@ -20,7 +20,9 @@ use `$` instead in Codex. In OpenCode, run a skill with
 skills through their normal discovery. Each of our skills opens
 with a kickoff round from [asking](../skills/ASKING.md) for the choices your
 prompt leaves open, one recommendation per question; a prompt that states them
-skips those questions, and "go" takes the recommendations.
+skips those questions, and "go" takes the recommendations. The exception is
+check-acceptance's question about confirming the requirement list: there, "go"
+runs straight through.
 
 Matt's and HumanLayer's originals are installed through their own routes
 ([original skills](../README.md#original-skills)) and registered by the host:

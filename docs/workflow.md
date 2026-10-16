@@ -1,6 +1,6 @@
 # Using our skills with the originals
 
-Our five skills establish the evidence, decisions, and review context for a
+Our six skills establish the evidence, decisions, and review context for a
 change. Matt Pocock's originals turn that context into specs, tickets, and
 implementation. HumanLayer's originals supply visual explanations and PR
 presentations. Start at the skill matching the current task and reuse existing context. These
@@ -13,7 +13,7 @@ selected by the project.
 
 ## How to invoke them
 
-After [installation](../README.md#install), our five skills are registered as
+After [installation](../README.md#install), our six skills are registered as
 `aantoniadis-skills:<name>`. The examples below use Claude Code's `/` prefix;
 use `$` instead in Codex. In OpenCode, run a skill with
 `opencode run --command <name>` or the `/skills` menu. Hosts can also select
@@ -40,6 +40,7 @@ the original installed beside it.
 | Decide intended behavior | Our `plan-change` | Optional Matt `grilling`, or the selected original interview/domain mode |
 | Draft a spec and tickets from those decisions | Our `plan-change` drafts locally and owns review and publication, or hands you Matt's `to-spec` and `to-tickets` | Matt's originals, run by you, synthesize from the planning conversation and publish under their own workflow |
 | Implement an agreed ticket | Matt's `implement` | Matt's `tdd` where possible and `code-review` after implementation |
+| Fix a reported bug | Our `fix-bug` | Project tools recorded during setup; Matt's `diagnosing-bugs` is the loop-only alternative you run directly |
 | Find defects in a change | Our `find-bugs` | Project tools recorded during setup |
 | Create or update the PR | HumanLayer's `visual-pr` | Its original description template and visual references |
 | Help a human review the PR | Our `pr-review-guide` | Our `find-bugs` for the search for bugs |
@@ -159,7 +160,21 @@ the tracker, committed documents, or files present in that session. Feedback
 returns to the recorded planning destination when implementation finds a
 consequential mismatch.
 
-## 6. Check defects and open the PR
+## 6. Fix a reported bug
+
+For a failing test, an issue with steps, or a production symptom:
+
+```text
+/aantoniadis-skills:fix-bug tests/test_confirm.py fails with two reservations after one stock timeout. One reservation per confirmed order is the contract. Fix it, HTML, leave the fix in the working tree.
+```
+
+The skill pins the contract, reproduces the symptom with one saved command,
+finds the cause, lands the fix with a regression test that went red then
+green, and widens by evidence to origin, reach, and consequence. The
+`diagnosis.md` note and its page carry the runs a reviewer can check.
+[How it works](fix-bug.md).
+
+## 7. Check defects and open the PR
 
 For a focused search for bugs before creating the PR:
 
@@ -182,7 +197,7 @@ or updates the existing one, and writes the description in its own template
 under `.humanlayer/tasks/`. The decision and verification requirements in the
 prompt are the task it receives from our planning workflow.
 
-## 7. Review the PR
+## 8. Review the PR
 
 ```text
 /aantoniadis-skills:pr-review-guide <PR URL> I am unfamiliar with this codebase. Explain the main changes, where to start, what to skim, and how the delivered behavior relates to the agreed spec.
@@ -206,6 +221,7 @@ flowchart LR
     D --> C[Our checks and your approval]
     C --> I[Matt implement]
     I --> F[Our find-bugs]
+    B[Our fix-bug, for a reported symptom] --> P
     F --> P[HumanLayer visual-pr]
     P --> R[Our pr-review-guide]
     R -. search for bugs .-> F

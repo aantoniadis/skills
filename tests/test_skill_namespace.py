@@ -48,7 +48,7 @@ def check_references():
         assert manifest["name"] == PACKAGE
         assert manifest["skills"] == "./skills/"
         versions.add(manifest["version"])
-    assert set(skills) == {"setup-tools", "explain", "plan-change", "find-bugs", "pr-review-guide"}
+    assert set(skills) == {"setup-tools", "explain", "plan-change", "find-bugs", "pr-review-guide", "fix-bug"}
     versions.add(json.loads((ROOT / "package.json").read_text())["version"])  # the OpenCode package
     marketplace = json.loads((ROOT / ".claude-plugin/marketplace.json").read_text())
     assert marketplace["name"] == "aantoniadis"

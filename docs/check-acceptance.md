@@ -27,9 +27,10 @@ or reopens a ticket, and gives counts and blockers, not a ship verdict.
 3. **Scope the feature code.** The feature scope is the linked diffs plus the
    code traced from each requirement's entry point to its observable outcome,
    never the whole base..head range. An unrelated commit that touches traced
-   code is an interaction lead. With a base, "already existed" means the same
-   check holds at the base; `git blame` is a lead only, and attribution never
-   changes a row's status.
+   code is an interaction lead. With a base, Unmet and Partial rows get
+   attribution: "already existed" means the same check gives the same result
+   at the base; `git blame` is a lead only, and attribution never changes a
+   row's status. Met rows get none.
 4. **Verify each requirement.** Statuses are Met, Partial, Unmet, Not
    verified, Needs clarification, and Not applicable. A structural
    requirement can be Met from pinned source. A behavioral one needs an

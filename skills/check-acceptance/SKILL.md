@@ -47,9 +47,9 @@ The **feature scope** is the code that implements the requirements: the linked d
 - **Record** the feature scope under *Feature scope* in the report, with the linked PRs and commits and the traced entry points.
 - **Unrelated commits** in base..head stay out of the scope. One that touches traced code is an **interaction lead**: check whether it changed the requirement's outcome.
 
-Attribution runs only with a base, and it answers a behavior question, not a blame question:
+Attribution runs only with a base, and only for Unmet and Partial rows; a Met row needs none, and bug cards take their origin from find-bugs. It answers a behavior question, not a blame question:
 
-- "Already existed" means the same requirement check holds at the base: the same source reading at the base, or the same probe run there. This is the same-scenario-at-both-snapshots rule of [pr-review-guide](../pr-review-guide/SKILL.md).
+- "Already existed" means the same requirement check gives the same result at the base: the same source reading at the base, or the same probe run there. This is the same-scenario-at-both-snapshots rule of [pr-review-guide](../pr-review-guide/SKILL.md).
 - `git blame` is a lead only. Run `git blame -w -M -C`, with `--ignore-revs-file .git-blame-ignore-revs` when that file exists, and map a squash-merge commit to its PR.
 - When linked commits or PRs and blame disagree, the linked work wins. Unresolved attribution is `unknown`. Attribution never changes a row's status.
 

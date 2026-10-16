@@ -1048,7 +1048,7 @@ LIST_ITEM = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+")
 # Sections whose blocks are questions, scope, conditions, provenance, or records rather than claims.
 CLAIM_FREE = re.compile(r"question|scope|boundar|condition|revision|provenance|worth asking|unknown|\bopen\b|next|files|\blog\b|review|history"
                         r"|kickoff|default|summary|source map|reading order|possible|prompt|feedback|generators|record"
-                        r"|motivat|workflow|outcome|event|milestone|timeline|collection|acceptance|slice", re.I)
+                        r"|motivat|workflow|outcome|event|milestone|timeline|collection|acceptance|slice|gaps", re.I)
 # Words that mark an observation, a status, or an honest label; a pinned line or a quoted link also counts.
 EVIDENCE_WORDS = re.compile(r"\b(?:observed|executed|inferred|proposed|not (?:yet )?(?:inspected|run|checked|probed|verified)|unknown|background|documented"
                             r"|quoted|agreed|accepted|empty|ran|run|supported|partial|contradicted|unresolved|intent-unconfirmed|pending|prepared|usable"
@@ -1147,7 +1147,7 @@ def check_claims(source):
     gaps = claim_gaps(split_label_key(source)[0])
     if gaps:
         shown = "; ".join(f"line {n}: {text!r}" for n, text in gaps[:5])
-        raise ValueError(f"{len(gaps)} claim block(s) without evidence — {shown}. Add a pinned line, an observation, a quote, or a label (EVIDENCE.md).")
+        raise ValueError(f"{len(gaps)} claim block(s) without evidence — {shown}. Add a pinned line (`path.py:12` or a #L link), a quoted source with its link, a command, or a label word such as observed, ran, inferred, not inspected, not verified, not confirmed, or unknown (EVIDENCE.md).")
 
 
 def attention_items(source):

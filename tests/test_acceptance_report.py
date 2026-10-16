@@ -54,6 +54,14 @@ class AcceptanceReportTests(unittest.TestCase):
         table = "| Requirement and intent | Status | Behavior and evidence | Next action |\n| --- | --- | --- | --- |\n| Export ([issue 41](intent/issue-41.md)) | Met | [run](runs/record.md) | None |\n\n"
         self.reject(REPORT.replace("### Issue 41: CSV export\n", table + "### Issue 41: CSV export\n"), "prose only")
 
+    def test_template_note_and_gaps_pass_the_evidence_floor(self):
+        note = "**List not confirmed:** we ran straight through; correct any row below and we recheck it.\n\n"
+        gap = "### Gaps\n\n- Issues can change after collection, and nobody re-read them before delivery.\n"
+        source = REPORT.replace("### Issue 41: CSV export\n", note + "### Issue 41: CSV export\n").replace("### Gaps\n", gap)
+        page.check_claims(source)
+        with self.assertRaisesRegex(ValueError, "not inspected"):
+            page.check_claims(source.replace("### Gaps\n", "### Findings\n"))
+
     def test_unsupported_status_fails(self):
         self.reject(REPORT.replace("| Met |", "| Done |"), "unsupported status 'Done'")
 

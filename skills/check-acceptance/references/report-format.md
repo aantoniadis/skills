@@ -24,12 +24,12 @@ Use these headings as written and in this order, because the checker looks for t
 
 ## Requirements
 
-Put one `### <source title>` per issue, ticket, or spec, each title distinct, and under it pr-review-guide's four-column table. Each row is one observable condition, quoted and linked to its specific source: the issue, comment, ticket field, or plan heading. Label a requirement inferred from description prose *inferred*. A row merged from several sources sits under one source heading and links every source. Text between `## Requirements` and the first source heading is prose only: when the list was not confirmed, one paragraph there states that and invites correction.
+Put one `### <source title>` per issue, ticket, or spec, each title distinct, and under it pr-review-guide's four-column table. Each row is one observable condition, quoted and linked to its specific source: the issue, comment, ticket field, or plan heading. Label a requirement inferred from description prose *inferred*. A row merged from several sources sits under one source heading and links every source. Text between `## Requirements` and the first source heading is prose only: when the list was not confirmed, one paragraph there starts `**List not confirmed:**` and invites correction.
 
 - The intent cell links its source, unless the row is Needs clarification for missing intent.
 - The evidence cell links pinned source, a run record, or a bug card, or states an explicit gap: `not verified`, `not inspected`, or `unknown`. A Met row links pinned source or a run record. An acceptance report has no *Behavior changes* section to link.
 - A bug that breaks a requirement sets the row to Partial or Unmet, and the evidence cell links its card.
-- With a base pinned, the evidence cell can state whether the requirement already held at the base, or `unknown`.
+- With a base pinned, the evidence cell of an Unmet or Partial row can state whether the gap already existed at the base, or `unknown`.
 
 ## Nobody asked for this
 

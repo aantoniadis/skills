@@ -1,6 +1,6 @@
 # Using our skills with the originals
 
-Our six skills establish the evidence, decisions, and review context for a
+Our seven skills establish the evidence, decisions, and review context for a
 change. Matt Pocock's originals turn that context into specs, tickets, and
 implementation. HumanLayer's originals supply visual explanations and PR
 presentations. Start at the skill matching the current task and reuse existing context. These
@@ -13,7 +13,7 @@ selected by the project.
 
 ## How to invoke them
 
-After [installation](../README.md#install), our six skills are registered as
+After [installation](../README.md#install), our seven skills are registered as
 `aantoniadis-skills:<name>`. The examples below use Claude Code's `/` prefix;
 use `$` instead in Codex. In OpenCode, run a skill with
 `opencode run --command <name>` or the `/skills` menu. Hosts can also select
@@ -44,6 +44,7 @@ the original installed beside it.
 | Find defects in a change | Our `find-bugs` | Project tools recorded during setup |
 | Create or update the PR | HumanLayer's `visual-pr` | Its original description template and visual references |
 | Help a human review the PR | Our `pr-review-guide` | Our `find-bugs` for the search for bugs |
+| Check delivered work against its requirements | Our `check-acceptance` | Our `find-bugs` for the search for bugs; Matt's `implement` builds the gaps it reports, run by you |
 
 ## 1. Prepare the project
 
@@ -212,6 +213,21 @@ The guide pins head and base, traces the important changes, and can call our
 you do not need to invoke `find-bugs` separately first. The guide explains and
 reports; it does not approve, merge, or fix the PR. [How it works](pr-review-guide.md).
 
+## 9. Check delivered work against its requirements
+
+For a set of issues, an epic, tickets, or a spec, after implementation:
+
+```text
+/aantoniadis-skills:check-acceptance Epic #120 and its sub-issues. Check the feature branch at its current head against main. Confirm the requirement list first; search for bugs.
+```
+
+The skill pins the head, splits each source into quoted requirements, traces
+the feature code, and reports each requirement as Met, Partial, Unmet, Not
+verified, Needs clarification, or Not applicable, with evidence. It also lists
+delivered behavior nobody asked for. It does not edit code, change ticket
+state, or give a ship verdict. Gaps go to `plan-change` or Matt's `implement`,
+and bugs to `fix-bug`. [How it works](check-acceptance.md).
+
 One possible sequence when all these tasks are requested:
 
 ```mermaid
@@ -224,6 +240,8 @@ flowchart LR
     B[Our fix-bug, for a reported symptom] --> P
     F --> P[HumanLayer visual-pr]
     P --> R[Our pr-review-guide]
+    I -. across a set of issues .-> A[Our check-acceptance]
+    A -. gaps .-> I
     R -. search for bugs .-> F
 ```
 

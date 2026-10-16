@@ -1,9 +1,10 @@
 # skills
 
 Skills for coding agents, shipped as the **`aantoniadis-skills`** plugin for
-Claude Code, Codex, and OpenCode. Six skills cover the work around a change:
+Claude Code, Codex, and OpenCode. Seven skills cover the work around a change:
 set a project up for evidence, understand the code, plan the behavior, fix a
-reported bug, find the defects, and review the PR. Matt Pocock's and
+reported bug, find the defects, review the PR, and check delivered
+work against its requirements. Matt Pocock's and
 HumanLayer's originals, installed separately, carry a plan through spec,
 tickets, implementation, and the PR.
 
@@ -99,6 +100,7 @@ workflow, unchanged.
 | [`find-bugs`](skills/find-bugs/SKILL.md) | You want the defects in a change before it merges, or before you review it | Ranked defects with evidence, material questions, and review limits | [docs/find-bugs.md](docs/find-bugs.md) |
 | [`fix-bug`](skills/fix-bug/SKILL.md) | A test fails, an issue reports wrong behavior, or production shows a symptom | A demonstrated cause, a fix with a regression test that went red then green, and a diagnosis page a reviewer can verify | [docs/fix-bug.md](docs/fix-bug.md) |
 | [`pr-review-guide`](skills/pr-review-guide/SKILL.md) | You have to review a PR you did not write | A guide to a pinned snapshot: what the change means, where to look, what to skim, what to ask the author | [docs/pr-review-guide.md](docs/pr-review-guide.md) |
+| [`check-acceptance`](skills/check-acceptance/SKILL.md) | You need to know whether a set of issues, an epic, tickets, or a spec is delivered | Per-requirement status at a pinned revision with evidence, delivered behavior nobody asked for, and a search for bugs when selected | [docs/check-acceptance.md](docs/check-acceptance.md) |
 
 The skills start from context and settled choices, and ask only about open
 preferences or consequential decisions. Every claim sits next to its evidence:
@@ -109,8 +111,9 @@ inspected. `setup-tools` keeps what it learns in a
 With the originals: `plan-change` hands agreed decisions to Matt's `to-spec`
 and `to-tickets`, Matt's `implement` builds an unblocked ticket, `fix-bug`
 takes a reported symptom to a fixed, recorded cause, `find-bugs` runs before
-HumanLayer's `visual-pr` opens the PR, and `pr-review-guide` serves the PR's
-human reviewer. An original invoked directly keeps its own behavior, such as
+HumanLayer's `visual-pr` opens the PR, `pr-review-guide` serves the PR's
+human reviewer, and `check-acceptance` checks the built result against the
+requirements across a set of issues. An original invoked directly keeps its own behavior, such as
 committing or pushing; one called by our skills follows our task constraints.
 
 - [Using the skills together](docs/workflow.md): copyable prompts, project

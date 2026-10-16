@@ -23,7 +23,7 @@ repository: {{owner}}/{{repo}}
 
 ## Requirements
 
-**List not confirmed:** {{invitation_to_correct_the_rows_else_remove_this_line}}
+**Requirement list:** {{confirmed_by_the_user_or_not_confirmed_with_an_invitation_to_correct_any_row}}
 
 ### {{source_title}}
 

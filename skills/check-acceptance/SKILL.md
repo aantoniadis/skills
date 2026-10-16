@@ -34,7 +34,7 @@ Done when the `Kickoff:` line is ready, `head` is a full SHA, the base is pinned
 - When a later comment revises the body, quote both. The **spec owner** is the person who owns the intent source, such as the issue author or the ticket's reporter. The spec owner's latest comment that states a new value or wording supersedes the body, as in "actually the header should be `Y`"; check the row against it. A revision by anyone other than the spec owner, or one phrased as a question or a suggestion, as in "does the header need `status`?" or "maybe add `status`", leaves the row **Needs clarification**.
 - A vague non-functional requirement, such as "fast" or "secure", is **Needs clarification**, with a measurable reading proposed and labeled *inferred*.
 
-When the user explicitly chose to confirm, show the list with each quote, source, reading, and flagged conflict, and stop once. The rows under *Requirements* are the list; an unconfirmed list gets the note [report-format.md](references/report-format.md#requirements) describes.
+When the user explicitly chose to confirm, show the list with each quote, source, reading, and flagged conflict, and stop once. The rows under *Requirements* are the list, and its `**Requirement list:**` line says whether the user confirmed it, as [report-format.md](references/report-format.md#requirements) describes.
 
 Done when every reachable source is atomized into quoted, linked rows, and the user has seen the list when they explicitly chose to confirm it.
 
@@ -63,6 +63,7 @@ The **Met bar:** a structural requirement can be Met from pinned source. A behav
 - Read relevant tests for what their assertions establish under their setup and mocks. Names and passing counts cannot clear an unexercised scenario.
 - A recorded CI run at the pinned head is the suite result; cite it with its conditions. Run only the focused check or probe that a named gap needs. Choose checks, and recover from failed tools, as [CODE-TOOLS.md](../CODE-TOOLS.md) says.
 - **Unmet** needs positive evidence: behavior that contradicts the requirement, or absence after tracing every named entry point. An absence claim names the paths and configurations inspected, as the [negative-claim rule](../EVIDENCE.md#identify-the-evidence) requires.
+- **Not applicable** needs a recorded, agreed scope decision that excludes the requirement; link that decision and give the reason.
 - **Partial** applies when some named entry points or conditions hold and others fail. It names the ones that hold and the remainder, and it still names each failing one.
 
 For a large source set, use an [investigator](../INVESTIGATE.md) per source or requirement group through [native delegation](../WORKERS.md), framing the scenario to trace, not a suspicion to confirm.
@@ -98,6 +99,6 @@ Done when the checker passes after the last edit, or the report is labeled struc
 
 ## 8. Re-check, do not restart
 
-A follow-up, such as "re-check after the fixes", resumes the same report and review record. When the head moved, list the arrived commits, split into feature-relevant ones (touching the feature scope or linked to a source) and unrelated ones, and offer to re-pin. A re-pin reopens only rows whose traced code, linked work, or evidence changed; record what was rechecked and what still refers to the earlier head. Run the check in step 7 after the last edit.
+A follow-up, such as "re-check after the fixes", resumes the same report and review record. Collect the intent sources again and compare them with the report's quotes and collection times: an edited body, a new comment, or a changed sub-issue reopens the rows that source feeds, under the step 2 rules, and adds any row it newly asks for. When the head moved, list the arrived commits, split into feature-relevant ones (touching the feature scope or linked to a source) and unrelated ones, and offer to re-pin. A re-pin reopens only rows whose traced code, linked work, or evidence changed; record what was rechecked, each new collection time, and what still refers to the earlier head. Run the check in step 7 after the last edit.
 
-Done when every reopened row has a current status and evidence, and the report passes the check against the head in force.
+Done when every source has a current collection time, every reopened row has a current status and evidence, and the report passes the check against the head in force.

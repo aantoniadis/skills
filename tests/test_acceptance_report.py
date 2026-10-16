@@ -55,12 +55,14 @@ class AcceptanceReportTests(unittest.TestCase):
         self.reject(REPORT.replace("### Issue 41: CSV export\n", table + "### Issue 41: CSV export\n"), "prose only")
 
     def test_template_note_and_gaps_pass_the_evidence_floor(self):
-        note = "**List not confirmed:** we ran straight through; correct any row below and we recheck it.\n\n"
         gap = "### Gaps\n\n- Issues can change after collection, and nobody re-read them before delivery.\n"
-        source = REPORT.replace("### Issue 41: CSV export\n", note + "### Issue 41: CSV export\n").replace("### Gaps\n", gap)
+        source = REPORT.replace("### Gaps\n", gap)
         page.check_claims(source)
         with self.assertRaisesRegex(ValueError, "not inspected"):
             page.check_claims(source.replace("### Gaps\n", "### Findings\n"))
+
+    def test_requirement_list_line_is_required(self):
+        self.reject(REPORT.replace(line(REPORT, "**Requirement list:**"), ""), "Requirement list")
 
     def test_unsupported_status_fails(self):
         self.reject(REPORT.replace("| Met |", "| Done |"), "unsupported status 'Done'")
@@ -79,6 +81,10 @@ class AcceptanceReportTests(unittest.TestCase):
 
     def test_questions_need_spec_owner_and_author(self):
         self.reject(REPORT.replace("**Author:**\n", ""), r"Spec owner:\*\* and \*\*Author:")
+        self.reject(REPORT.replace(line(REPORT, "- Was the missing role check"), ""), "give each list a question")
+
+    def test_nobody_asked_for_this_items_carry_the_label(self):
+        self.reject(REPORT.replace(" — *nobody asked for this*", ""), "label each item")
 
     def test_nobody_asked_for_this_is_explicit(self):
         start = REPORT.index("## Nobody asked for this")

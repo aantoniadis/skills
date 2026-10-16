@@ -56,10 +56,11 @@ or reopens a ticket, and gives counts and blockers, not a ship verdict.
    or ticket is drafted when requested; posting uses authorization for its
    destination and content.
 8. **Re-check, do not restart.** A follow-up such as "re-check after the
-   fixes" resumes the same report. If the head moved, the report lists the
-   arrived commits, splits them into feature-relevant and unrelated, and
-   offers to re-pin. A re-pin reopens only rows whose traced code, linked
-   work, or evidence changed.
+   fixes" resumes the same report. It collects the issues again, and a changed
+   body, comment, or sub-issue reopens the rows it feeds. If the head moved,
+   the report lists the arrived commits, splits them into feature-relevant and
+   unrelated, and offers to re-pin. A re-pin reopens only rows whose traced
+   code, linked work, or evidence changed.
 
 Prompt shape:
 

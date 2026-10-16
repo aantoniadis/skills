@@ -20,6 +20,8 @@ Two sources asked for this: [Issue 41](intent/issue-41.md) asks to "export the t
 
 ## Requirements
 
+**Requirement list:** not confirmed; the check ran straight through, so correct any row and we re-check it.
+
 ### Issue 41: CSV export
 
 | Requirement and intent | Status | Behavior and evidence | Next action |

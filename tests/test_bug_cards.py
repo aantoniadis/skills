@@ -132,6 +132,7 @@ class BugCardTests(unittest.TestCase):
         card = page.parse(page.render(source, NOTE.name)).select("#possible-bugs article.bug-card")[1]
         self.assertIn("Introduced by:", [fact.strong.get_text() for fact in card.select(".behavior-fact")])
         self.assertEqual(card.select(".bug-chips .chip")[1]["class"][1], "chip-unrelated")
+        self.reject(source, "acceptance-report origin")
 
     def test_bug_origin_gaps_without_base(self):
         self.assertEqual(len(page.bug_origin_gaps(CARDS, base=False)), 2)

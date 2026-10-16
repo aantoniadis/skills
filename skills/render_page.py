@@ -1468,15 +1468,17 @@ def check_bug_cards(source, note, required=True):
     raise_all(problems)
 
 
-def bug_origin_gaps(source, base):
+def bug_origin_gaps(source, base, review=False):
     """Card-origin problems against whether a base is pinned; cards without a chip line fail check_bug_cards instead."""
     problems = []
     for heading in bug_card_headings(parse(MARKDOWN.render(source))):
         parts = card_parts(heading)
         chips = chip_line(parts[0], first_line=True) if parts and parts[0].name == "p" else None
+        card = f"Possible bug '{heading.get_text(strip=True)}'"
+        if review and chips and chips[1] == "from an unrelated commit":
+            problems.append(f"{card}: *from an unrelated commit* is an acceptance-report origin; a PR review attributes origin to the PR.")
         if not chips or (chips[1] == "no base pinned") != base:
             continue
-        card = f"Possible bug '{heading.get_text(strip=True)}'"
         problems.append(f"{card}: a base is pinned, so attribute its origin; *no base pinned* is for reports without a base." if base
                         else f"{card}: no base is pinned, so its origin is *no base pinned*.")
     return problems
@@ -1603,7 +1605,7 @@ def review_problems(source, note):
     problems += opening_gap(source, "Review")
     before = len(problems)
     keep(problems, check_bug_cards, source, note)
-    problems += bug_origin_gaps(source, base=True)
+    problems += bug_origin_gaps(source, base=True, review=True)
     cards_failed = len(problems) > before
     behavior = bodies["Behavior changes"]
     parts = markdown_sections(behavior, 3)
@@ -1675,6 +1677,8 @@ def acceptance_problems(source, note):
         problems.append("Requirements: put each source's table under its own '### <source title>'.")
     elif any(token.type == "table_open" for token in tokens[:first]):
         problems.append("Requirements: put each table under its '### <source title>'; text before the first source is prose only.")
+    if not any(token.type == "inline" and token.content.startswith("**Requirement list:**") for token in tokens[:first]):
+        problems.append("Requirements: start with a '**Requirement list:**' line that says whether the user confirmed the list.")
     for name, body in sources:
         for row in keep(problems, review_table, body, REQUIREMENT_COLUMNS, f"Requirements '{name}'", problems) or []:
             status = row[1].get_text(" ", strip=True)
@@ -1694,9 +1698,13 @@ def acceptance_problems(source, note):
     unasked = bodies["Nobody asked for this"]
     if not (re.search(r"^\s*(?:[-*+]|\d+\.|\|)\s", unasked, re.M) or re.search(r"^None found:\s*\S", unasked, re.M)):
         problems.append("Nobody asked for this: list the delivered behavior no source asked for, or write 'None found:' with the scope inspected.")
+    if any("nobody asked for this" not in item.lower() for item in re.findall(r"^(?:[-*+]|\d+\.)\s.*", unasked, re.M)):
+        problems.append("Nobody asked for this: label each item *nobody asked for this*.")
     questions = bodies["Questions for the author"]
     if not all(label in questions for label in ("**Spec owner:**", "**Author:**")):
         problems.append("Questions for the author: keep **Spec owner:** and **Author:** lists; state none with the reason.")
+    elif not all(part.strip() for part in re.split(r"\*\*(?:Spec owner|Author):\*\*", questions)[1:]):
+        problems.append("Questions for the author: give each list a question, or state none with the reason.")
     before = len(problems)
     keep(problems, check_bug_cards, source, note)
     problems += bug_origin_gaps(source, base="base" in front)

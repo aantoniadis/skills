@@ -196,6 +196,15 @@ BUG_SECTION = "Possible bugs"
 BUG_FORMS = ("The search for bugs has not run:", "No bugs found:")  # the two sentence forms; otherwise ### cards
 BUG_EVIDENCE = {"we ran it": "observed", "suspected, not run": "suspected"}
 BUG_ORIGIN = {"new in this change": "new", "pre-existing, made worse": "made-worse"}
+# A diagnosis note (fix-bug) holds its one cause as a card under "Cause"; the card renders like a bug card, with the
+# diagnosis chip families below, and keeps the per-paragraph evidence floor instead of the review card rules.
+CAUSE_SECTION = "Cause"
+CAUSE_ORIGIN = {"regression": "new", "always broken": "made-worse", "origin not checked": "origin-unknown"}
+DIAGNOSIS_CHECKS = {"reproduced": "supported", "not reproduced": "unresolved", "fixed": "supported", "fix proposed": "unresolved",
+                    "no fix proposed": "skipped", "test red then green": "supported", "test not verified": "unresolved",
+                    "no test seam": "unresolved", "origin checked": "supported",
+                    "origin skipped": "skipped", "reach checked": "supported", "reach skipped": "skipped",
+                    "consequence checked": "supported", "consequence skipped": "skipped"}
 BUG_FIELDS = ("Where", "Trigger", "Who / impact", "Fix direction", "Reproduce", "Probe that would settle it")
 BUG_CHIPS = re.compile(rf"^\*({'|'.join(map(re.escape, BUG_EVIDENCE))})\*\s*·\s*\*({'|'.join(map(re.escape, BUG_ORIGIN))})\*\s*$")
 BUG_ITEM_SHAPE = "an item that links to its bug card is one line; the card holds the detail"
@@ -259,6 +268,9 @@ def label_groups(source):
         groups.add("diagram-evidence")
     if bug_card_headings(document):
         groups.update(("bug-evidence", "bug-origin"))
+    cause = bool(bug_card_headings(document, CAUSE_SECTION))
+    if cause:
+        groups.update(("bug-evidence", "cause-origin"))
     for code in document.find_all(["pre", "code"]):
         code.decompose()
     if any(re.search(ATTENTION, h.get_text(), re.I) for h in document.find_all("h2")):
@@ -271,6 +283,13 @@ def label_groups(source):
     if re.search(r"\bresolution\s*:", text):
         groups.add("finding-resolution")
     for marker in document.find_all("em"):
+        word = marker.get_text(strip=True).rstrip(".").lower()
+        line = marker.find_parent("p")
+        if word in DIAGNOSIS_CHECKS and line is not None and line.get_text().startswith("Checked:"):
+            groups.add("diagnosis-checks")  # only a diagnosis note's Checked line renders these as chips
+            continue
+        if word in CAUSE_ORIGIN or (cause and word in BUG_EVIDENCE):
+            continue  # the card families above cover these
         code = code_of(marker.get_text(strip=True))
         if code in ACTIONS:
             groups.add("review-actions")
@@ -321,7 +340,7 @@ def check_label_key(source, html=None, require=False):
 def code_of(label):
     word = label.strip().rstrip(".").lower()
     return (ACTION_PHRASES.get(word) or EVIDENCE_PHRASES.get(word) or INTENT_PHRASES.get(word)
-            or BUG_EVIDENCE.get(word) or BUG_ORIGIN.get(word) or word)
+            or BUG_EVIDENCE.get(word) or BUG_ORIGIN.get(word) or CAUSE_ORIGIN.get(word) or DIAGNOSIS_CHECKS.get(word) or word)
 FENCE_ATTR = re.compile(r'(\w[\w-]*)="([^"]*)"')
 
 
@@ -337,9 +356,9 @@ def chip(soup, label):
     return span
 
 
-def bug_card_headings(document):
-    """The ### cards under '## Possible bugs', in rendered Markdown or on the page."""
-    title = next((h for h in document.find_all("h2") if h.get_text(strip=True) == BUG_SECTION), None)
+def bug_card_headings(document, section=BUG_SECTION):
+    """The ### cards under '## Possible bugs' (or the named section), in rendered Markdown or on the page."""
+    title = next((h for h in document.find_all("h2") if h.get_text(strip=True) == section), None)
     cards = []
     for sibling in title.find_next_siblings() if title else ():
         if sibling.name == "h2":
@@ -572,6 +591,11 @@ def render(source, source_name, diagram_renderer="auto", repo=None, directory=No
             paragraph["class"] = "readiness"
         elif paragraph.get_text().startswith("Read next:"):
             paragraph["class"] = "reading-next"
+        elif paragraph.get_text().startswith("Checked:"):
+            paragraph["class"] = "checked-line"
+            for marker in paragraph.find_all("em"):
+                if marker.get_text(strip=True).rstrip(".").lower() in DIAGNOSIS_CHECKS:
+                    marker.replace_with(chip(opening, marker.get_text(strip=True)))
     if opening.blockquote:
         opening.blockquote["class"] = "evidence-boundary"
     if opening.ol:
@@ -633,7 +657,9 @@ def render(source, source_name, diagram_renderer="auto", repo=None, directory=No
     for selector, choices in (("#what-to-look-at > ol, #where-to-pay-attention > ol", ("review-actions", "review-evidence")),
                               ("#behavior-changes > h2", ("intent-alignment", "finding-resolution")),
                               ("#reading-plan > h2", ("reading-depth",)),
-                              ("#possible-bugs > h2", ("bug-evidence", "bug-origin"))):
+                              ("#possible-bugs > h2", ("bug-evidence", "bug-origin")),
+                              ("#cause > h2", ("bug-evidence", "cause-origin")),
+                              (".checked-line", ("diagnosis-checks",))):
         target = soup.select_one(selector)
         available = [group for group in choices if group in groups]
         if target is not None and available:
@@ -712,7 +738,7 @@ def render(source, source_name, diagram_renderer="auto", repo=None, directory=No
             else:
                 code.append(line)
     # Bug cards: each ### under "Possible bugs" with its chips, field rows, Base/Head table, and Reproduce as a code card.
-    for heading in bug_card_headings(soup.main):
+    for heading in bug_card_headings(soup.main) + bug_card_headings(soup.main, CAUSE_SECTION):
         for part in card_parts(heading):
             if part.name == "p":
                 split_fields(soup, part)

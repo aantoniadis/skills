@@ -1,11 +1,11 @@
 # skills
 
 Skills for coding agents, shipped as the **`aantoniadis-skills`** plugin for
-Claude Code, Codex, and OpenCode. Five skills cover the work around a change:
-set a project up for evidence, understand the code, plan the behavior, find
-the defects, and review the PR. Matt Pocock's and HumanLayer's originals,
-installed separately, carry a plan through spec, tickets, implementation, and
-the PR.
+Claude Code, Codex, and OpenCode. Six skills cover the work around a change:
+set a project up for evidence, understand the code, plan the behavior, fix a
+reported bug, find the defects, and review the PR. Matt Pocock's and
+HumanLayer's originals, installed separately, carry a plan through spec,
+tickets, implementation, and the PR.
 
 ```bash
 claude plugin marketplace add aantoniadis/skills && claude plugin install aantoniadis-skills@aantoniadis
@@ -97,6 +97,7 @@ workflow, unchanged.
 | [`explain`](skills/explain/SKILL.md) | You need to know how a flow works before touching it | A source-cited answer, with a reusable note or HTML page when selected | [docs/explain.md](docs/explain.md) |
 | [`plan-change`](skills/plan-change/SKILL.md) | A ticket is vague and the change has consequences beyond its own function | A plan with named decisions, preserved behavior, evidence, and acceptance scenarios | [docs/plan-change.md](docs/plan-change.md) |
 | [`find-bugs`](skills/find-bugs/SKILL.md) | You want the defects in a change before it merges, or before you review it | Ranked defects with evidence, material questions, and review limits | [docs/find-bugs.md](docs/find-bugs.md) |
+| [`fix-bug`](skills/fix-bug/SKILL.md) | A test fails, an issue reports wrong behavior, or production shows a symptom | A demonstrated cause, a fix with a regression test that went red then green, and a diagnosis page a reviewer can verify | [docs/fix-bug.md](docs/fix-bug.md) |
 | [`pr-review-guide`](skills/pr-review-guide/SKILL.md) | You have to review a PR you did not write | A guide to a pinned snapshot: what the change means, where to look, what to skim, what to ask the author | [docs/pr-review-guide.md](docs/pr-review-guide.md) |
 
 The skills start from context and settled choices, and ask only about open
@@ -106,11 +107,11 @@ inspected. `setup-tools` keeps what it learns in a
 [local record](skills/TOOL-SETUP.md) outside the repository.
 
 With the originals: `plan-change` hands agreed decisions to Matt's `to-spec`
-and `to-tickets`, Matt's `implement` builds an unblocked ticket, `find-bugs`
-runs before HumanLayer's `visual-pr` opens the PR, and `pr-review-guide`
-serves the PR's human reviewer. An original invoked directly keeps its own
-behavior, such as committing or pushing; one called by our skills follows our
-task constraints.
+and `to-tickets`, Matt's `implement` builds an unblocked ticket, `fix-bug`
+takes a reported symptom to a fixed, recorded cause, `find-bugs` runs before
+HumanLayer's `visual-pr` opens the PR, and `pr-review-guide` serves the PR's
+human reviewer. An original invoked directly keeps its own behavior, such as
+committing or pushing; one called by our skills follows our task constraints.
 
 - [Using the skills together](docs/workflow.md): copyable prompts, project
   setup, handoffs, and artifact locations

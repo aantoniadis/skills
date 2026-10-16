@@ -30,7 +30,9 @@ class ReportLabelTests(unittest.TestCase):
                               ('questions', page.QUESTION_STATUSES),
                               ('review-actions', page.ACTION_PHRASES),
                               ('review-evidence', page.EVIDENCE_PHRASES),
-                              ('intent-alignment', page.INTENT_PHRASES)]:
+                              ('intent-alignment', page.INTENT_PHRASES),
+                              ('cause-origin', page.CAUSE_ORIGIN),
+                              ('diagnosis-checks', page.DIAGNOSIS_CHECKS)]:
             self.assertEqual(tuple(page.LABELS[group]['options']), tuple(values))
         self.assertNotEqual(page.LABELS['requirements']['options']['Partial'],
                             page.LABELS['questions']['options']['Partial'])

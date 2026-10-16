@@ -1,7 +1,7 @@
 # Shared reading pages
 
 Read this when filling, checking, or rendering an understanding note, behavior
-plan, or PR review. Apply [technical English](TECHNICAL-ENGLISH.md). Markdown
+plan, PR review, or bug diagnosis. Apply [technical English](TECHNICAL-ENGLISH.md). Markdown
 remains authoritative for findings, source excerpts, evidence, and decision status.
 
 ## Contents
@@ -21,6 +21,7 @@ For a new note, start from the calling skill's Markdown template:
 | Code explanation | [understanding-template.md](explain/references/understanding-template.md) | [Reading-page guidance](explain/references/reading-page.md) and the calling skill |
 | Behavior plan | [plan-template.md](plan-change/references/plan-template.md) | [Planning-page guidance](plan-change/references/planning-page.md) and the calling skill |
 | PR review | [report-template.md](pr-review-guide/references/report-template.md) | [Report format](pr-review-guide/references/report-format.md) |
+| Bug diagnosis | [diagnosis-template.md](fix-bug/references/diagnosis-template.md) | [Diagnosis-page guidance](fix-bug/references/diagnosis-page.md) and the calling skill |
 
 Replace every `{{...}}` prompt with supported content. Repeat items and sections
 when the subject needs them; remove optional sections that add nothing. The
@@ -39,6 +40,11 @@ components unless the user requests another style. Put report-specific content
 in Markdown; shared presentation changes belong in the template and diagram
 theme, not in generated HTML.
 For diagrams, select and record the backend as [RENDERER.md](RENDERER.md#optional-diagram-renderer) describes.
+
+Render after the last edit to the Markdown and to every local file it links,
+then check. The page embeds those files, so a run log or record edited after
+the render, even to note the check's own result, fails the check; keep such
+results in a file the note does not link, or render and check again.
 
 Each template's page guidance defines the meaning of its fields and tables.
 The checker compares those tables with Markdown, including their owning

@@ -82,6 +82,33 @@
       "pre-existing, made worse": "The bug already exists at the base; this change makes it reach more callers or makes its effect worse."
     }
   },
+  "cause-origin": {
+    "title": "Cause origin",
+    "options": {
+      "regression": "The loop went green at an earlier revision and red at the reported one; the note names the breaking commit and quotes its intent.",
+      "always broken": "No earlier revision passes the loop, or the code was born with the cause; the fix is a forward fix.",
+      "origin not checked": "Bisection was skipped; the note says why, such as one commit in history or no earlier working state."
+    }
+  },
+  "diagnosis-checks": {
+    "title": "Diagnosis checks",
+    "options": {
+      "reproduced": "One saved command went red on the exact symptom; the run record holds the command and output. When the loop ran against a stand-in for the component that carries the bug, the Checked line names that model.",
+      "not reproduced": "No loop could be built after a real attempt; the cause is a ranked hypothesis labeled inferred.",
+      "fixed": "The fix is in the working tree or committed, with its diff in the note.",
+      "fix proposed": "A fix direction or diff is proposed but not applied; its assumptions and missing checks are stated.",
+      "no fix proposed": "No application fix was applied or proposed; the note states why, such as diagnosis-only scope.",
+      "test red then green": "The regression test failed before the fix and passed after it, both runs recorded.",
+      "test not verified": "The regression test has no recorded red-to-green pair. The note states whether it is proposed, blocked, unrun, or still failing, and what remains to verify.",
+      "no test seam": "No available seam exercises the real bug pattern; the note records the gap and any reproduction-loop evidence.",
+      "origin checked": "Bisection ran and the breaking commit's intent is quoted, or the cause was traced to its first revision.",
+      "origin skipped": "Origin was not investigated; the note gives the reason.",
+      "reach checked": "Every caller and copied pattern that hits the cause is listed as fixed, affected and unfixed, or cleared with evidence.",
+      "reach skipped": "Reach was not investigated; the note gives the reason, such as one caller and no copied pattern.",
+      "consequence checked": "The fix's other consumers were compared through their next action, with evidence.",
+      "consequence skipped": "Consequence was not investigated; the note gives the reason, such as no shared producer changed."
+    }
+  },
   "intent-alignment": {
     "title": "Intent alignment",
     "options": {

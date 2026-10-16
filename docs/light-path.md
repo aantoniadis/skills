@@ -83,6 +83,9 @@ remaining gaps. Use
 [find-bugs](../skills/find-bugs/SKILL.md) when a focused defect investigation would
 help, especially around lifecycle, concurrency, error paths, or compatibility.
 The skill reports findings; application fixes stay within the implementation task.
+A failing check whose cause is unknown is a bug report:
+[fix-bug](../skills/fix-bug/SKILL.md) reproduces it, pins the cause, and leaves
+the fix with its regression test and diagnosis note.
 
 ## 5. Review and deliver
 

@@ -43,9 +43,10 @@ Prompt shape:
 /aantoniadis-skills:find-bugs <PR URL, branch, or "the working tree"> <anything the finder should know>
 ```
 
-`pr-review-guide` calls it as a helper for its search for bugs; the returned list
-becomes bug cards linked from the guide's *you decide* and *check it* items.
+`pr-review-guide` and `check-acceptance` call it as a helper for their search for
+bugs; the returned list becomes bug cards, linked from the guide's *you decide*
+and *check it* items or from the acceptance report's requirement rows.
 Unobserved base/head results remain labeled predictions. A passing diagnostic
 can establish the predicted observation while exposing a defect; the check's
-result and the finding's status are separate. The PR guide owns integration.
+result and the finding's status are separate. The calling skill owns integration.
 

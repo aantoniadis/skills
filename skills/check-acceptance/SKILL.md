@@ -1,6 +1,6 @@
 ---
 name: check-acceptance
-description: Checks delivered code against a set of requirements — GitHub issues, an epic, Jira or Linear tickets, a spec or plan, or pasted text — and reports which are met, partly met, unmet, unverified, or unclear, with evidence; also delivered behavior nobody asked for, and a search for bugs when selected. Use when the user asks whether issues or an epic are done, wants an acceptance or requirements check before closing tickets or releasing, asks what is missing or implemented wrong, or returns to re-check after fixes. Not for one PR's review guide (pr-review-guide), defects in a diff alone (find-bugs), or deciding intended behavior (plan-change).
+description: Checks delivered code against a set of requirements — GitHub issues, an epic, Jira or Linear tickets, a spec or plan, or pasted text — and reports which are met, partly met, unmet, unverified, or unclear, with evidence; also delivered behavior nobody asked for, and a search for bugs when selected. Use when the user asks whether issues or an epic are done, wants an acceptance or requirements check before closing tickets or releasing, asks what is missing or implemented wrong, or returns to re-check an earlier acceptance report, or the issues it covered, after fixes. Not for one PR's review guide (pr-review-guide), comparing one diff with its spec (code-review), defects in a diff alone (find-bugs), or deciding intended behavior (plan-change).
 argument-hint: "<issues, epic, tickets, spec, or text; revision to check and base if known>"
 ---
 
@@ -31,7 +31,7 @@ Done when the `Kickoff:` line is ready, `head` is a full SHA, the base is pinned
 - Atomize each source into rows of one observable condition each, quoted and linked to the specific source: the issue, comment, ticket field, or plan heading.
 - Keep explicit acceptance criteria separate from requirements inferred from description prose, and label inferred ones *inferred*.
 - Deduplicate across sources; keep every source link on the merged row.
-- When a later comment revises the body, quote both. The comment supersedes the body only when the spec owner explicitly replaces the earlier wording; otherwise the row is **Needs clarification**.
+- When a later comment revises the body, quote both. The comment supersedes the body only when the spec owner edited the body to match, or the spec owner's comment names the old wording it replaces, as in "replace `X` with `Y`". A comment that gives a new value without the old one, as in "actually the limit should be `Y`", leaves the row **Needs clarification**.
 - A vague non-functional requirement, such as "fast" or "secure", is **Needs clarification**, with a measurable reading proposed and labeled *inferred*.
 
 When the user explicitly chose to confirm, show the list with each quote, source, reading, and flagged conflict, and stop once. "go", no answer, or a non-interactive session runs straight through, and the `Kickoff:` line says so; the list then sits at the top of the requirements section for later correction.

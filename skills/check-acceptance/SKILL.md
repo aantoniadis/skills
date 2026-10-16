@@ -20,7 +20,7 @@ Hold the kickoff round from [asking](../ASKING.md) first, with the questions the
 
 Pin `head` as a full SHA: the checkout's HEAD, or a named branch resolved to its SHA. A `base` is optional and serves attribution only. When a base is inferable, such as the merge-base of a feature branch with the default branch, find it and state it as an assumption instead of asking. Write `head`, `base` when pinned, and `repository: owner/name` in the report's front matter. Record local modifications and relevant configuration; dirty source follows the [snapshot rule](../EVIDENCE.md#capture-a-local-snapshot).
 
-Create `report.md` at the location the caller supplied, else the routine location from [asking](../ASKING.md), with the review record `review.md` beside it and tool outputs and probes under `runs/`. The review record holds one run record per check and the consequential corrections, as in [pr-review-guide](../pr-review-guide/SKILL.md). Read the [local tool record](../TOOL-SETUP.md) if present.
+Create `report.md` at the location the caller supplied, else the routine location from [asking](../ASKING.md), with the review record `review.md` beside it and tool outputs and probes under `runs/`. The review record holds one run record per check and the consequential corrections. Read the [local tool record](../TOOL-SETUP.md) if present.
 
 Collect the intent sources: GitHub issues and epics through `gh` (body, comments, sub-issues, linked PRs); Jira or Linear tickets through the host's MCP connector when connected; URLs; local files; a [plan-change](../plan-change/SKILL.md) plan, whose acceptance outcomes map one-to-one to requirements; pasted text. Record each source's collection time, because issues change. Name an inaccessible source as a gap.
 
@@ -49,7 +49,7 @@ The **feature scope** is the code that implements the requirements: the linked d
 
 Attribution runs only with a base, and only for Unmet and Partial rows; a Met row needs none, and bug cards take their origin from find-bugs. It answers a behavior question, not a blame question:
 
-- "Already existed" means the same requirement check gives the same result at the base: the same source reading at the base, or the same probe run there. This is the same-scenario-at-both-snapshots rule of [pr-review-guide](../pr-review-guide/SKILL.md).
+- "Already existed" means the same requirement check gives the same result at the base: the same source reading at the base, or the same probe run there.
 - `git blame` is a lead only. Run `git blame -w -M -C`, with `--ignore-revs-file .git-blame-ignore-revs` when that file exists, and map a squash-merge commit to its PR.
 - When linked commits or PRs and blame disagree, the linked work wins. Unresolved attribution is `unknown`. Attribution never changes a row's status.
 
@@ -59,7 +59,7 @@ Done when every requirement has a traced entry point or a named gap, and the fea
 
 The **Met bar:** a structural requirement can be Met from pinned source. A behavioral requirement needs an asserting test plus a recorded run (CI at the pinned head, or a run here), or a focused probe. Source tracing alone gives **Not verified**, with the settling check named.
 
-- Take statuses from the `requirements` entry of the shared [label catalog](../report-labels.json): Met, Partial, Unmet, Not verified, Needs clarification, Not applicable.
+- Use these statuses: Met, Partial, Unmet, Not verified, Needs clarification, Not applicable. `--sync-labels` writes their key into the report.
 - Read relevant tests for what their assertions establish under their setup and mocks. Names and passing counts cannot clear an unexercised scenario.
 - A recorded CI run at the pinned head is the suite result; cite it with its conditions. Run only the focused check or probe that a named gap needs. Choose checks, and recover from failed tools, as [CODE-TOOLS.md](../CODE-TOOLS.md) says.
 - **Unmet** needs positive evidence: behavior that contradicts the requirement, or absence after tracing every named entry point. An absence claim names the paths and configurations inspected, as the [negative-claim rule](../EVIDENCE.md#identify-the-evidence) requires.
@@ -88,7 +88,7 @@ Done when every returned defect has a card and its requirement row is updated, o
 
 ## 7. Check and deliver
 
-Compare the bottom line, attention items, rows, bug cards, and questions with their evidence; use a [second reader](../FRESH-REVIEW.md) when useful. Before every delivery, after the last edit, run `python3 <package>/skills/render_page.py <report.md> --check --acceptance --sync-labels`, including for text-only reports, with `--repo <checkout>` when the report sits outside the checkout. Repair structural failures and rerun before presenting the report as complete. For HTML delivery, read and apply the [shared page workflow](../HTML-PAGES.md) with the page notes of report-format.md.
+Compare the bottom line, attention items, rows, bug cards, and questions with their evidence; use a [second reader](../FRESH-REVIEW.md) when useful. Before every delivery, after the last edit, run `python3 <package>/skills/render_page.py <report.md> --check --acceptance --sync-labels`, including for text-only reports, with `--repo <checkout>` when the report sits outside the checkout. Learn its rules from its messages: write the report, run the check, fix what each message names, and rerun before presenting the report as complete. For HTML delivery, read and apply the [shared page workflow](../HTML-PAGES.md) with the page notes of report-format.md.
 
 Reply with the absolute report link, counts by status, and the top gaps. Then hand off gaps and Unmet rows to `/aantoniadis-skills:plan-change` or to `mattpocock:implement` as [package references](../REFERENCES.md) say, and bugs to `/aantoniadis-skills:fix-bug`. Each command carries the report path and the rows it concerns. Send Needs clarification rows to the spec owner as questions.
 

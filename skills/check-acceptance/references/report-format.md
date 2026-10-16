@@ -2,7 +2,7 @@
 
 Read when writing or updating an acceptance `report.md`. The report reuses the parts of pr-review-guide's [review report format](../../pr-review-guide/references/report-format.md): the [attention items](../../pr-review-guide/references/report-format.md#item-shape), the [requirements and verification tables](../../pr-review-guide/references/report-format.md#requirements-and-verification-tables), and the [bug cards](../../pr-review-guide/references/report-format.md#bug-cards). This file states only what differs; where it is silent, that format applies. `render_page.py --check --acceptance` checks the structure below, not whether a requirement is met; every claim stays bounded by its [evidence](../../EVIDENCE.md).
 
-For a new report, fill [report-template.md](report-template.md). Replace every prompt and remove the prompts of optional lines.
+For a new report, fill [report-template.md](report-template.md). Replace every prompt, repeat sources, rows, items, and cards as needed, and remove each line or paragraph whose prompt names a condition that does not hold, such as the `base` line when no base is pinned.
 
 ## Shape
 

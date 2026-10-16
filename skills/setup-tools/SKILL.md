@@ -50,9 +50,11 @@ Try a small relevant operation with the existing capability: one focused
 test, navigation to a known definition, an actual index query, or a browser
 operation against the intended application. Use the interface the next
 skill will use. Keep the check proportional to the intended work. A recorded
-operation that now fails is a gap. When PR review is planned,
-include the report checker among the operations to try, on the report
-template: `python3 <package>/skills/render_page.py <package>/skills/pr-review-guide/references/report-template.md --check --review --markdown-only`.
+operation that now fails is a gap. When PR review or an acceptance check is
+planned, include the report checker among the operations to try, on that
+skill's report template: `python3 <package>/skills/render_page.py <package>/skills/pr-review-guide/references/report-template.md --check --review --markdown-only`,
+or for an acceptance check `<package>/skills/check-acceptance/references/report-template.md`
+with `--acceptance` in place of `--review`.
 It reports the template's unfilled prompts, which shows the checker and its
 dependencies run; an import error names a missing dependency
 ([check mechanics](../HTML-PAGES.md#check-mechanics-and-meaning-separately)).

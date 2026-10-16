@@ -16,11 +16,11 @@ The check is read-only: it changes no application code, tests, or ticket state, 
 
 ## 1. Kickoff and pin
 
-Hold the kickoff round from [asking](../ASKING.md) first, with the questions the request leaves open: how much codebase familiarity to assume; the deliverable, text (recommended) or text plus an HTML companion; whether to confirm the extracted requirement list before verification (recommended, but applied only when the user picks it, as step 2 says) or run straight through; and *Search for bugs?*, *Yes* (recommended) or *No*. Apply a choice the request states without asking. The first delivery states every applied choice in its `Kickoff:` line.
+Hold the kickoff round from [asking](../ASKING.md) first, with the questions the request leaves open: how much codebase familiarity to assume; the deliverable, text (recommended) or text plus an HTML companion; whether to confirm the extracted requirement list before verification (recommended, but applied only when the user explicitly chooses it, as step 2 says) or run straight through; and *Search for bugs?*, *Yes* (recommended) or *No*. Apply a choice the request states without asking. The first delivery states every applied choice in its `Kickoff:` line.
 
 Pin `head` as a full SHA: the checkout's HEAD, or a named branch resolved to its SHA. A `base` is optional and serves attribution only. When a base is inferable, such as the merge-base of a feature branch with the default branch, find it and state it as an assumption instead of asking. Write `head`, `base` when pinned, and `repository: owner/name` in the report's front matter. Record local modifications and relevant configuration; dirty source follows the [snapshot rule](../EVIDENCE.md#capture-a-local-snapshot).
 
-Create `report.md` at the location the caller supplied, else the routine location from [asking](../ASKING.md), with the review record `review.md` beside it and tool outputs and probes under `runs/`. Read the [local tool record](../TOOL-SETUP.md) if present.
+Create `report.md` at the location the caller supplied, else the routine location from [asking](../ASKING.md), with the review record `review.md` beside it and tool outputs and probes under `runs/`. The review record holds one run record per check and the consequential corrections, as in [pr-review-guide](../pr-review-guide/SKILL.md). Read the [local tool record](../TOOL-SETUP.md) if present.
 
 Collect the intent sources: GitHub issues and epics through `gh` (body, comments, sub-issues, linked PRs); Jira or Linear tickets through the host's MCP connector when connected; URLs; local files; a [plan-change](../plan-change/SKILL.md) plan, whose acceptance outcomes map one-to-one to requirements; pasted text. Record each source's collection time, because issues change. Name an inaccessible source as a gap; never invent its content.
 
@@ -31,10 +31,10 @@ Done when the `Kickoff:` line is ready, `head` is a full SHA, the base is pinned
 - Atomize each source into rows of one observable condition each, quoted and linked to the specific source: the issue, comment, ticket field, or plan heading.
 - Keep explicit acceptance criteria separate from requirements inferred from description prose, and label inferred ones *inferred*.
 - Deduplicate across sources; keep every source link on the merged row.
-- When a later comment revises the body, quote both. The comment supersedes the body only when the spec owner edited the body to match, or the spec owner's comment names the old wording it replaces, as in "replace `X` with `Y`". A comment that gives a new value without the old one, as in "actually the limit should be `Y`", leaves the row **Needs clarification**.
+- When a later comment revises the body, quote both. The **spec owner** is the person who owns the intent source, such as the issue author or the ticket's reporter. The comment supersedes the body only when the spec owner edited the body to match, or the spec owner's comment names the old wording it replaces, as in "replace `X` with `Y`". A comment that gives a new value without the old one, as in "actually the limit should be `Y`", leaves the row **Needs clarification**.
 - A vague non-functional requirement, such as "fast" or "secure", is **Needs clarification**, with a measurable reading proposed and labeled *inferred*.
 
-When the user explicitly chose to confirm, show the list with each quote, source, reading, and flagged conflict, and stop once. "go", no answer, or a non-interactive session runs straight through, and the `Kickoff:` line says so; the list then sits at the top of the requirements section for later correction.
+When the user explicitly chose to confirm, show the list with each quote, source, reading, and flagged conflict, and stop once. This choice is an exception to the [asking](../ASKING.md) rule that "go" applies the recommendations: "go", no answer, or a non-interactive session runs straight through, and the `Kickoff:` line says so. The rows under *Requirements* are the list. When the list was not confirmed, a one-paragraph note above the first source heading states that and invites correction.
 
 Done when every reachable source is atomized into quoted, linked rows, and the user has seen the list when they explicitly chose to confirm it.
 
@@ -63,7 +63,7 @@ The **Met bar:** a structural requirement can be Met from pinned source. A behav
 - Read relevant tests for what their assertions establish under their setup and mocks. Names and passing counts cannot clear an unexercised scenario.
 - A recorded CI run at the pinned head is the suite result; cite it with its conditions. Run only the focused check or probe that a named gap needs. Choose checks, and recover from failed tools, as [CODE-TOOLS.md](../CODE-TOOLS.md) says.
 - **Unmet** needs positive evidence: behavior that contradicts the requirement, or absence after tracing every named entry point. An absence claim names the paths and configurations inspected, as the [negative-claim rule](../EVIDENCE.md#identify-the-evidence) requires.
-- **Partial** names the conditions that hold and the remainder.
+- **Partial** applies when some named entry points or conditions hold and others fail. It names the ones that hold and the remainder, and it still names each failing one.
 
 For a large source set, use an [investigator](../INVESTIGATE.md) per source or requirement group through [native delegation](../WORKERS.md), framing the scenario to trace, not a suspicion to confirm.
 

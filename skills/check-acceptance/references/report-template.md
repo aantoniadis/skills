@@ -23,6 +23,8 @@ repository: {{owner}}/{{repo}}
 
 ## Requirements
 
+{{note_that_the_list_was_not_confirmed_and_invites_correction_else_remove_this_line}}
+
 ### {{source_title}}
 
 | Requirement and intent | Status | Behavior and evidence | Next action |

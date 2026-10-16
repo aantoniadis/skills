@@ -10,8 +10,9 @@ or reopens a ticket, and gives counts and blockers, not a ship verdict.
 ## How it works
 
 1. **Kickoff and pin.** A kickoff round asks only the choices the prompt
-   leaves open: familiarity, text or text plus an HTML companion, whether to
-   confirm the requirement list before verification, and the search for bugs.
+   leaves open: familiarity, text or text plus an HTML companion, confirming
+   the requirement list before verification (recommended) or running straight
+   through, and the search for bugs. For the list, "go" runs straight through.
    The head is a full SHA. A base is optional and serves attribution only; an
    inferable one is stated as an assumption. Each source is collected with its
    time, because issues change, and an inaccessible source is named as a gap.
@@ -21,7 +22,8 @@ or reopens a ticket, and gives counts and blockers, not a ship verdict.
    later comment that revises the body is quoted beside it. A vague
    requirement such as "fast" is Needs clarification with a measurable reading
    proposed. The list is shown for confirmation only when you choose that;
-   otherwise the run goes straight through and the report says so.
+   "go", no answer, or a non-interactive session runs straight through, and
+   the report says so.
 3. **Scope the feature code.** The feature scope is the linked diffs plus the
    code traced from each requirement's entry point to its observable outcome,
    never the whole base..head range. An unrelated commit that touches traced
@@ -44,8 +46,8 @@ or reopens a ticket, and gives counts and blockers, not a ship verdict.
    its bug card; every other bug gets its own card.
 7. **Check and deliver.** `report.md` holds the bottom line, counts, the
    requirement rows with evidence, attention items, bug cards, and questions;
-   `review.md` records the pin, sources, and checks; an HTML companion is
-   optional. Every delivery runs the report structure check. The reply gives
+   `review.md` holds one run record per check and the consequential
+   corrections; an HTML companion is optional. Every delivery runs the report structure check. The reply gives
    the report link, counts by status, and the top gaps, then hands gaps and
    Unmet rows to `plan-change` or Matt's `implement`, and bugs to `fix-bug`,
    each command carrying the report path and the rows it concerns. Needs

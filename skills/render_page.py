@@ -1271,9 +1271,10 @@ def check_attention(source):
 
 
 def opening_gaps(source):
-    """A review report opens with its bottom line and 'What the change does' (report-format.md).
+    """A review report opens with its bottom line and 'What the change does'
+    (an acceptance report: 'What was asked') (report-format.md).
     Returns problems, empty when fine. ponytail: checks presence, not meaning."""
-    section = re.search(r"^(#{1,6})\s+what the change does[^\n]*\n(.*?)(?=^#{1,6}\s|\Z)", source, re.I | re.M | re.S)
+    section = re.search(r"^(#{1,6})\s+what (?:the change does|was asked)[^\n]*\n(.*?)(?=^#{1,6}\s|\Z)", source, re.I | re.M | re.S)
     paragraphs = [b for b in re.split(r"\n\s*\n", section.group(2)) if b.strip()
                   and not b.lstrip().startswith(("|", "-", "*", ">", "```"))] if section else []
     if not re.search(r"^#{1,6}\s+what to look at", source, re.I | re.M):
@@ -1612,6 +1613,86 @@ def review_problems(source, note):
     return problems
 
 
+ACCEPTANCE_SECTIONS = ("What was asked", "What to look at", "Requirements", "Nobody asked for this", BUG_SECTION,
+                       "Questions for the author", "Verification", "Evidence and record")
+ACCEPTANCE_RECORD = ("Gaps", "Provenance", "Feature scope")
+
+
+def check_acceptance(source, note):
+    """The final acceptance contract; presence and vocabulary are not proof of investigation.
+    Raises every failure at once (Failures)."""
+    raise_all(acceptance_problems(source, note))
+
+
+def acceptance_problems(source, note):
+    """Every failure of the acceptance contract, in reading order; empty when the report passes.
+    source includes its front matter. ponytail: checks shape and evidence markers, not whether a requirement is met."""
+    problems = []
+    front, source = split_front_matter(source)
+    keep(problems, check_front_matter, front, review=True)
+    if "head" not in front:
+        problems.append("Acceptance front matter requires head as a full commit SHA.")
+    document = parse(MARKDOWN.render(source))
+    if len(document.find_all("h1")) != 1 or document.find().name != "h1":
+        problems.append("Acceptance requires one opening H1 title.")
+    keep(problems, check_prompts, source)
+    sections = markdown_sections(source, 2)
+    names = [name for name, _ in sections]
+    for name in ACCEPTANCE_SECTIONS:
+        if names.count(name) != 1:
+            problems.append(f"Acceptance report requires exactly one '## {name}' section.")
+    if any(names.count(name) != 1 for name in ACCEPTANCE_SECTIONS):
+        return problems  # Stop: the checks below read these sections, and without them they would only crash.
+    bodies = dict(sections)
+    opening = source.split("\n## ", 1)[0]
+    if not all(re.search(rf"\*\*{label}:\*\*\s*\S", opening) for label in ("Bottom line", "Reviewed", "Coverage")):
+        problems.append("Acceptance opening requires Bottom line, Reviewed, and Coverage with explicit scope and limits.")
+    record = markdown_sections(bodies["Evidence and record"], 3)
+    for name in ACCEPTANCE_RECORD:
+        entries = [body for title, body in record if title == name]
+        if len(entries) != 1 or not entries[0].strip():
+            problems.append(f"Evidence and record requires one nonempty '### {name}' section; state none or unknown when appropriate.")
+    sources = markdown_sections(bodies["Requirements"], 3)
+    if not sources:
+        problems.append("Requirements: put each source's table under its own '### <source title>'.")
+    for name, body in sources:
+        for row in keep(problems, review_table, body, REQUIREMENT_COLUMNS, f"Requirements '{name}'", problems) or []:
+            status = row[1].get_text(" ", strip=True)
+            if status not in FULFILLMENT:
+                problems.append(f"Requirements '{name}': unsupported status '{status}'; use {', '.join(FULFILLMENT)}.")
+            if status != "Needs clarification" and not row[0].find("a", href=True):
+                problems.append(f"Requirements '{name}': link the intent source, or use Needs clarification for missing intent.")
+            if not row[2].find("a", href=True) and not re.search(r"not verified|not inspected|unknown", row[2].get_text(), re.I):
+                problems.append(f"Requirements '{name}': each Behavior and evidence cell links pinned source, a run record, "
+                                "or a bug card, or states not verified, not inspected, or unknown.")
+    if len({name for name, _ in sources}) != len(sources):
+        problems.append("Requirements: give each source heading a distinct name.")
+    unasked = bodies["Nobody asked for this"]
+    if not (re.search(r"^\s*(?:[-*+]|\d+\.|\|)\s", unasked, re.M) or re.search(r"^None found:\s*\S", unasked, re.M)):
+        problems.append("Nobody asked for this: list the delivered behavior no source asked for, or write 'None found:' with the scope inspected.")
+    questions = bodies["Questions for the author"]
+    if not all(label in questions for label in ("**Spec owner:**", "**Author:**")):
+        problems.append("Questions for the author: keep **Spec owner:** and **Author:** lists; state none with the reason.")
+    before = len(problems)
+    keep(problems, check_bug_cards, source, note)
+    problems += bug_origin_gaps(source, base="base" in front)
+    cards_failed = len(problems) > before
+    verification = bodies["Verification"]
+    if not all(label in verification for label in ("Tests inspected:", "Recorded runs:", "Executed:")):
+        problems.append("Verification: retain Tests inspected:, Recorded runs:, and Executed: summaries, including explicit none.")
+    checked = (keep(problems, review_table, verification, VERIFICATION_COLUMNS, "Verification", problems)
+               if parse(MARKDOWN.render(verification)).find("table") or not re.search(r"^No checks selected:\s*\S", verification, re.M)
+               else [])
+    keep(problems, check_verification, verification)
+    if not cards_failed and checked is not None:
+        keep(problems, check_bug_probes, document, bodies[BUG_SECTION].strip(), checked)
+    ids = [slug(tag.get_text()) for tag in document.find_all(re.compile(r"^h[1-6]$"))]
+    if len(ids) != len(set(ids)):
+        problems.append("Acceptance report headings need distinct names for stable anchors.")
+    keep(problems, check_links, link_targets(document), note, ids)
+    return problems
+
+
 def check_learning_plan(source):
     """Check declared question and decision coverage, not completeness or factual support."""
     document = parse(MARKDOWN.render(source))
@@ -1882,6 +1963,7 @@ def main():
     parser.add_argument("--check", action="store_true", help="check the existing HTML without rewriting it")
     parser.add_argument("--markdown-only", action="store_true", help="with --check, validate only Markdown even when an HTML companion exists")
     parser.add_argument("--review", action="store_true", help="require the current PR report structure and evidence table contract")
+    parser.add_argument("--acceptance", action="store_true", help="require the acceptance report structure and evidence table contract")
     parser.add_argument("--sync-labels", action="store_true", help="refresh the shared status definitions in Markdown before rendering or checking")
     parser.add_argument("--diagram-renderer", choices=("auto", "mermaid", "beautiful-mermaid"), default="auto",
                         help="diagram engine; auto uses Beautiful Mermaid when npm ci in skills/diagram-renderer installed it and it runs, else the Mermaid CLI")
@@ -1890,6 +1972,8 @@ def main():
     args = parser.parse_args()
     if args.markdown_only and not args.check:
         parser.error("--markdown-only requires --check")
+    if args.review and args.acceptance:
+        parser.error("--acceptance and --review are separate contracts; pass one")
     note = args.note.resolve()
     if note.suffix != ".md":
         parser.error("the authoritative note must have a .md suffix")
@@ -1903,6 +1987,8 @@ def main():
             source = with_label_key(source)
         if args.review:
             problems += review_problems(with_front_matter(original, source), note)
+        if args.acceptance:
+            problems += acceptance_problems(with_front_matter(original, source), note)
         output = note.with_suffix(".html")
         if args.check and (args.markdown_only or not output.exists()):
             problems += markdown_problems(source, note)
@@ -1923,7 +2009,7 @@ def main():
         problems += page_problems(with_front_matter(original, source), html, note, repo=repo)
         if args.check:
             keep(problems, check_label_key, source, require=True)
-            if args.review:
+            if args.review or args.acceptance:
                 keep(problems, check_source_diagrams, source, html)
         raise_all(problems)
         if args.sync_labels:

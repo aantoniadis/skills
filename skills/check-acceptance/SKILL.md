@@ -12,7 +12,7 @@ bounded by its [evidence](../EVIDENCE.md).
 
 Tell the person who accepts delivered work, for each requirement, whether the code at one pinned revision meets it, with evidence. Also report delivered behavior in the feature's code that no requirement asked for and, when selected, defects in that code. Maintain one current Markdown report and, when requested, its self-contained HTML companion, written in the shape of [report-format.md](references/report-format.md), starting from [report-template.md](references/report-template.md).
 
-The check is read-only: it changes no application code, tests, or ticket state, and it never closes, labels, or reopens a ticket. The report gives counts and blockers, not a merge or ship verdict; the ship decision is the user's.
+The check is read-only: it changes no application code or tests and writes nothing to a ticket. Comments, labels, closing, and reopening stay with the user, even when the user asks the check to do them: the reply gives the commands to run instead, as step 7 describes. The report gives counts and blockers, not a merge or ship verdict; the ship decision is the user's.
 
 ## 1. Kickoff and pin
 
@@ -91,9 +91,9 @@ Done when every returned defect has a card and its requirement row is updated, o
 
 Compare the bottom line, attention items, rows, bug cards, and questions with their evidence; use a [second reader](../FRESH-REVIEW.md) when useful. Before every delivery, after the last edit, run `python3 <package>/skills/render_page.py <report.md> --check --acceptance --sync-labels`, including for text-only reports, with `--repo <checkout>` when the report sits outside the checkout. Learn its rules from its messages: write the report, run the check, fix what each message names, and rerun before presenting the report as complete. For HTML delivery, read and apply the [shared page workflow](../HTML-PAGES.md) with the page notes of report-format.md.
 
-Reply with the absolute report link, counts by status, and the top gaps. Then hand off gaps and Unmet rows to `/aantoniadis-skills:plan-change` or to `mattpocock:implement` as [package references](../REFERENCES.md) say, and bugs to `/aantoniadis-skills:fix-bug` (`$` instead of `/` in Codex). Each command carries the report path and the rows it concerns. Send Needs clarification rows to the spec owner as questions.
+Reply with the absolute report link, counts by status, and the top gaps. Then hand off gaps and Unmet rows to `/aantoniadis-skills:plan-change` or to `mattpocock:implement` as [package references](../REFERENCES.md) say, and bugs to `/aantoniadis-skills:fix-bug` (`$` instead of `/` in Codex). Each command carries the report path and the rows it concerns. List Needs clarification rows as questions for the spec owner.
 
-When the user requests it, draft one comment per issue or ticket with its rows, statuses, evidence links, and the pinned head. Post only within authorization, as [asking](../ASKING.md) describes, and record each posted URL in the review record.
+When the user asks for ticket updates, give one command per ticket that the request names, for the user to run, with the rows that support it. A comment is drafted under the report directory with its rows, statuses, evidence links, and the pinned head, and its command posts that file, such as `gh issue comment 3 -R owner/name --body-file <draft>`. A close, label, or reopen gets its command too, such as `gh issue close 3 -R owner/name`.
 
 Done when the checker passes after the last edit, or the report is labeled structurally unchecked with the blocker, and the reply carries the link, counts, gaps, and handoff commands.
 

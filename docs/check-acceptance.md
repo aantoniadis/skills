@@ -4,8 +4,9 @@ Tell the person who accepts delivered work, for each requirement, whether the
 code at one pinned revision meets it, with evidence. Requirements come from
 GitHub issues, an epic, Jira or Linear tickets, a spec or plan, or pasted
 text. The check spans a set of issues; `pr-review-guide` covers one PR. It is
-read-only: it changes no code, tests, or ticket state, never closes, labels,
-or reopens a ticket, and gives counts and blockers, not a ship verdict.
+read-only: it changes no code or tests, writes nothing to a ticket, and gives
+counts and blockers, not a ship verdict. Asked to comment on, label, close, or
+reopen tickets, it replies with the commands for you to run.
 
 ## How it works
 
@@ -52,9 +53,9 @@ or reopens a ticket, and gives counts and blockers, not a ship verdict.
    the report link, counts by status, and the top gaps, then hands gaps and
    Unmet rows to `plan-change` or Matt's `implement`, and bugs to `fix-bug`,
    each command carrying the report path and the rows it concerns. Needs
-   clarification rows go to the spec owner as questions. A comment per issue
-   or ticket is drafted when requested; posting uses authorization for its
-   destination and content.
+   clarification rows go to the spec owner as questions. Asked for ticket
+   updates, the reply gives one command per ticket for you to run; a comment
+   is drafted as a file that its command posts.
 8. **Re-check, do not restart.** A follow-up such as "re-check after the
    fixes" resumes the same report. It collects the sources again, and a changed
    body, comment, or sub-issue reopens the rows it feeds. If the head moved,

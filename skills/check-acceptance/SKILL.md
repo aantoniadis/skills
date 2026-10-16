@@ -1,6 +1,6 @@
 ---
 name: check-acceptance
-description: Checks delivered code against a set of requirements — GitHub issues, an epic, Jira or Linear tickets, a spec or plan, or pasted text — and reports which are met, partly met, unmet, unverified, or unclear, with evidence; also delivered behavior nobody asked for, and a search for bugs when selected. Use when the user asks whether issues or an epic are done, wants an acceptance or requirements check before closing tickets or releasing, asks what is missing or implemented wrong, or returns to re-check an earlier acceptance report, or the issues it covered, after fixes. Not for one PR's review guide (pr-review-guide), comparing one diff with its spec (code-review), defects in a diff alone (find-bugs), or deciding intended behavior (plan-change).
+description: Checks delivered code against a set of requirements — GitHub issues, an epic, Jira or Linear tickets, a spec or plan, or pasted text — and reports which are met, partly met, unmet, unverified, or unclear, with evidence; also delivered behavior nobody asked for, and a search for bugs when selected. Use when the user asks whether issues or an epic are done, wants an acceptance or requirements check before closing tickets or releasing, or asks what is missing or implemented wrong. Not for one PR's review guide (pr-review-guide), comparing one diff with its spec (code-review), defects in a diff alone (find-bugs), or deciding intended behavior (plan-change).
 argument-hint: "<issues, epic, tickets, spec, or text; revision to check and base if known>"
 ---
 

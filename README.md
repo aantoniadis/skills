@@ -16,6 +16,11 @@ Invoke a skill as `/aantoniadis-skills:<name>` in Claude Code,
 `opencode run --command <name>` in OpenCode. Hosts also pick the skills up
 through their normal model-driven selection.
 
+In Claude Code the plugin also registers two worker agents that the skills
+dispatch: `aantoniadis-skills:investigator` and
+`aantoniadis-skills:second-reader`. Other hosts run the same roles as general
+workers ([delegation](skills/WORKERS.md)).
+
 ## Install
 
 ```bash

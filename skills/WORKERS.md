@@ -10,6 +10,12 @@ follows: [INVESTIGATE.md](INVESTIGATE.md) or [FRESH-REVIEW.md](FRESH-REVIEW.md).
 authorization into the assignment; workers reuse that authority and escalate
 only work or consequential choices outside it. A recommendation is not user agreement.
 
+When the host lists the `aantoniadis-skills:investigator` or
+`aantoniadis-skills:second-reader` agent, dispatch the role through it; the
+agent reads its guidance file before it starts. Otherwise dispatch a general
+worker. The second-reader agent has no file-editing tools, so an assignment
+that authorizes edits to the artifact goes to a general worker.
+
 The [investigator](INVESTIGATE.md) offers tracing guidance; the
 [second reader](FRESH-REVIEW.md) offers source and reader checks. Choose the
 useful guidance for the question.

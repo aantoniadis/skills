@@ -57,14 +57,29 @@ def check_references():
     # One version: Claude reads plugin.json first, and Codex reads only its own manifest.
     assert len(versions) == 1 and "version" not in marketplace["plugins"][0], versions
 
-    documents = [ROOT / "README.md", ROOT / "AGENTS.md", *ROOT.glob("docs/*.md"),
+    # Claude Code agents are thin wrappers: each reads one worker guidance file, which stays the single source.
+    agents = {}
+    for path in ROOT.glob("agents/*.md"):
+        front, body = path.read_text().split("\n---\n", 1)
+        assert re.search(rf"^name: {re.escape(path.stem)}$", front, re.M), path
+        description = re.search(r"^description: (.+)$", front, re.M).group(1)
+        assert "Use when" in description and "Not for" in description, path
+        guidance = re.findall(r"`(skills/[A-Z-]+\.md)` under the plugin root, `\$\{CLAUDE_PLUGIN_ROOT\}`", body)
+        assert len(guidance) == 1 and (ROOT / guidance[0]).exists(), (path, guidance)
+        agents[path.stem] = guidance[0]
+    assert agents == {"investigator": "skills/INVESTIGATE.md", "second-reader": "skills/FRESH-REVIEW.md"}, agents
+    workers = (ROOT / "skills/WORKERS.md").read_text()
+    for name in agents:
+        assert f"`{PACKAGE}:{name}`" in workers, name
+
+    documents = [ROOT / "README.md", ROOT / "AGENTS.md", *ROOT.glob("docs/*.md"), *ROOT.glob("agents/*.md"),
                  *ROOT.glob("skills/**/*.md"), *ROOT.glob("skills/**/*.yaml")]
     for path in documents:
         if "node_modules" in path.parts:
             continue
         text = path.read_text()
         for name in re.findall(r"aantoniadis-skills:([a-z][a-z0-9-]*)", text):
-            assert name in skills, (path, name)
+            assert name in skills or name in agents, (path, name)
         for owner, name in re.findall(r"(mattpocock|humanlayer):([a-z][a-z0-9-]*)", text):
             assert upstream.get(name) == owner, (path, owner, name)
         for marker, name, following in re.findall(r"(?<![\w:/-])([/$])([a-z][a-z0-9-]*)([:/]?)", text):

@@ -32,7 +32,9 @@ class AcceptanceReportTests(unittest.TestCase):
     def test_fixture_passes_acceptance_and_page_check(self):
         page.check_acceptance(REPORT, NOTE)
         with tempfile.TemporaryDirectory() as directory, contextlib.redirect_stderr(io.StringIO()):  # no repository: the fixture's SHAs resolve nowhere, and links are only listed
-            page.check(REPORT, page.render(REPORT, NOTE.name, repo=Path(directory)), NOTE, repo=Path(directory))
+            html = page.render(REPORT, NOTE.name, repo=Path(directory))
+            page.check(REPORT, html, NOTE, repo=Path(directory))
+        self.assertEqual(len(page.parse(html).select("table.requirements-table")), 2)
 
     def test_head_is_required_and_full(self):
         head = line(REPORT, "head:")

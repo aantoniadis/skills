@@ -1540,6 +1540,44 @@ def check_review(source, note):
     raise_all(review_problems(source, note))
 
 
+def opening_gap(source, kind):
+    """The problem when the opening lacks Bottom line, Reviewed, or Coverage; kind names the report."""
+    opening = source.split("\n## ", 1)[0]
+    if not all(re.search(rf"\*\*{label}:\*\*\s*\S", opening) for label in ("Bottom line", "Reviewed", "Coverage")):
+        return [f"{kind} opening requires Bottom line, Reviewed, and Coverage with explicit scope and limits."]
+    return []
+
+
+def record_gaps(body, names):
+    """Problems for each '### name' under Evidence and record that is not one nonempty section."""
+    record = markdown_sections(body, 3)
+    return [f"Evidence and record requires one nonempty '### {name}' section; state none or unknown when appropriate."
+            for name in names if len([text for title, text in record if title == name]) != 1
+            or not [text for title, text in record if title == name][0].strip()]
+
+
+def verification_problems(document, verification, cards, cards_failed):
+    """Problems in the Verification section: summaries, table, and the Bug probes row (judged against the cards)."""
+    problems = []
+    if not all(label in verification for label in ("Tests inspected:", "Recorded runs:", "Executed:")):
+        problems.append("Verification: retain Tests inspected:, Recorded runs:, and Executed: summaries, including explicit none.")
+    checked = (keep(problems, review_table, verification, VERIFICATION_COLUMNS, "Verification", problems)
+               if parse(MARKDOWN.render(verification)).find("table") or not re.search(r"^No checks selected:\s*\S", verification, re.M)
+               else [])
+    keep(problems, check_verification, verification)
+    # The Bug probes row is judged against the cards and the Verification table; when either failed, its verdict
+    # would only repeat that failure.
+    if not cards_failed and checked is not None:
+        keep(problems, check_bug_probes, document, cards.strip(), checked)
+    return problems
+
+
+def anchor_gaps(document, kind):
+    """Problems when two headings share an anchor, plus the ids for the link check."""
+    ids = [slug(tag.get_text()) for tag in document.find_all(re.compile(r"^h[1-6]$"))]
+    return ids, ([f"{kind} headings need distinct names for stable anchors."] if len(ids) != len(set(ids)) else [])
+
+
 def review_problems(source, note):
     """Every failure of the review contract, in reading order; empty when the review passes."""
     problems = []
@@ -1558,17 +1596,11 @@ def review_problems(source, note):
     if any(names.count(name) != 1 for name in required):
         return problems  # Stop: the checks below read these sections, and without them they would only crash.
     bodies = dict(sections)
-    record = markdown_sections(bodies["Evidence and record"], 3)
-    for name in ("Gaps", "Provenance", *(() if "Reading plan" in bodies else ("Changed files",))):
-        entries = [body for title, body in record if title == name]
-        if len(entries) != 1 or not entries[0].strip():
-            problems.append(f"Evidence and record requires one nonempty '### {name}' section; state none or unknown when appropriate.")
+    problems += record_gaps(bodies["Evidence and record"], ("Gaps", "Provenance", *(() if "Reading plan" in bodies else ("Changed files",))))
     for name in ("Questions for the author", "Reading plan"):
         if name in bodies and (names.count(name) != 1 or not bodies[name].strip()):
             problems.append(f"Review requires one nonempty '## {name}' section; state none when appropriate.")
-    opening = source.split("\n## ", 1)[0]
-    if not all(re.search(rf"\*\*{label}:\*\*\s*\S", opening) for label in ("Bottom line", "Reviewed", "Coverage")):
-        problems.append("Review opening requires Bottom line, Reviewed, and Coverage with explicit scope and limits.")
+    problems += opening_gap(source, "Review")
     before = len(problems)
     keep(problems, check_bug_cards, source, note)
     problems += bug_origin_gaps(source, base=True)
@@ -1595,20 +1627,9 @@ def review_problems(source, note):
             problems.append("Requirements: link the intent source, or use Needs clarification for missing intent.")
         if not any(link.get("href") in behavior_targets for link in row[2].find_all("a", href=True)):
             problems.append("Requirements: link Behavior and evidence to a named behavior section.")
-    verification = bodies["Verification"]
-    if not all(label in verification for label in ("Tests inspected:", "Recorded runs:", "Executed:")):
-        problems.append("Verification: retain Tests inspected:, Recorded runs:, and Executed: summaries, including explicit none.")
-    checked = (keep(problems, review_table, verification, VERIFICATION_COLUMNS, "Verification", problems)
-               if parse(MARKDOWN.render(verification)).find("table") or not re.search(r"^No checks selected:\s*\S", verification, re.M)
-               else [])
-    keep(problems, check_verification, verification)
-    # The Bug probes row is judged against the cards and the Verification table; when either failed, its verdict
-    # would only repeat that failure.
-    if not cards_failed and checked is not None:
-        keep(problems, check_bug_probes, document, bodies[BUG_SECTION].strip(), checked)
-    ids = [slug(tag.get_text()) for tag in document.find_all(re.compile(r"^h[1-6]$"))]
-    if len(ids) != len(set(ids)):
-        problems.append("Review headings need distinct names for stable anchors.")
+    problems += verification_problems(document, bodies["Verification"], bodies.get(BUG_SECTION, ""), cards_failed)
+    ids, gaps = anchor_gaps(document, "Review")
+    problems += gaps
     keep(problems, check_links, link_targets(document), note, ids)
     return problems
 
@@ -1644,14 +1665,8 @@ def acceptance_problems(source, note):
     if any(names.count(name) != 1 for name in ACCEPTANCE_SECTIONS):
         return problems  # Stop: the checks below read these sections, and without them they would only crash.
     bodies = dict(sections)
-    opening = source.split("\n## ", 1)[0]
-    if not all(re.search(rf"\*\*{label}:\*\*\s*\S", opening) for label in ("Bottom line", "Reviewed", "Coverage")):
-        problems.append("Acceptance opening requires Bottom line, Reviewed, and Coverage with explicit scope and limits.")
-    record = markdown_sections(bodies["Evidence and record"], 3)
-    for name in ACCEPTANCE_RECORD:
-        entries = [body for title, body in record if title == name]
-        if len(entries) != 1 or not entries[0].strip():
-            problems.append(f"Evidence and record requires one nonempty '### {name}' section; state none or unknown when appropriate.")
+    problems += opening_gap(source, "Acceptance")
+    problems += record_gaps(bodies["Evidence and record"], ACCEPTANCE_RECORD)
     sources = markdown_sections(bodies["Requirements"], 3)
     if not sources:
         problems.append("Requirements: put each source's table under its own '### <source title>'.")
@@ -1677,18 +1692,9 @@ def acceptance_problems(source, note):
     keep(problems, check_bug_cards, source, note)
     problems += bug_origin_gaps(source, base="base" in front)
     cards_failed = len(problems) > before
-    verification = bodies["Verification"]
-    if not all(label in verification for label in ("Tests inspected:", "Recorded runs:", "Executed:")):
-        problems.append("Verification: retain Tests inspected:, Recorded runs:, and Executed: summaries, including explicit none.")
-    checked = (keep(problems, review_table, verification, VERIFICATION_COLUMNS, "Verification", problems)
-               if parse(MARKDOWN.render(verification)).find("table") or not re.search(r"^No checks selected:\s*\S", verification, re.M)
-               else [])
-    keep(problems, check_verification, verification)
-    if not cards_failed and checked is not None:
-        keep(problems, check_bug_probes, document, bodies[BUG_SECTION].strip(), checked)
-    ids = [slug(tag.get_text()) for tag in document.find_all(re.compile(r"^h[1-6]$"))]
-    if len(ids) != len(set(ids)):
-        problems.append("Acceptance report headings need distinct names for stable anchors.")
+    problems += verification_problems(document, bodies["Verification"], bodies.get(BUG_SECTION, ""), cards_failed)
+    ids, gaps = anchor_gaps(document, "Acceptance report")
+    problems += gaps
     keep(problems, check_links, link_targets(document), note, ids)
     return problems
 

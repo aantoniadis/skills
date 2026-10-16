@@ -85,6 +85,13 @@ class AcceptanceReportTests(unittest.TestCase):
         page.check_acceptance(source, NOTE)
         self.reject(source.replace("*we ran it* · *no base pinned*", "*we ran it* · *new in this change*"), "no base is pinned")
 
+    def test_template_sections_match_the_contract(self):
+        template = (ROOT / "skills/check-acceptance/references/report-template.md").read_text()
+        front, body = page.split_front_matter(template)
+        self.assertEqual(list(front), ["head", "base", "repository"])
+        self.assertEqual(tuple(name for name, _ in page.markdown_sections(body, 2)),
+                         page.ACCEPTANCE_SECTIONS + ("Status and label key",))
+
     def test_cli_acceptance_contract(self):
         with tempfile.TemporaryDirectory() as directory:
             copy = Path(directory) / "acceptance"

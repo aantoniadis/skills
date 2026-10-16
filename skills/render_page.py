@@ -195,7 +195,8 @@ INTENT_PHRASES = {"matches the stated intent": "supported", "partly matches the 
 BUG_SECTION = "Possible bugs"
 BUG_FORMS = ("The search for bugs has not run:", "No bugs found:")  # the two sentence forms; otherwise ### cards
 BUG_EVIDENCE = {"we ran it": "observed", "suspected, not run": "suspected"}
-BUG_ORIGIN = {"new in this change": "new", "pre-existing, made worse": "made-worse"}
+BUG_ORIGIN = {"new in this change": "new", "pre-existing, made worse": "made-worse",
+              "from an unrelated commit": "unrelated", "no base pinned": "origin-unknown"}
 # A diagnosis note (fix-bug) holds its one cause as a card under "Cause"; the card renders like a bug card, with the
 # diagnosis chip families below, and keeps the per-paragraph evidence floor instead of the review card rules.
 CAUSE_SECTION = "Cause"
@@ -205,7 +206,7 @@ DIAGNOSIS_CHECKS = {"reproduced": "supported", "not reproduced": "unresolved", "
                     "no test seam": "unresolved", "origin checked": "supported",
                     "origin skipped": "skipped", "reach checked": "supported", "reach skipped": "skipped",
                     "consequence checked": "supported", "consequence skipped": "skipped"}
-BUG_FIELDS = ("Where", "Trigger", "Who / impact", "Fix direction", "Reproduce", "Probe that would settle it")
+BUG_FIELDS = ("Where", "Trigger", "Introduced by", "Who / impact", "Fix direction", "Reproduce", "Probe that would settle it")
 BUG_CHIPS = re.compile(rf"^\*({'|'.join(map(re.escape, BUG_EVIDENCE))})\*\s*·\s*\*({'|'.join(map(re.escape, BUG_ORIGIN))})\*\s*$")
 BUG_ITEM_SHAPE = "an item that links to its bug card is one line; the card holds the detail"
 ITEM_EVIDENCE = {"we ran it": "observed", "suspected, not run": "inferred"}  # card chip -> its attention item's evidence
@@ -1387,8 +1388,12 @@ def check_bug_cards(source, note, required=True):
         rows = [row.find_all("td") for row in tables[0].select("tbody tr")] if len(tables) == 1 else []
         if not rows or any(len(row) != 3 or not all(cell.get_text(strip=True) for cell in row) for row in rows):
             raise ValueError(f"{card}: needs one filled table with a label column, then exactly Base and Head.")
+        if chips[1] == "no base pinned" and any(cell.get_text(" ", strip=True) != "no base pinned" for row in rows for cell in row[1:2]):
+            raise ValueError(f"{card}: a no-base-pinned card reads *no base pinned* in every Base cell.")
+        if chips[1] == "from an unrelated commit" and not re.search(r"\b[0-9a-f]{7,40}\b", value("Introduced by")):
+            raise ValueError(f"{card}: a bug from an unrelated commit names that commit under **Introduced by:** as a SHA.")
         if chips[0] == "suspected, not run":
-            if any(not cell.get_text(" ", strip=True).lower().startswith("predicted:") for row in rows for cell in row[1:]):
+            if any(not cell.get_text(" ", strip=True).lower().startswith("predicted:") for row in rows for cell in row[1:][chips[1] == "no base pinned":]):
                 raise ValueError(f"{card}: a suspected card starts each Base and Head value with 'predicted:'.")
             probe = fields.get("Probe that would settle it")
             following = probe.find_next_sibling() if probe else None
@@ -1460,6 +1465,20 @@ def check_bug_cards(source, note, required=True):
             problems.append(f"Possible bug '{heading.get_text(strip=True)}': link it from exactly one *you decide* or "
                              f"*check it* item in What to look at; {linked['#' + slug(heading.get_text())]} items link it.")
     raise_all(problems)
+
+
+def bug_origin_gaps(source, base):
+    """Card-origin problems against whether a base is pinned; cards without a chip line fail check_bug_cards instead."""
+    problems = []
+    for heading in bug_card_headings(parse(MARKDOWN.render(source))):
+        parts = card_parts(heading)
+        chips = chip_line(parts[0], first_line=True) if parts and parts[0].name == "p" else None
+        if not chips or (chips[1] == "no base pinned") != base:
+            continue
+        card = f"Possible bug '{heading.get_text(strip=True)}'"
+        problems.append(f"{card}: a base is pinned, so attribute its origin; *no base pinned* is for reports without a base." if base
+                        else f"{card}: no base is pinned, so its origin is *no base pinned*.")
+    return problems
 
 
 def check_verification(source):
@@ -1551,6 +1570,7 @@ def review_problems(source, note):
         problems.append("Review opening requires Bottom line, Reviewed, and Coverage with explicit scope and limits.")
     before = len(problems)
     keep(problems, check_bug_cards, source, note)
+    problems += bug_origin_gaps(source, base=True)
     cards_failed = len(problems) > before
     behavior = bodies["Behavior changes"]
     parts = markdown_sections(behavior, 3)

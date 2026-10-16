@@ -50,12 +50,21 @@ class AcceptanceReportTests(unittest.TestCase):
         source = REPORT.replace("### Issue 41: CSV export\n", "").replace("### Issue 42: Export permissions\n", "")
         self.reject(source, "### <source title>")
 
+    def test_requirements_text_before_the_first_source_is_prose(self):
+        table = "| Requirement and intent | Status | Behavior and evidence | Next action |\n| --- | --- | --- | --- |\n| Export ([issue 41](intent/issue-41.md)) | Met | [run](runs/record.md) | None |\n\n"
+        self.reject(REPORT.replace("### Issue 41: CSV export\n", table + "### Issue 41: CSV export\n"), "prose only")
+
     def test_unsupported_status_fails(self):
         self.reject(REPORT.replace("| Met |", "| Done |"), "unsupported status 'Done'")
 
     def test_evidence_cell_needs_link_or_explicit_gap(self):
         self.reject(REPORT.replace("not verified: the permission path was not run", "looks fine"),
                     "links pinned source, a run record, or a bug card")
+
+    def test_met_row_needs_an_evidence_link(self):
+        met = line(REPORT, "| Export the table as CSV")
+        self.reject(REPORT.replace(met, "| Export the table as CSV ([issue 41](intent/issue-41.md)) | Met | already held at base: unknown | None |\n"),
+                    "Met row links its evidence")
 
     def test_intent_cell_needs_source_unless_needs_clarification(self):
         self.reject(REPORT.replace("Include a header row ([issue 41](intent/issue-41.md))", "Include a header row"), "link the intent source")
@@ -83,6 +92,7 @@ class AcceptanceReportTests(unittest.TestCase):
         source = source.replace("| refused |", "| no base pinned |").replace("| predicted: no file |", "| no base pinned |")
         source = source.replace(line(source, "**Introduced by:**"), "")
         page.check_acceptance(source, NOTE)
+        self.reject(source.replace("repository:", line(REPORT, "base:") + "repository:"), "a base is pinned")
         self.reject(source.replace("*we ran it* · *no base pinned*", "*we ran it* · *new in this change*"), "no base is pinned")
 
     def test_template_sections_match_the_contract(self):

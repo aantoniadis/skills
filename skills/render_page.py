@@ -1283,7 +1283,7 @@ def opening_gaps(source):
     if not re.search(r"^\*\*Bottom line:\*\*\s*\S", opening, re.M):
         return ["no '**Bottom line:**' paragraph under the title"]
     if not paragraphs:
-        return ["no 'What the change does' section before the items"]
+        return ["no 'What the change does' section (an acceptance report: 'What was asked') before the items"]
     return []
 
 
@@ -1668,8 +1668,13 @@ def acceptance_problems(source, note):
     problems += opening_gap(source, "Acceptance")
     problems += record_gaps(bodies["Evidence and record"], ACCEPTANCE_RECORD)
     sources = markdown_sections(bodies["Requirements"], 3)
+    tokens = MARKDOWN.parse(bodies["Requirements"])
+    first = next((index for index, token in enumerate(tokens)
+                  if token.type == "heading_open" and token.tag == "h3" and not token.level), len(tokens))
     if not sources:
         problems.append("Requirements: put each source's table under its own '### <source title>'.")
+    elif any(token.type == "table_open" for token in tokens[:first]):
+        problems.append("Requirements: put each table under its '### <source title>'; text before the first source is prose only.")
     for name, body in sources:
         for row in keep(problems, review_table, body, REQUIREMENT_COLUMNS, f"Requirements '{name}'", problems) or []:
             status = row[1].get_text(" ", strip=True)
@@ -1677,9 +1682,13 @@ def acceptance_problems(source, note):
                 problems.append(f"Requirements '{name}': unsupported status '{status}'; use {', '.join(FULFILLMENT)}.")
             if status != "Needs clarification" and not row[0].find("a", href=True):
                 problems.append(f"Requirements '{name}': link the intent source, or use Needs clarification for missing intent.")
-            if not row[2].find("a", href=True) and not re.search(r"not verified|not inspected|unknown", row[2].get_text(), re.I):
+            linked = row[2].find("a", href=True)
+            if not linked and not re.search(r"not verified|not inspected|unknown", row[2].get_text(), re.I):
                 problems.append(f"Requirements '{name}': each Behavior and evidence cell links pinned source, a run record, "
                                 "or a bug card, or states not verified, not inspected, or unknown.")
+            elif status == "Met" and not linked:
+                problems.append(f"Requirements '{name}': a Met row links its evidence, pinned source or a run record; "
+                                "a gap word alone does not support Met.")
     if len({name for name, _ in sources}) != len(sources):
         problems.append("Requirements: give each source heading a distinct name.")
     unasked = bodies["Nobody asked for this"]

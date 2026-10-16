@@ -16,7 +16,7 @@ The check is read-only: it changes no application code, tests, or ticket state, 
 
 ## 1. Kickoff and pin
 
-Hold the kickoff round from [asking](../ASKING.md) first, with the questions the request leaves open: how much codebase familiarity to assume; the deliverable, text (recommended) or text plus an HTML companion; whether to confirm the extracted requirement list before verification (recommended) or run straight through; and *Search for bugs?*, *Yes* (recommended) or *No*. Apply a choice the request states without asking. The first delivery states every applied choice in its `Kickoff:` line.
+Hold the kickoff round from [asking](../ASKING.md) first, with the questions the request leaves open: how much codebase familiarity to assume; the deliverable, text (recommended) or text plus an HTML companion; whether to confirm the extracted requirement list before verification (recommended, but applied only when the user picks it, as step 2 says) or run straight through; and *Search for bugs?*, *Yes* (recommended) or *No*. Apply a choice the request states without asking. The first delivery states every applied choice in its `Kickoff:` line.
 
 Pin `head` as a full SHA: the checkout's HEAD, or a named branch resolved to its SHA. A `base` is optional and serves attribution only. When a base is inferable, such as the merge-base of a feature branch with the default branch, find it and state it as an assumption instead of asking. Write `head`, `base` when pinned, and `repository: owner/name` in the report's front matter. Record local modifications and relevant configuration; dirty source follows the [snapshot rule](../EVIDENCE.md#capture-a-local-snapshot).
 
@@ -34,9 +34,9 @@ Done when the `Kickoff:` line is ready, `head` is a full SHA, the base is pinned
 - When a later comment revises the body, quote both. The comment supersedes the body only when the spec owner explicitly replaces the earlier wording; otherwise the row is **Needs clarification**.
 - A vague non-functional requirement, such as "fast" or "secure", is **Needs clarification**, with a measurable reading proposed and labeled *inferred*.
 
-When the user chose to confirm, show the list with each quote, source, reading, and flagged conflict, and stop once. Otherwise continue, and keep the list at the top of the requirements section for later correction.
+When the user explicitly chose to confirm, show the list with each quote, source, reading, and flagged conflict, and stop once. "go", no answer, or a non-interactive session runs straight through, and the `Kickoff:` line says so; the list then sits at the top of the requirements section for later correction.
 
-Done when every reachable source is atomized into quoted, linked rows, and the user has seen the list when they chose to confirm it.
+Done when every reachable source is atomized into quoted, linked rows, and the user has seen the list when they explicitly chose to confirm it.
 
 ## 3. Scope the feature code
 
@@ -77,7 +77,7 @@ Done when the section lists each such behavior with its pinned source, or states
 
 ## 6. Search for bugs
 
-When selected, load [find-bugs](../find-bugs/SKILL.md) and follow it as a scoped helper, yourself or through native delegation. Supply the head, the base when pinned, the feature scope (commit set and traced files or symbols), the report directory, the local tool record when available, and hypotheses from the verification step. It saves its probes under the report's `runs/bugs/` and leaves the report to this skill. Integrate returned defects as [bug cards](references/report-format.md#bug-origins):
+When selected, load [find-bugs](../find-bugs/SKILL.md) and follow it as a scoped helper, yourself or through native delegation. Supply the head, the base when pinned, the feature scope (commit set and traced files or symbols), the report directory, the local tool record when available, and hypotheses from the verification step. Keep its probe scripts, fixtures, logs, and environment records under the report directory's `runs/bugs/`, and keep the report, its presentation, and publication with this skill. Integrate returned defects as [bug cards](references/report-format.md#bug-origins):
 
 - A bug that breaks a requirement sets that row to Partial or Unmet and links its card.
 - Every other bug gets its own card.

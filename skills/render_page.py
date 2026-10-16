@@ -1048,7 +1048,7 @@ LIST_ITEM = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+")
 # Sections whose blocks are questions, scope, conditions, provenance, or records rather than claims.
 CLAIM_FREE = re.compile(r"question|scope|boundar|condition|revision|provenance|worth asking|unknown|\bopen\b|next|files|\blog\b|review|history"
                         r"|kickoff|default|summary|source map|reading order|possible|prompt|feedback|generators|record"
-                        r"|motivat|workflow|outcome|event|milestone|timeline|collection|acceptance|slice|gaps", re.I)
+                        r"|motivat|workflow|outcome|event|milestone|timeline|collection|acceptance|slice|^gaps$", re.I)
 # Words that mark an observation, a status, or an honest label; a pinned line or a quoted link also counts.
 EVIDENCE_WORDS = re.compile(r"\b(?:observed|executed|inferred|proposed|not (?:yet )?(?:inspected|run|checked|probed|verified)|unknown|background|documented"
                             r"|quoted|agreed|accepted|empty|ran|run|supported|partial|contradicted|unresolved|intent-unconfirmed|pending|prepared|usable"
@@ -1147,7 +1147,7 @@ def check_claims(source):
     gaps = claim_gaps(split_label_key(source)[0])
     if gaps:
         shown = "; ".join(f"line {n}: {text!r}" for n, text in gaps[:5])
-        raise ValueError(f"{len(gaps)} claim block(s) without evidence — {shown}. Add a pinned line (`path.py:12` or a #L link), a quoted source with its link, a command, or a label word such as observed, ran, inferred, not inspected, not verified, not confirmed, or unknown (EVIDENCE.md).")
+        raise ValueError(f"{len(gaps)} claim block(s) without evidence — {shown}. Add a pinned line (`path.py:12` or a #L link), a quoted source with its link, a command, or a label word that is true of the claim, such as observed, ran, inferred, not inspected, not verified, not confirmed, or unknown (EVIDENCE.md).")
 
 
 def attention_items(source):
@@ -1677,7 +1677,8 @@ def acceptance_problems(source, note):
         problems.append("Requirements: put each source's table under its own '### <source title>'.")
     elif any(token.type == "table_open" for token in tokens[:first]):
         problems.append("Requirements: put each table under its '### <source title>'; text before the first source is prose only.")
-    if not any(token.type == "inline" and token.content.startswith("**Requirement list:**") for token in tokens[:first]):
+    opening = [token.content for token in tokens[:first] if token.type == "inline"]
+    if not (opening and re.match(r"\*\*Requirement list:\*\*\s*\S", opening[0])):
         problems.append("Requirements: start with a '**Requirement list:**' line that says whether the user confirmed the list.")
     for name, body in sources:
         for row in keep(problems, review_table, body, REQUIREMENT_COLUMNS, f"Requirements '{name}'", problems) or []:
@@ -1696,15 +1697,27 @@ def acceptance_problems(source, note):
     if len({name for name, _ in sources}) != len(sources):
         problems.append("Requirements: give each source heading a distinct name.")
     unasked = bodies["Nobody asked for this"]
-    if not (re.search(r"^\s*(?:[-*+]|\d+\.|\|)\s", unasked, re.M) or re.search(r"^None found:\s*\S", unasked, re.M)):
+    none_found = re.search(r"^None found:\s*\S", unasked, re.M)
+    marks = MARKDOWN.parse(unasked)
+    items, depth = [], 0  # the inline text of each top-level list item, nested items included
+    for token in marks:
+        if token.type == "list_item_open":
+            depth += 1
+            if depth == 1:
+                items.append([])
+        elif token.type == "list_item_close":
+            depth -= 1
+        elif token.type == "inline" and depth:
+            items[-1].append(token.content)
+    if not (items or none_found or any(token.type == "table_open" for token in marks)):
         problems.append("Nobody asked for this: list the delivered behavior no source asked for, or write 'None found:' with the scope inspected.")
-    if any("nobody asked for this" not in item.lower() for item in re.findall(r"^(?:[-*+]|\d+\.)\s.*", unasked, re.M)):
+    if not none_found and any("nobody asked for this" not in " ".join(" ".join(item).split()).lower() for item in items):
         problems.append("Nobody asked for this: label each item *nobody asked for this*.")
     questions = bodies["Questions for the author"]
     if not all(label in questions for label in ("**Spec owner:**", "**Author:**")):
         problems.append("Questions for the author: keep **Spec owner:** and **Author:** lists; state none with the reason.")
     elif not all(part.strip() for part in re.split(r"\*\*(?:Spec owner|Author):\*\*", questions)[1:]):
-        problems.append("Questions for the author: give each list a question, or state none with the reason.")
+        problems.append("Questions for the author: give each list a nonempty entry, a question or none with the reason.")
     before = len(problems)
     keep(problems, check_bug_cards, source, note)
     problems += bug_origin_gaps(source, base="base" in front)

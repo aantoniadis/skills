@@ -12,7 +12,7 @@ bounded by its [evidence](../EVIDENCE.md).
 
 Tell the person who accepts delivered work, for each requirement, whether the code at one pinned revision meets it, with evidence. Also report delivered behavior in the feature's code that no requirement asked for and, when selected, defects in that code. Maintain one current Markdown report and, when requested, its self-contained HTML companion, written in the shape of [report-format.md](references/report-format.md), starting from [report-template.md](references/report-template.md).
 
-The check is read-only: its only writes are the report directory and, within authorization, the comments step 7 drafts. The report gives counts and blockers, not a merge or ship verdict; the ship decision is the user's.
+The check is read-only: it changes no application code, tests, or ticket state, and it never closes, labels, or reopens a ticket. The report gives counts and blockers, not a merge or ship verdict; the ship decision is the user's.
 
 ## 1. Kickoff and pin
 
@@ -20,7 +20,7 @@ Hold the kickoff round from [asking](../ASKING.md) first, with the questions the
 
 Pin `head` as a full SHA: the checkout's HEAD, or a named branch resolved to its SHA. A `base` is optional and serves attribution only. When a base is inferable, such as the merge-base of a feature branch with the default branch, find it and state it as an assumption instead of asking. Write `head`, `base` when pinned, and `repository: owner/name` in the report's front matter. Record local modifications and relevant configuration; dirty source follows the [snapshot rule](../EVIDENCE.md#capture-a-local-snapshot).
 
-Create `report.md` at the location the caller supplied, else the routine location from [asking](../ASKING.md), with the review record `review.md` beside it and tool outputs and probes under `runs/`. The review record holds one run record per check and the consequential corrections. Read the [local tool record](../TOOL-SETUP.md) if present.
+Create `report.md` at the location the caller supplied, else the routine location from [asking](../ASKING.md), with the review record `review.md` beside it and tool outputs and probes under `runs/`. The review record holds one run record per check, failed and blocked checks included, with its command, conditions, result, and limits, and each consequential correction with the prior claim, its replacement, the reason, and the evidence. Read the [local tool record](../TOOL-SETUP.md) if present.
 
 Collect the intent sources: GitHub issues and epics through `gh` (body, comments, sub-issues, linked PRs); Jira or Linear tickets through the host's MCP connector when connected; URLs; local files; a [plan-change](../plan-change/SKILL.md) plan, whose acceptance outcomes map one-to-one to requirements; pasted text. Record each source's collection time, because issues change. Name an inaccessible source as a gap.
 
@@ -91,7 +91,7 @@ Done when every returned defect has a card and its requirement row is updated, o
 
 Compare the bottom line, attention items, rows, bug cards, and questions with their evidence; use a [second reader](../FRESH-REVIEW.md) when useful. Before every delivery, after the last edit, run `python3 <package>/skills/render_page.py <report.md> --check --acceptance --sync-labels`, including for text-only reports, with `--repo <checkout>` when the report sits outside the checkout. Learn its rules from its messages: write the report, run the check, fix what each message names, and rerun before presenting the report as complete. For HTML delivery, read and apply the [shared page workflow](../HTML-PAGES.md) with the page notes of report-format.md.
 
-Reply with the absolute report link, counts by status, and the top gaps. Then hand off gaps and Unmet rows to `/aantoniadis-skills:plan-change` or to `mattpocock:implement` as [package references](../REFERENCES.md) say, and bugs to `/aantoniadis-skills:fix-bug`. Each command carries the report path and the rows it concerns. Send Needs clarification rows to the spec owner as questions.
+Reply with the absolute report link, counts by status, and the top gaps. Then hand off gaps and Unmet rows to `/aantoniadis-skills:plan-change` or to `mattpocock:implement` as [package references](../REFERENCES.md) say, and bugs to `/aantoniadis-skills:fix-bug` (`$` instead of `/` in Codex). Each command carries the report path and the rows it concerns. Send Needs clarification rows to the spec owner as questions.
 
 When the user requests it, draft one comment per issue or ticket with its rows, statuses, evidence links, and the pinned head. Post only within authorization, as [asking](../ASKING.md) describes, and record each posted URL in the review record.
 
@@ -99,6 +99,6 @@ Done when the checker passes after the last edit, or the report is labeled struc
 
 ## 8. Re-check, do not restart
 
-A follow-up, such as "re-check after the fixes", resumes the same report and review record. Collect the intent sources again and compare them with the report's quotes and collection times: an edited body, a new comment, or a changed sub-issue reopens the rows that source feeds, under the step 2 rules, and adds any row it newly asks for. When the head moved, list the arrived commits, split into feature-relevant ones (touching the feature scope or linked to a source) and unrelated ones, and offer to re-pin. A re-pin reopens only rows whose traced code, linked work, or evidence changed; record what was rechecked, each new collection time, and what still refers to the earlier head. Run the check in step 7 after the last edit.
+A follow-up, such as "re-check after the fixes", resumes the same report and review record. Collect the intent sources again and compare them with the report's quotes and collection times: an edited body, a new comment, or a changed sub-issue reopens the rows that source feeds, under the step 2 rules, and adds any row it newly asks for. When the head moved, list the arrived commits, split into feature-relevant ones (touching the feature scope or linked to a source) and unrelated ones, and offer to re-pin. A re-pin reopens only rows whose traced code, linked work, or evidence changed; restate the `**Requirement list:**` line when rows were added; record what was rechecked, each new collection time, and what still refers to the earlier head. Run the check in step 7 after the last edit.
 
-Done when every source has a current collection time, every reopened row has a current status and evidence, and the report passes the check against the head in force.
+Done when every source has a current collection time or is named as a gap, every reopened row has a current status and evidence, and the report passes the check against the head in force.

@@ -29,7 +29,7 @@ Put one `### <source title>` per issue, ticket, or spec, each title distinct, an
 - The intent cell links its source, unless the row is Needs clarification for missing intent.
 - The evidence cell links pinned source, a run record, or a bug card, or states an explicit gap: `not verified`, `not inspected`, or `unknown`. A Met row links pinned source or a run record. An acceptance report has no *Behavior changes* section to link.
 - A bug that breaks a requirement sets the row to Partial or Unmet, and the evidence cell links its card.
-- With a base pinned, the evidence cell of an Unmet or Partial row can state whether the gap already existed at the base, or `unknown`.
+- With a base pinned, the evidence cell of an Unmet or Partial row states whether the same check gave the same result at the base, or `unknown`.
 
 ## Nobody asked for this
 

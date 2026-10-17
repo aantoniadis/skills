@@ -46,7 +46,7 @@ the original installed beside it.
 | Find defects in a change | Our `find-bugs` | Project tools recorded during setup |
 | Create or update the PR | HumanLayer's `visual-pr` | Its original description template and visual references |
 | Help a human review the PR | Our `pr-review-guide` | Our `find-bugs` for the search for bugs |
-| Check delivered work against its requirements | Our `check-acceptance` | Our `find-bugs` for the search for bugs; Matt's `implement` builds the gaps it reports, run by you |
+| Check delivered work against its requirements | Our `check-acceptance` | Our `find-bugs` for the search for bugs; Matt's `implement`, which you run, for the gaps it reports |
 
 ## 1. Prepare the project
 
@@ -226,9 +226,9 @@ For a set of issues, an epic, tickets, or a spec, after implementation:
 The skill pins the head, splits each source into quoted requirements, traces
 the feature code, and reports each requirement as Met, Partial, Unmet, Not
 verified, Needs clarification, or Not applicable, with evidence. It also lists
-delivered behavior nobody asked for. It does not edit code, change ticket
-state, or give a ship verdict. Gaps go to `plan-change` or Matt's `implement`,
-and bugs to `fix-bug`. [How it works](check-acceptance.md).
+delivered behavior nobody asked for. It does not edit code or give a ship
+verdict, and it writes to tickets only when you ask. Gaps go to `plan-change`
+or Matt's `implement`, and bugs to `fix-bug`. [How it works](check-acceptance.md).
 
 One possible sequence when all these tasks are requested:
 

@@ -19,8 +19,10 @@ ticket only when you ask for that write.
    time, because issues change, and an inaccessible source is named as a gap.
 2. **Extract requirements.** Each source is split into rows of one observable
    condition, quoted and linked to the issue, comment, ticket field, or plan
-   heading. Explicit acceptance criteria stay apart from inferred ones, and a
-   later comment that revises the body is quoted beside it. A vague
+   heading. Explicit acceptance criteria stay apart from inferred ones. A later
+   comment that revises the body is quoted beside it: the spec owner's comment
+   stating a new value wins; anyone else's revision, a question, or a
+   suggestion makes the row Needs clarification. A vague
    requirement such as "fast" is Needs clarification with a measurable reading
    proposed. The list is shown for confirmation only when you choose that;
    "go", no answer, or a non-interactive session runs straight through, and
@@ -49,14 +51,15 @@ ticket only when you ask for that write.
 7. **Check and deliver.** `report.md` holds the bottom line, counts, the
    requirement rows with evidence, attention items, bug cards, and questions;
    `review.md` holds one run record per check and the consequential
-   corrections; an HTML companion is optional. Every delivery runs the report structure check. The reply gives
-   the report link, counts by status, and the top gaps, then hands gaps and
-   Unmet rows to `plan-change` or Matt's `implement`, and bugs to `fix-bug`,
-   each command carrying the report path and the rows it concerns. Needs
-   clarification rows go to the spec owner as questions. Asked for ticket
-   updates, it makes the writes you named once the report passes its check; a
-   request such as "close the met ones" covers only tickets whose rows are all
-   Met, and the reply lists each write with its URL.
+   corrections; an HTML companion is optional. Every delivery runs the report
+   structure check. The reply gives the report link, counts by status, and the
+   top gaps, then hands gaps and Unmet rows to `plan-change` or Matt's
+   `implement`, and bugs to `fix-bug`, each command carrying the report path
+   and the rows it concerns. Needs clarification rows are listed as questions
+   for the spec owner. Asked for ticket updates, it makes the writes you named
+   once the report passes its check; a request such as "close the met ones"
+   covers only tickets whose rows are all Met, and the reply lists each write
+   with its URL.
 8. **Re-check, do not restart.** A follow-up such as "re-check after the
    fixes" resumes the same report. It collects the sources again, and a changed
    body, comment, or sub-issue reopens the rows it feeds. If the head moved,

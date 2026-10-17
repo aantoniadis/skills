@@ -3,10 +3,9 @@
 Skills for coding agents, shipped as the **`aantoniadis-skills`** plugin for
 Claude Code, Codex, and OpenCode. Seven skills cover the work around a change:
 set a project up for evidence, understand the code, plan the behavior, fix a
-reported bug, find the defects, review the PR, and check delivered
-work against its requirements. Matt Pocock's and
-HumanLayer's originals, installed separately, carry a plan through spec,
-tickets, implementation, and the PR.
+reported bug, find the defects, review the PR, and check delivered work
+against its requirements. Matt Pocock's and HumanLayer's originals, installed
+separately, carry a plan through spec, tickets, implementation, and the PR.
 
 ```bash
 claude plugin marketplace add aantoniadis/skills && claude plugin install aantoniadis-skills@aantoniadis
@@ -113,8 +112,9 @@ and `to-tickets`, Matt's `implement` builds an unblocked ticket, `fix-bug`
 takes a reported symptom to a fixed, recorded cause, `find-bugs` runs before
 HumanLayer's `visual-pr` opens the PR, `pr-review-guide` serves the PR's
 human reviewer, and `check-acceptance` checks the built result against the
-requirements across a set of issues. An original invoked directly keeps its own behavior, such as
-committing or pushing; one called by our skills follows our task constraints.
+requirements across a set of issues. An original invoked directly keeps its
+own behavior, such as committing or pushing; one called by our skills follows
+our task constraints.
 
 - [Using the skills together](docs/workflow.md): copyable prompts, project
   setup, handoffs, and artifact locations

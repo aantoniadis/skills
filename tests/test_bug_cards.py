@@ -105,6 +105,40 @@ class BugCardTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "'## Possible bugs'"):
             page.check_review(old, NOTE)
 
+    def test_bug_origin_labels_cover_new_origins(self):
+        self.assertEqual(tuple(page.LABELS["bug-origin"]["options"]),
+                         ("new in this change", "pre-existing, made worse", "from an unrelated commit", "no base pinned"))
+
+    def test_review_rejects_no_base_pinned_origin(self):
+        source = CARDS.replace("*we ran it* · *new in this change*", "*we ran it* · *no base pinned*")
+        source = source.replace("| freed |", "| no base pinned |")
+        self.reject(source, "a base is pinned")
+
+    def test_no_base_card_reads_no_base_pinned_in_base(self):
+        origin = CARDS.replace("*suspected, not run* · *pre-existing, made worse*", "*suspected, not run* · *no base pinned*")
+        with self.assertRaisesRegex(ValueError, "no base pinned"):
+            page.check_bug_cards(origin, NOTE)
+        source = origin.replace("| Flags for the override | predicted: computed for the override |",
+                                "| Flags for the override | no base pinned |")
+        page.check_bug_cards(source, NOTE)
+
+    def test_unrelated_commit_card_names_the_commit(self):
+        source = CARDS.replace("*suspected, not run* · *pre-existing, made worse*", "*suspected, not run* · *from an unrelated commit*")
+        with self.assertRaisesRegex(ValueError, "Introduced by"):
+            page.check_bug_cards(source, NOTE)
+        trigger = line(source, "**Trigger:** an async")
+        source = source.replace(trigger, trigger + "**Introduced by:** 3f2a9c1 (reformat of models.py)\n")
+        page.check_bug_cards(source, NOTE)
+        card = page.parse(page.render(source, NOTE.name)).select("#possible-bugs article.bug-card")[1]
+        self.assertIn("Introduced by:", [fact.strong.get_text() for fact in card.select(".behavior-fact")])
+        self.assertEqual(card.select(".bug-chips .chip")[1]["class"][1], "chip-unrelated")
+        self.reject(source, "acceptance-report origin")
+
+    def test_bug_origin_gaps_without_base(self):
+        self.assertEqual(len(page.bug_origin_gaps(CARDS, base=False)), 2)
+        source = CARDS.replace("*new in this change*", "*no base pinned*").replace("*pre-existing, made worse*", "*no base pinned*")
+        self.assertEqual(page.bug_origin_gaps(source, base=False), [])
+
     def test_removing_each_required_field_names_it(self):
         chips = line(CARDS, "*we ran it*")
         for label in ("Where", "Trigger", "Who / impact", "Fix direction"):

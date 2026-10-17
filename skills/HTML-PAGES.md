@@ -1,7 +1,7 @@
 # Shared reading pages
 
 Read this when filling, checking, or rendering an understanding note, behavior
-plan, PR review, or bug diagnosis. Apply [technical English](TECHNICAL-ENGLISH.md). Markdown
+plan, PR review, acceptance report, or bug diagnosis. Apply [technical English](TECHNICAL-ENGLISH.md). Markdown
 remains authoritative for findings, source excerpts, evidence, and decision status.
 
 ## Contents
@@ -21,6 +21,7 @@ For a new note, start from the calling skill's Markdown template:
 | Code explanation | [understanding-template.md](explain/references/understanding-template.md) | [Reading-page guidance](explain/references/reading-page.md) and the calling skill |
 | Behavior plan | [plan-template.md](plan-change/references/plan-template.md) | [Planning-page guidance](plan-change/references/planning-page.md) and the calling skill |
 | PR review | [report-template.md](pr-review-guide/references/report-template.md) | [Report format](pr-review-guide/references/report-format.md) |
+| Acceptance report | [report-template.md](check-acceptance/references/report-template.md) | [Report format](check-acceptance/references/report-format.md) |
 | Bug diagnosis | [diagnosis-template.md](fix-bug/references/diagnosis-template.md) | [Diagnosis-page guidance](fix-bug/references/diagnosis-page.md) and the calling skill |
 
 Replace every `{{...}}` prompt with supported content. Repeat items and sections
@@ -30,7 +31,7 @@ the document; it neither proves completeness nor requires empty sections.
 Update an existing note in place instead of replacing it with the template.
 
 For HTML delivery, generate the companion from the authoritative Markdown with
-`python3 <resolved-script-path> <note.md> --sync-labels [--repo <checkout>]`, with `--review` for a PR review, using [render_page.py](render_page.py)
+`python3 <resolved-script-path> <note.md> --sync-labels [--repo <checkout>]`, with `--review` for a PR review or `--acceptance` for an acceptance report, using [render_page.py](render_page.py)
 beside this reference in the installed package. The renderer fills
 [page-template.html](page-template.html); it owns typography, spacing, colors,
 navigation, tables, code cards, and disclosures. Choose the reading order and
@@ -147,7 +148,7 @@ same-page fragments, local file existence, keyboard scrolling regions, common
 external asset references, and in the Markdown the evidence floor of
 [EVIDENCE.md](EVIDENCE.md): a pinned line, observation, quote, or label in every
 claim block, and a source map under every Mermaid fence, including explicitly proposed elements linked to decisions or requirements; the same command
-checks a note that has no page. Shared verification tables follow the result and origin rules of [report-format.md](pr-review-guide/references/report-format.md#requirements-and-verification-tables) in explanations, plans, and reviews. A PR review adds `--review`, as its [final structural check](pr-review-guide/references/report-format.md#final-structural-check) says. Code and links can move or repeat. Keep code in
+checks a note that has no page. Shared verification tables follow the result and origin rules of [report-format.md](pr-review-guide/references/report-format.md#requirements-and-verification-tables) in explanations, plans, and reviews. A PR review adds `--review`, as its [final structural check](pr-review-guide/references/report-format.md#final-structural-check) says; an acceptance report adds `--acceptance` instead. Code and links can move or repeat. Keep code in
 `<code>` elements and all report content in one `<main>` region. Fenced excerpts
 retain exact whitespace. The renderer strips raw HTML, so an anchor is a
 heading slug, not an `<a id>`; link to sections by their heading text.

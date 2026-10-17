@@ -313,7 +313,7 @@ A parse error becomes a 400 response, and the endpoint never runs. Observed with
     # The opening of a review report: a bottom line under the title, then 'What the change does' (report-format.md).
     opening = "# G\n\n**Bottom line:** one rule.\n\n## What the change does\n\nThe change adds a mode.\n\n## What to look at\n\n1. x\n"
     assert page.opening_gaps(opening) == []
-    assert page.opening_gaps(opening.replace("## What the change does\n\nThe change adds a mode.\n\n", "")) == ["no 'What the change does' section before the items"]
+    assert page.opening_gaps(opening.replace("## What the change does\n\nThe change adds a mode.\n\n", "")) == ["no 'What the change does' section (an acceptance report: 'What was asked') before the items"]
     assert page.opening_gaps(opening.replace("## What to look at", "## Answers")) == []  # not a review report
     rejected(lambda: page.check_opening(opening.replace("**Bottom line:** one rule.\n\n", "")), "Bottom line")
     rejected(lambda: page.check(components.replace("*you decide* · *not read*", "*you decide*"), html, note), "what to do")

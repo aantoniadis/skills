@@ -195,7 +195,8 @@ INTENT_PHRASES = {"matches the stated intent": "supported", "partly matches the 
 BUG_SECTION = "Possible bugs"
 BUG_FORMS = ("The search for bugs has not run:", "No bugs found:")  # the two sentence forms; otherwise ### cards
 BUG_EVIDENCE = {"we ran it": "observed", "suspected, not run": "suspected"}
-BUG_ORIGIN = {"new in this change": "new", "pre-existing, made worse": "made-worse"}
+BUG_ORIGIN = {"new in this change": "new", "pre-existing, made worse": "made-worse",
+              "from an unrelated commit": "unrelated", "no base pinned": "origin-unknown"}
 # A diagnosis note (fix-bug) holds its one cause as a card under "Cause"; the card renders like a bug card, with the
 # diagnosis chip families below, and keeps the per-paragraph evidence floor instead of the review card rules.
 CAUSE_SECTION = "Cause"
@@ -205,7 +206,7 @@ DIAGNOSIS_CHECKS = {"reproduced": "supported", "not reproduced": "unresolved", "
                     "no test seam": "unresolved", "origin checked": "supported",
                     "origin skipped": "skipped", "reach checked": "supported", "reach skipped": "skipped",
                     "consequence checked": "supported", "consequence skipped": "skipped"}
-BUG_FIELDS = ("Where", "Trigger", "Who / impact", "Fix direction", "Reproduce", "Probe that would settle it")
+BUG_FIELDS = ("Where", "Trigger", "Introduced by", "Who / impact", "Fix direction", "Reproduce", "Probe that would settle it")
 BUG_CHIPS = re.compile(rf"^\*({'|'.join(map(re.escape, BUG_EVIDENCE))})\*\s*·\s*\*({'|'.join(map(re.escape, BUG_ORIGIN))})\*\s*$")
 BUG_ITEM_SHAPE = "an item that links to its bug card is one line; the card holds the detail"
 ITEM_EVIDENCE = {"we ran it": "observed", "suspected, not run": "inferred"}  # card chip -> its attention item's evidence
@@ -1047,7 +1048,7 @@ LIST_ITEM = re.compile(r"^\s*(?:[-*+]|\d+[.)])\s+")
 # Sections whose blocks are questions, scope, conditions, provenance, or records rather than claims.
 CLAIM_FREE = re.compile(r"question|scope|boundar|condition|revision|provenance|worth asking|unknown|\bopen\b|next|files|\blog\b|review|history"
                         r"|kickoff|default|summary|source map|reading order|possible|prompt|feedback|generators|record"
-                        r"|motivat|workflow|outcome|event|milestone|timeline|collection|acceptance|slice", re.I)
+                        r"|motivat|workflow|outcome|event|milestone|timeline|collection|acceptance|slice|^gaps$", re.I)
 # Words that mark an observation, a status, or an honest label; a pinned line or a quoted link also counts.
 EVIDENCE_WORDS = re.compile(r"\b(?:observed|executed|inferred|proposed|not (?:yet )?(?:inspected|run|checked|probed|verified)|unknown|background|documented"
                             r"|quoted|agreed|accepted|empty|ran|run|supported|partial|contradicted|unresolved|intent-unconfirmed|pending|prepared|usable"
@@ -1146,7 +1147,7 @@ def check_claims(source):
     gaps = claim_gaps(split_label_key(source)[0])
     if gaps:
         shown = "; ".join(f"line {n}: {text!r}" for n, text in gaps[:5])
-        raise ValueError(f"{len(gaps)} claim block(s) without evidence — {shown}. Add a pinned line, an observation, a quote, or a label (EVIDENCE.md).")
+        raise ValueError(f"{len(gaps)} claim block(s) without evidence — {shown}. Add a pinned line (`path.py:12` or a #L link), a quoted source with its link, a command, or a label word that is true of the claim, such as observed, ran, inferred, not inspected, not verified, not confirmed, or unknown (EVIDENCE.md).")
 
 
 def attention_items(source):
@@ -1270,9 +1271,10 @@ def check_attention(source):
 
 
 def opening_gaps(source):
-    """A review report opens with its bottom line and 'What the change does' (report-format.md).
+    """A review report opens with its bottom line and 'What the change does'
+    (an acceptance report: 'What was asked') (report-format.md).
     Returns problems, empty when fine. ponytail: checks presence, not meaning."""
-    section = re.search(r"^(#{1,6})\s+what the change does[^\n]*\n(.*?)(?=^#{1,6}\s|\Z)", source, re.I | re.M | re.S)
+    section = re.search(r"^(#{1,6})\s+what (?:the change does|was asked)[^\n]*\n(.*?)(?=^#{1,6}\s|\Z)", source, re.I | re.M | re.S)
     paragraphs = [b for b in re.split(r"\n\s*\n", section.group(2)) if b.strip()
                   and not b.lstrip().startswith(("|", "-", "*", ">", "```"))] if section else []
     if not re.search(r"^#{1,6}\s+what to look at", source, re.I | re.M):
@@ -1281,7 +1283,7 @@ def opening_gaps(source):
     if not re.search(r"^\*\*Bottom line:\*\*\s*\S", opening, re.M):
         return ["no '**Bottom line:**' paragraph under the title"]
     if not paragraphs:
-        return ["no 'What the change does' section before the items"]
+        return ["no 'What the change does' section (an acceptance report: 'What was asked') before the items"]
     return []
 
 
@@ -1387,8 +1389,12 @@ def check_bug_cards(source, note, required=True):
         rows = [row.find_all("td") for row in tables[0].select("tbody tr")] if len(tables) == 1 else []
         if not rows or any(len(row) != 3 or not all(cell.get_text(strip=True) for cell in row) for row in rows):
             raise ValueError(f"{card}: needs one filled table with a label column, then exactly Base and Head.")
+        if chips[1] == "no base pinned" and any(cell.get_text(" ", strip=True) != "no base pinned" for row in rows for cell in row[1:2]):
+            raise ValueError(f"{card}: a no-base-pinned card reads *no base pinned* in every Base cell.")
+        if chips[1] == "from an unrelated commit" and not re.search(r"\b[0-9a-f]{7,40}\b", value("Introduced by")):
+            raise ValueError(f"{card}: a bug from an unrelated commit names that commit under **Introduced by:** as a SHA.")
         if chips[0] == "suspected, not run":
-            if any(not cell.get_text(" ", strip=True).lower().startswith("predicted:") for row in rows for cell in row[1:]):
+            if any(not cell.get_text(" ", strip=True).lower().startswith("predicted:") for row in rows for cell in row[1:][chips[1] == "no base pinned":]):
                 raise ValueError(f"{card}: a suspected card starts each Base and Head value with 'predicted:'.")
             probe = fields.get("Probe that would settle it")
             following = probe.find_next_sibling() if probe else None
@@ -1462,6 +1468,22 @@ def check_bug_cards(source, note, required=True):
     raise_all(problems)
 
 
+def bug_origin_gaps(source, base, review=False):
+    """Card-origin problems against whether a base is pinned; cards without a chip line fail check_bug_cards instead."""
+    problems = []
+    for heading in bug_card_headings(parse(MARKDOWN.render(source))):
+        parts = card_parts(heading)
+        chips = chip_line(parts[0], first_line=True) if parts and parts[0].name == "p" else None
+        card = f"Possible bug '{heading.get_text(strip=True)}'"
+        if review and chips and chips[1] == "from an unrelated commit":
+            problems.append(f"{card}: *from an unrelated commit* is an acceptance-report origin; a PR review attributes origin to the PR.")
+        if not chips or (chips[1] == "no base pinned") != base:
+            continue
+        problems.append(f"{card}: a base is pinned, so attribute its origin; *no base pinned* is for reports without a base." if base
+                        else f"{card}: no base is pinned, so its origin is *no base pinned*.")
+    return problems
+
+
 def check_verification(source):
     """Validate the shared verification table wherever it is used, independently of PR structure."""
     problems = []
@@ -1520,6 +1542,44 @@ def check_review(source, note):
     raise_all(review_problems(source, note))
 
 
+def opening_gap(source, kind):
+    """The problem when the opening lacks Bottom line, Reviewed, or Coverage; kind names the report."""
+    opening = source.split("\n## ", 1)[0]
+    if not all(re.search(rf"\*\*{label}:\*\*\s*\S", opening) for label in ("Bottom line", "Reviewed", "Coverage")):
+        return [f"{kind} opening requires Bottom line, Reviewed, and Coverage with explicit scope and limits."]
+    return []
+
+
+def record_gaps(body, names):
+    """Problems for each '### name' under Evidence and record that is not one nonempty section."""
+    record = markdown_sections(body, 3)
+    return [f"Evidence and record requires one nonempty '### {name}' section; state none or unknown when appropriate."
+            for name in names if len([text for title, text in record if title == name]) != 1
+            or not [text for title, text in record if title == name][0].strip()]
+
+
+def verification_problems(document, verification, cards, cards_failed):
+    """Problems in the Verification section: summaries, table, and the Bug probes row (judged against the cards)."""
+    problems = []
+    if not all(label in verification for label in ("Tests inspected:", "Recorded runs:", "Executed:")):
+        problems.append("Verification: retain Tests inspected:, Recorded runs:, and Executed: summaries, including explicit none.")
+    checked = (keep(problems, review_table, verification, VERIFICATION_COLUMNS, "Verification", problems)
+               if parse(MARKDOWN.render(verification)).find("table") or not re.search(r"^No checks selected:\s*\S", verification, re.M)
+               else [])
+    keep(problems, check_verification, verification)
+    # The Bug probes row is judged against the cards and the Verification table; when either failed, its verdict
+    # would only repeat that failure.
+    if not cards_failed and checked is not None:
+        keep(problems, check_bug_probes, document, cards.strip(), checked)
+    return problems
+
+
+def anchor_gaps(document, kind):
+    """Problems when two headings share an anchor, plus the ids for the link check."""
+    ids = [slug(tag.get_text()) for tag in document.find_all(re.compile(r"^h[1-6]$"))]
+    return ids, ([f"{kind} headings need distinct names for stable anchors."] if len(ids) != len(set(ids)) else [])
+
+
 def review_problems(source, note):
     """Every failure of the review contract, in reading order; empty when the review passes."""
     problems = []
@@ -1538,19 +1598,14 @@ def review_problems(source, note):
     if any(names.count(name) != 1 for name in required):
         return problems  # Stop: the checks below read these sections, and without them they would only crash.
     bodies = dict(sections)
-    record = markdown_sections(bodies["Evidence and record"], 3)
-    for name in ("Gaps", "Provenance", *(() if "Reading plan" in bodies else ("Changed files",))):
-        entries = [body for title, body in record if title == name]
-        if len(entries) != 1 or not entries[0].strip():
-            problems.append(f"Evidence and record requires one nonempty '### {name}' section; state none or unknown when appropriate.")
+    problems += record_gaps(bodies["Evidence and record"], ("Gaps", "Provenance", *(() if "Reading plan" in bodies else ("Changed files",))))
     for name in ("Questions for the author", "Reading plan"):
         if name in bodies and (names.count(name) != 1 or not bodies[name].strip()):
             problems.append(f"Review requires one nonempty '## {name}' section; state none when appropriate.")
-    opening = source.split("\n## ", 1)[0]
-    if not all(re.search(rf"\*\*{label}:\*\*\s*\S", opening) for label in ("Bottom line", "Reviewed", "Coverage")):
-        problems.append("Review opening requires Bottom line, Reviewed, and Coverage with explicit scope and limits.")
+    problems += opening_gap(source, "Review")
     before = len(problems)
     keep(problems, check_bug_cards, source, note)
+    problems += bug_origin_gaps(source, base=True, review=True)
     cards_failed = len(problems) > before
     behavior = bodies["Behavior changes"]
     parts = markdown_sections(behavior, 3)
@@ -1574,20 +1629,102 @@ def review_problems(source, note):
             problems.append("Requirements: link the intent source, or use Needs clarification for missing intent.")
         if not any(link.get("href") in behavior_targets for link in row[2].find_all("a", href=True)):
             problems.append("Requirements: link Behavior and evidence to a named behavior section.")
-    verification = bodies["Verification"]
-    if not all(label in verification for label in ("Tests inspected:", "Recorded runs:", "Executed:")):
-        problems.append("Verification: retain Tests inspected:, Recorded runs:, and Executed: summaries, including explicit none.")
-    checked = (keep(problems, review_table, verification, VERIFICATION_COLUMNS, "Verification", problems)
-               if parse(MARKDOWN.render(verification)).find("table") or not re.search(r"^No checks selected:\s*\S", verification, re.M)
-               else [])
-    keep(problems, check_verification, verification)
-    # The Bug probes row is judged against the cards and the Verification table; when either failed, its verdict
-    # would only repeat that failure.
-    if not cards_failed and checked is not None:
-        keep(problems, check_bug_probes, document, bodies[BUG_SECTION].strip(), checked)
-    ids = [slug(tag.get_text()) for tag in document.find_all(re.compile(r"^h[1-6]$"))]
-    if len(ids) != len(set(ids)):
-        problems.append("Review headings need distinct names for stable anchors.")
+    problems += verification_problems(document, bodies["Verification"], bodies.get(BUG_SECTION, ""), cards_failed)
+    ids, gaps = anchor_gaps(document, "Review")
+    problems += gaps
+    keep(problems, check_links, link_targets(document), note, ids)
+    return problems
+
+
+ACCEPTANCE_SECTIONS = ("What was asked", "What to look at", "Requirements", "Nobody asked for this", BUG_SECTION,
+                       "Questions for the author", "Verification", "Evidence and record")
+ACCEPTANCE_RECORD = ("Gaps", "Provenance", "Feature scope")
+
+
+def check_acceptance(source, note):
+    """The final acceptance contract; presence and vocabulary are not proof of investigation.
+    Raises every failure at once (Failures)."""
+    raise_all(acceptance_problems(source, note))
+
+
+def acceptance_problems(source, note):
+    """Every failure of the acceptance contract, in reading order; empty when the report passes.
+    source includes its front matter. ponytail: checks shape and evidence markers, not whether a requirement is met."""
+    problems = []
+    front, source = split_front_matter(source)
+    keep(problems, check_front_matter, front, review=True)
+    if "head" not in front:
+        problems.append("Acceptance front matter requires head as a full commit SHA.")
+    document = parse(MARKDOWN.render(source))
+    if len(document.find_all("h1")) != 1 or document.find().name != "h1":
+        problems.append("Acceptance requires one opening H1 title.")
+    keep(problems, check_prompts, source)
+    sections = markdown_sections(source, 2)
+    names = [name for name, _ in sections]
+    for name in ACCEPTANCE_SECTIONS:
+        if names.count(name) != 1:
+            problems.append(f"Acceptance report requires exactly one '## {name}' section.")
+    if any(names.count(name) != 1 for name in ACCEPTANCE_SECTIONS):
+        return problems  # Stop: the checks below read these sections, and without them they would only crash.
+    bodies = dict(sections)
+    problems += opening_gap(source, "Acceptance")
+    problems += record_gaps(bodies["Evidence and record"], ACCEPTANCE_RECORD)
+    sources = markdown_sections(bodies["Requirements"], 3)
+    tokens = MARKDOWN.parse(bodies["Requirements"])
+    first = next((index for index, token in enumerate(tokens)
+                  if token.type == "heading_open" and token.tag == "h3" and not token.level), len(tokens))
+    if not sources:
+        problems.append("Requirements: put each source's table under its own '### <source title>'.")
+    elif any(token.type == "table_open" for token in tokens[:first]):
+        problems.append("Requirements: put each table under its '### <source title>'; text before the first source is prose only.")
+    opening = [token.content for token in tokens[:first] if token.type == "inline"]
+    if not (opening and re.match(r"\*\*Requirement list:\*\*\s*\S", opening[0])):
+        problems.append("Requirements: start with a '**Requirement list:**' line that says whether the user confirmed the list.")
+    for name, body in sources:
+        for row in keep(problems, review_table, body, REQUIREMENT_COLUMNS, f"Requirements '{name}'", problems) or []:
+            status = row[1].get_text(" ", strip=True)
+            if status not in FULFILLMENT:
+                problems.append(f"Requirements '{name}': unsupported status '{status}'; use {', '.join(FULFILLMENT)}.")
+            if status != "Needs clarification" and not row[0].find("a", href=True):
+                problems.append(f"Requirements '{name}': link the intent source, or use Needs clarification for missing intent.")
+            linked = row[2].find("a", href=True)
+            if not linked and not re.search(r"not verified|not inspected|unknown", row[2].get_text(), re.I):
+                problems.append(f"Requirements '{name}': each Behavior and evidence cell links pinned source, a run record, "
+                                "or a bug card, or states not verified, not inspected, or unknown.")
+            elif status == "Met" and not linked:
+                problems.append(f"Requirements '{name}': a Met row links its evidence, pinned source or a run record; "
+                                "a gap word alone does not support Met.")
+    if len({name for name, _ in sources}) != len(sources):
+        problems.append("Requirements: give each source heading a distinct name.")
+    unasked = bodies["Nobody asked for this"]
+    none_found = re.search(r"^None found:\s*\S", unasked, re.M)
+    marks = MARKDOWN.parse(unasked)
+    items, depth = [], 0  # the inline text of each top-level list item, nested items included
+    for token in marks:
+        if token.type == "list_item_open":
+            depth += 1
+            if depth == 1:
+                items.append([])
+        elif token.type == "list_item_close":
+            depth -= 1
+        elif token.type == "inline" and depth:
+            items[-1].append(token.content)
+    if not (items or none_found or any(token.type == "table_open" for token in marks)):
+        problems.append("Nobody asked for this: list the delivered behavior no source asked for, or write 'None found:' with the scope inspected.")
+    if not none_found and any("nobody asked for this" not in " ".join(" ".join(item).split()).lower() for item in items):
+        problems.append("Nobody asked for this: label each item *nobody asked for this*.")
+    questions = bodies["Questions for the author"]
+    if not all(label in questions for label in ("**Spec owner:**", "**Author:**")):
+        problems.append("Questions for the author: keep **Spec owner:** and **Author:** lists; state none with the reason.")
+    elif not all(part.strip() for part in re.split(r"\*\*(?:Spec owner|Author):\*\*", questions)[1:]):
+        problems.append("Questions for the author: give each list a nonempty entry, a question or none with the reason.")
+    before = len(problems)
+    keep(problems, check_bug_cards, source, note)
+    problems += bug_origin_gaps(source, base="base" in front)
+    cards_failed = len(problems) > before
+    problems += verification_problems(document, bodies["Verification"], bodies.get(BUG_SECTION, ""), cards_failed)
+    ids, gaps = anchor_gaps(document, "Acceptance report")
+    problems += gaps
     keep(problems, check_links, link_targets(document), note, ids)
     return problems
 
@@ -1862,6 +1999,7 @@ def main():
     parser.add_argument("--check", action="store_true", help="check the existing HTML without rewriting it")
     parser.add_argument("--markdown-only", action="store_true", help="with --check, validate only Markdown even when an HTML companion exists")
     parser.add_argument("--review", action="store_true", help="require the current PR report structure and evidence table contract")
+    parser.add_argument("--acceptance", action="store_true", help="require the acceptance report structure and evidence table contract")
     parser.add_argument("--sync-labels", action="store_true", help="refresh the shared status definitions in Markdown before rendering or checking")
     parser.add_argument("--diagram-renderer", choices=("auto", "mermaid", "beautiful-mermaid"), default="auto",
                         help="diagram engine; auto uses Beautiful Mermaid when npm ci in skills/diagram-renderer installed it and it runs, else the Mermaid CLI")
@@ -1870,6 +2008,8 @@ def main():
     args = parser.parse_args()
     if args.markdown_only and not args.check:
         parser.error("--markdown-only requires --check")
+    if args.review and args.acceptance:
+        parser.error("--acceptance and --review are separate contracts; pass one")
     note = args.note.resolve()
     if note.suffix != ".md":
         parser.error("the authoritative note must have a .md suffix")
@@ -1883,6 +2023,8 @@ def main():
             source = with_label_key(source)
         if args.review:
             problems += review_problems(with_front_matter(original, source), note)
+        if args.acceptance:
+            problems += acceptance_problems(with_front_matter(original, source), note)
         output = note.with_suffix(".html")
         if args.check and (args.markdown_only or not output.exists()):
             problems += markdown_problems(source, note)
@@ -1903,7 +2045,7 @@ def main():
         problems += page_problems(with_front_matter(original, source), html, note, repo=repo)
         if args.check:
             keep(problems, check_label_key, source, require=True)
-            if args.review:
+            if args.review or args.acceptance:
                 keep(problems, check_source_diagrams, source, html)
         raise_all(problems)
         if args.sync_labels:

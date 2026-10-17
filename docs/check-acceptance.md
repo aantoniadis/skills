@@ -1,0 +1,78 @@
+# check-acceptance
+
+Tell the person who accepts delivered work, for each requirement, whether the
+code at one pinned revision meets it, with evidence. Requirements come from
+GitHub issues, an epic, Jira or Linear tickets, a spec or plan, or pasted
+text. The check spans a set of issues; `pr-review-guide` covers one PR. It is
+read-only by default: it changes no code or tests, and gives counts and
+blockers, not a ship verdict. It comments on, labels, closes, or reopens a
+ticket only when you ask for that write.
+
+## How it works
+
+1. **Kickoff and pin.** A kickoff round asks only the choices the prompt
+   leaves open: familiarity, text or text plus an HTML companion, confirming
+   the requirement list before verification (recommended) or running straight
+   through, and the search for bugs. For the list, "go" runs straight through.
+   The head is a full SHA. A base is optional and serves attribution only; an
+   inferable one is stated as an assumption. Each source is collected with its
+   time, because issues change, and an inaccessible source is named as a gap.
+2. **Extract requirements.** Each source is split into rows of one observable
+   condition, quoted and linked to the issue, comment, ticket field, or plan
+   heading. Explicit acceptance criteria stay apart from inferred ones. A later
+   comment that revises the body is quoted beside it: the spec owner's comment
+   stating a new value wins; anyone else's revision, a question, or a
+   suggestion makes the row Needs clarification. A vague
+   requirement such as "fast" is Needs clarification with a measurable reading
+   proposed. The list is shown for confirmation only when you choose that;
+   "go", no answer, or a non-interactive session runs straight through, and
+   the report says so.
+3. **Scope the feature code.** The feature scope is the linked diffs plus the
+   code traced from each requirement's entry point to its observable outcome,
+   never the whole base..head range. An unrelated commit that touches traced
+   code is an interaction lead. With a base, Unmet and Partial rows get
+   attribution: "already existed" means the same check gives the same result
+   at the base; `git blame` is a lead only, and attribution never changes a
+   row's status. Met rows get none.
+4. **Verify each requirement.** Statuses are Met, Partial, Unmet, Not
+   verified, Needs clarification, and Not applicable. A structural
+   requirement can be Met from pinned source. A behavioral one needs an
+   asserting test plus a recorded run, or a focused probe; source tracing
+   alone is Not verified, with the check that would settle it. Unmet needs
+   behavior that contradicts the requirement, or absence after tracing every
+   named entry point. A recorded CI run at the pinned head is the suite
+   result; only a named gap gets a run here.
+5. **List what nobody asked for.** Delivered behavior inside the feature scope
+   that no source supports is listed with its pinned source. A necessary
+   implementation detail is not scope creep.
+6. **Search for bugs.** When selected, `find-bugs` runs on the feature scope.
+   A bug that breaks a requirement moves its row to Partial or Unmet and links
+   its bug card; every other bug gets its own card.
+7. **Check and deliver.** `report.md` holds the bottom line, counts, the
+   requirement rows with evidence, attention items, bug cards, and questions;
+   `review.md` holds one run record per check and the consequential
+   corrections; an HTML companion is optional. Every delivery runs the report
+   structure check. The reply gives the report link, counts by status, and the
+   top gaps, then hands gaps and Unmet rows to `plan-change` or Matt's
+   `implement`, and bugs to `fix-bug`, each command carrying the report path
+   and the rows it concerns. Needs clarification rows are listed as questions
+   for the spec owner. Asked for ticket updates, it makes the writes you named
+   once the report passes its check; a request such as "close the met ones"
+   covers only tickets whose rows are all Met, and the reply lists each write
+   with its URL.
+8. **Re-check, do not restart.** A follow-up such as "re-check after the
+   fixes" resumes the same report. It collects the sources again, and a changed
+   body, comment, or sub-issue reopens the rows it feeds. If the head moved,
+   the report lists the arrived commits, splits them into feature-relevant and
+   unrelated, and offers to re-pin. A re-pin reopens only rows whose traced
+   code, linked work, or evidence changed.
+
+Prompt shape:
+
+```text
+/aantoniadis-skills:check-acceptance <issues, epic, tickets, spec, or text> <revision to check; base if known>
+```
+
+The [report format](../skills/check-acceptance/references/report-format.md)
+defines the required fields and evidence combinations. If the final checker
+cannot run, report the blocker and label the report structurally unchecked.

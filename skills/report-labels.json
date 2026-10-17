@@ -79,7 +79,9 @@
     "title": "Bug origin",
     "options": {
       "new in this change": "The bug is absent at the base and present at the head, so this change introduces it. The evidence label says whether that was run or predicted.",
-      "pre-existing, made worse": "The bug already exists at the base; this change makes it reach more callers or makes its effect worse."
+      "pre-existing, made worse": "The bug already exists at the base; this change makes it reach more callers or makes its effect worse.",
+      "from an unrelated commit": "Absent at the base and present at the head, introduced by a commit outside the feature's work that touched feature code. The card names that commit under Introduced by.",
+      "no base pinned": "No base is pinned, so the card does not attribute an origin. Base cells read no base pinned; the head result is observed or predicted as the evidence chip says."
     }
   },
   "cause-origin": {

@@ -84,7 +84,7 @@ Keep the not-run and none-found forms to one concise paragraph, and each bug's a
 
 A card holds only these lines, in this order; [report-template.md](report-template.md) shows the layout. Detail that fits no field goes in the part the bug affects.
 
-1. **Chip line**, the whole first line under the heading: the evidence chip, *we ran it* (a probe ran at the head; a reused card retains the original run provenance) or *suspected, not run* (reasoned; no probe ran), then ` · ` and the origin chip, *new in this change* or *pre-existing, made worse* (the line predates this change, and the change reaches it from a new path or worsens its result).
+1. **Chip line**, the whole first line under the heading: the evidence chip, *we ran it* (a probe ran at the head; a reused card retains the original run provenance) or *suspected, not run* (reasoned; no probe ran), then ` · ` and the origin chip, *new in this change* or *pre-existing, made worse* (the line predates this change, and the change reaches it from a new path or worsens its result). *from an unrelated commit* and *no base pinned* belong to acceptance reports; a PR review always pins a base and never uses *no base pinned*.
 2. `**Where:**` — at least one pinned line; the page opens it in the code peek.
 3. `**Trigger:**` — the input, configuration, or caller that reaches the bug.
 4. **Base/Head table** — a label column, then exactly `Base` and `Head`, one filled row per compared result. On a *suspected, not run* card, every Base and Head cell starts with `predicted:`, because no run observed it. On a *we ran it* card, every Head cell is observed; a Base value that no run observed, because the base could not run, starts with `predicted:`.

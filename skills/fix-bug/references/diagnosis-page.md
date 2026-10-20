@@ -50,8 +50,11 @@ Trigger, and Who / impact stay separate paragraphs, each with its own evidence.
   The page renders a `diff` fence side by side with the unified diff beneath it.
 - **Verification:** the shared table; executed rows link their run record in
   the first cell, and a proposed check says Not run / Proposed.
-- **Limits and next steps, Next step, Evidence and record:** what stays open,
-  where the fix sits and the next command, and the provenance.
+- **Limits and next steps, Evidence and record:** what stays open, where the
+  fix sits and the next command, and the provenance. A short note, as
+  fix-bug's step 6 allows, keeps only Symptom and contract, Reproduction,
+  Cause, Fix and regression test, and Evidence and record under the Verdict
+  and Checked lines.
 
 ## Components and limits
 

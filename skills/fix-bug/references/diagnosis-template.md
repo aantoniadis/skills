@@ -91,8 +91,6 @@ Output: `{{output_excerpt}}` · {{link_to_the_saved_script_under_runs_bugs}}
 - {{consequential_unknown_and_the_check_that_would_settle_it}}
 - {{instrumentation_and_throwaway_files_removed_or_what_remains_and_where}}
 
-## Next step
-
 {{fix_state_then_the_next_command_or_the_evidence_or_authorization_needed_to_continue}}
 
 ## Evidence and record

@@ -121,8 +121,6 @@ The fix adds a key to a shared producer, `reserve`, so its other consumer was co
 - The warehouse view hypothesis stays unresolved and is not needed for this fix.
 - Instrumentation: none left; the loop needed no debug logging.
 
-## Next step
-
 The fix and the test are in the working tree, uncommitted. Open the PR with HumanLayer's `visual-pr`:
 
 ```text

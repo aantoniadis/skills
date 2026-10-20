@@ -15,8 +15,8 @@ recommended option first and the reason. Ask it with the host's question tool:
 `request_user_input` in Codex when it is listed, and wait for the answers.
 When the tool is missing:
 
-- **Claude Code or OpenCode:** the session is unattended, as in `claude -p`
-  or CI. Apply the recommendations and continue, and list the round as
+- **Claude Code, or OpenCode's `build` or `plan` agent:** these offer the
+  tool in every chat, so the session is unattended, as in `claude -p` or CI. Apply the recommendations and continue, and list the round as
   numbered text in the reply so the user can change a choice later.
 - **Codex or another host:** a chat can lack the tool, so ask the round as
   numbered text and wait; a plain-text answer counts. When the prompt says the

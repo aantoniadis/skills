@@ -82,8 +82,8 @@ requires tracked changes, report that limitation and use an available
 alternative; changing the project is a separate task.
 
 Before the first check or preparation command that can write, take a baseline
-of the project files; after commands that can write, and before reporting
-completion, compare against it:
+of the project files; compare against it once, as the last step before
+reporting completion:
 
 ```bash
 python3 <package>/skills/tool_setup_path.py --baseline /absolute/project-directory
@@ -96,7 +96,8 @@ output does not count. It is kept in the local state directory, so untracked
 files, credentials included, never reach the project's object store. Outside
 Git, it hashes the content of regular files. `--compare` prints `unchanged`
 or one line per changed path, plus `index changed`, then deletes the
-baseline; run it even when setup stops early.
+baseline, so a second `--compare` needs a new `--baseline`. Run it even when
+setup stops early.
 
 A listed path changed after the baseline: report it, and undo only your
 attributable change when safe. Preserve the user's starting edits; never

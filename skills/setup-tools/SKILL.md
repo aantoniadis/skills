@@ -85,6 +85,14 @@ missing consequential choice or permission, with the concrete command,
 expected benefit, cost, and fallback. Continue independent work while a
 choice is pending. Give short manual instructions for sign-in or activation.
 
+When the report checker's import error names `markdown-it-py` or
+`beautifulsoup4`, prepare the package environment, which the checker then
+uses on its own:
+
+```bash
+v="${XDG_STATE_HOME:-$HOME/.local/state}/aantoniadis-skills/venv"; python3 -m venv "$v" && "$v/bin/python3" -m pip install -q markdown-it-py beautifulsoup4
+```
+
 Install a missing original skill only with the user's authorization, using
 the command for their host from the same reference; otherwise record the gap
 and that command.

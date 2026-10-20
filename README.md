@@ -30,10 +30,12 @@ codex plugin add aantoniadis-skills@aantoniadis
 
 The skills run Python 3 scripts. The page checker and renderer need two
 packages; HTML pages with diagrams also use Node.js
-([renderer options](skills/RENDERER.md)):
+([renderer options](skills/RENDERER.md)). `setup-tools` installs the packages
+into a private environment that the checker finds on its own; to do it
+yourself:
 
 ```bash
-python3 -m pip install markdown-it-py beautifulsoup4
+v="${XDG_STATE_HOME:-$HOME/.local/state}/aantoniadis-skills/venv"; python3 -m venv "$v" && "$v/bin/python3" -m pip install -q markdown-it-py beautifulsoup4
 ```
 
 OpenCode loads the plugin from `opencode.json`, from Git or from a checkout:
@@ -112,9 +114,9 @@ and `to-tickets`, Matt's `implement` builds an unblocked ticket, `fix-bug`
 takes a reported symptom to a fixed, recorded cause, `find-bugs` runs before
 HumanLayer's `visual-pr` opens the PR, `pr-review-guide` serves the PR's
 human reviewer, and `check-acceptance` checks the built result against the
-requirements across a set of issues. An original invoked directly keeps its
-own behavior, such as committing or pushing; one called by our skills follows
-our task constraints.
+requirements across a set of issues. An original you run keeps its own
+behavior, such as committing or pushing, including after one of our handoffs;
+`grilling`, which `plan-change` invokes, works within that skill's scope.
 
 - [Using the skills together](docs/workflow.md): copyable prompts, project
   setup, handoffs, and artifact locations

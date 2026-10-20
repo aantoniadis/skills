@@ -12,7 +12,7 @@ bounded by its [evidence](../EVIDENCE.md).
 
 Tell the reviewer what the change means and where to pay attention, then answer their questions in more depth. Maintain one current Markdown report and, when requested, its self-contained HTML companion, written in the shape of [report-format.md](references/report-format.md), starting from [report-template.md](references/report-template.md). This is review context, not an exhaustive defect list or merge verdict.
 
-Follow the workflow below.
+**Follow-up on an earlier guide:** when the reviewer returns with a question about an existing report, read [follow-up.md](references/follow-up.md) first and work from it.
 
 ## Pin the review and map the change
 
@@ -67,14 +67,3 @@ For HTML delivery, read and apply the [shared page workflow](../HTML-PAGES.md) w
 Keep unresolved author questions in the report, with links to their evidence. When the user requests a PR comment, prepare the scoped draft naming the pinned head. Use existing authorization for its destination and content; if a required authorization is missing, show the draft and ask as [asking](../ASKING.md) describes. Post only when authorized and record the comment URL. A guide alone does not authorize approval, a request-changes review, or merge.
 
 Keep the snapshot, consequential checks and results, corrections, and remaining gaps in the review record. Link the report by absolute path and state what the reviewer can use now.
-
-## Deepen the existing guide
-
-For a follow-up, resume here with the existing report and review record. Reuse the reviewer's familiarity, settled context, selected head/base, supported findings and tool-recovery choices. First compare the pinned head and base tip with the PR's current ones; when either moved, say which commits arrived and what they touch, and offer to re-pin (a new snapshot, with affected findings re-verified) or to continue on the pinned snapshot with that stated in the reply and the review record. Verify additional source against the snapshot in force; report updates never refresh the PR revision silently, and a re-pin reopens affected findings rather than every worker's return.
-
-1. Scope the reviewer's question to the relevant part and its evidence gap. Use the bounded investigation above for only the additional evidence needed. A redirect changes the next question; a stop ends deeper work with any unfinished trace explicitly partial. Preserve findings and inspection gaps elsewhere.
-2. For a hypothetical, distinguish the pinned PR's predicted behavior, the proposed code change and any observed experiment. Use the shared comparison through the affected consumer's next action. Keep proposed regression checks separate from executions. A hypothetical neither authorizes an application fix nor settles author intent. Offer a substantial experiment with its purpose, evidence limits and setup/runtime needs; preserve pending setup choices while continuing independent work.
-3. Integrate the explanation into the existing part before answering, even when its conclusion is unchanged. Update Markdown, reconcile HTML when delivering it, and run the final structural check after the last edit. Then answer the scoped question with decisive evidence and the checked report link. Preserve useful named anchors and qualifications. On a new head, reopen affected findings and fulfillment judgments until rechecked; record what was rechecked and what still refers to the earlier snapshot. Keep the opening short; revise it only when attention priorities change.
-4. For a material correction, replace the affected claim wherever it informs the current report, including requirements, recommendations and evidence summaries. Record the prior claim, replacement, reason and evidence in the review record, linked to the original execution records without rewriting their commands, conditions or results. Keep one current explanation; the review record audits conclusions rather than transcribing chat.
-
-Record the question, additional evidence inspected, report sections changed, actual checks/results and remaining gaps. Run the final structural check after the last follow-up edit. Stop when the scoped question has an actionable explanation or explicit gap and the report is reconciled and structurally checked, or explicitly labeled unchecked because the checker could not run.

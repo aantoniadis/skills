@@ -21,9 +21,7 @@ skills through their normal discovery. Each of our skills except find-bugs
 and setup-tools opens with a kickoff round from
 [asking](../skills/ASKING.md) for the choices your
 prompt leaves open, one recommendation per question; a prompt that states them
-skips those questions, and "go" takes the recommendations. The exception is
-check-acceptance's question about confirming the requirement list: there, "go"
-runs straight through.
+skips those questions, and "go" takes the recommendations.
 
 Matt's and HumanLayer's originals are installed through their own routes
 ([original skills](../README.md#original-skills)) and registered by the host:

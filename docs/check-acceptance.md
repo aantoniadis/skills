@@ -11,9 +11,9 @@ ticket only when you ask for that write.
 ## How it works
 
 1. **Kickoff and pin.** A kickoff round asks only the choices the prompt
-   leaves open: familiarity, text or text plus an HTML companion, confirming
-   the requirement list before verification (recommended) or running straight
-   through, and the search for bugs. For the list, "go" runs straight through.
+   leaves open: familiarity, text or text plus an HTML companion, running
+   straight through (recommended) or confirming the requirement list before
+   verification, and the search for bugs.
    The head is a full SHA. A base is optional and serves attribution only; an
    inferable one is stated as an assumption. Each source is collected with its
    time, because issues change, and an inaccessible source is named as a gap.

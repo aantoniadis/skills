@@ -1,6 +1,6 @@
 ---
 name: find-bugs
-description: Finds the defects in a change (a PR, a branch, or the working tree) that a maintainer would fix, with evidence from inspected source or executed probes. Use when the user asks to find bugs, review a diff for defects, or check a change before it merges or before a human reviews it; pr-review-guide and check-acceptance call it for their search for bugs. Not for explaining how code works (explain), planning a change (plan-change), or writing the human reviewer's guide (pr-review-guide).
+description: Finds the defects in a change (a PR, a branch, or the working tree) that a maintainer would fix, with evidence from inspected source or executed probes. Use when the user asks to find bugs, review a diff for defects, or check a change before it merges or before a human reviews it; pr-review-guide and check-acceptance call it for their search for bugs. Not for a reported symptom or failing test (fix-bug), explaining how code works (explain), planning a change (plan-change), or writing the human reviewer's guide (pr-review-guide).
 argument-hint: "<PR URL or number, branch, or 'the working tree'; anything the finder should know>"
 ---
 

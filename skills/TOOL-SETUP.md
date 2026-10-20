@@ -85,14 +85,15 @@ of the working tree and the index from the project root. The snapshot is a Git
 tree object built in a temporary index: content, mode, and symlink changes in
 tracked and untracked files show in the diff, ignored output does not, and the
 project's own index is untouched. The snapshot writes its objects to a
-temporary object directory, `objs`, so untracked files, credentials included,
-stay out of the project's object store. The second `git add` force-adds
-project instruction files that the project ignores.
+temporary object directory, `objs`, and the index is compared by a hash of its
+listing, so nothing reaches the project's object store and untracked files,
+credentials included, stay out of it. The second `git add` force-adds project
+instruction files that the project ignores.
 
 ```bash
-objs=$(mktemp -d); alt=$(git rev-parse --path-format=absolute --git-path objects)
+objs=$(mktemp -d); alt=$(cd "$(git rev-parse --git-path objects)" && pwd)
 snap() ( export GIT_INDEX_FILE="$(mktemp -u)" GIT_OBJECT_DIRECTORY="$objs" GIT_ALTERNATE_OBJECT_DIRECTORIES="$alt"; git add -A . && git ls-files -z --others --ignored --exclude-standard -- CLAUDE.md AGENTS.md AGENT.md | xargs -0r git add --force -- && git write-tree; rm -f "$GIT_INDEX_FILE" )
-before=$(snap); staged=$(git write-tree); echo "objs=$objs alt=$alt before=$before staged=$staged"
+before=$(snap); staged=$(git ls-files --stage | git hash-object --stdin); echo "objs=$objs alt=$alt before=$before staged=$staged"
 ```
 
 Record the four printed values: a later shell sets them again before it
@@ -101,14 +102,25 @@ comparison, delete `objs` anyway. After commands that can write, and before
 reporting completion:
 
 ```bash
-GIT_OBJECT_DIRECTORY="$objs" GIT_ALTERNATE_OBJECT_DIRECTORIES="$alt" git diff-tree -r --name-status "$before" "$(snap)"; [ "$staged" = "$(git write-tree)" ] || echo "index changed"; rm -rf "$objs"
+GIT_OBJECT_DIRECTORY="$objs" GIT_ALTERNATE_OBJECT_DIRECTORIES="$alt" git diff-tree -r --name-status "$before" "$(snap)"; [ "$staged" = "$(git ls-files --stage | git hash-object --stdin)" ] || echo "index changed"; rm -rf "$objs"
 ```
 
 An empty diff and an unchanged index mean the project files are as the user
 left them. A listed path changed after the baseline: report it, and undo only
 your attributable change when safe. Preserve the user's starting edits; never
-reset the checkout to erase pre-existing work. Outside Git, hash the project
-files before and after instead. If comparison is unavailable, report that limit.
+reset the checkout to erase pre-existing work. If comparison is unavailable,
+report that limit.
+
+Outside Git, hash the content of the project's regular files before and after,
+adding `! -path './<dir>/*'` for large dependency directories:
+
+```bash
+hashes() { find . -type f -print0 | LC_ALL=C sort -z | xargs -0r $(command -v sha256sum || echo shasum -a 256); }
+before=$(mktemp); hashes > "$before"; echo "before=$before"
+```
+
+After commands that can write, define `hashes` again and run
+`hashes | diff "$before" -; rm -f "$before"`; no output means no file changed.
 
 ## Reuse and report
 

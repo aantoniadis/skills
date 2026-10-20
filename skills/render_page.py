@@ -11,11 +11,19 @@ import re
 import shutil
 import subprocess
 import sys
+import os
 import tempfile
 from urllib.parse import unquote, urlsplit, quote
 
-from bs4 import BeautifulSoup, NavigableString
-from markdown_it import MarkdownIt
+try:
+    from bs4 import BeautifulSoup, NavigableString
+    from markdown_it import MarkdownIt
+except ImportError:
+    # Fall back to the package environment that setup-tools prepares.
+    VENV = Path(os.environ.get("XDG_STATE_HOME") or Path.home() / ".local/state") / "aantoniadis-skills/venv"
+    if (VENV / "bin/python3").exists() and Path(sys.prefix).resolve() != VENV.resolve():
+        os.execv(VENV / "bin/python3", [str(VENV / "bin/python3"), *sys.argv])
+    raise
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from reader_text import reader_gaps  # noqa: E402

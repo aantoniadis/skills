@@ -22,7 +22,9 @@ Pin the **contract**, what should happen, with its evidence, from the strongest 
 - **Works as specified:** write the note with the mismatch and the deciding source, and deliver it through step 6 with no fix.
 - **An open behavior decision:** write the note with the question and its owner, ask the owner, and offer the [plan-change](../plan-change/SKILL.md) handoff.
 
-Done when the `Kickoff:` line is ready and the contract is pinned with one quoted or linked source.
+Before the first edit to a project file, save `git status --porcelain` under `runs/bugs/<n>/`, and capture each already-modified file you will edit as [evidence](../EVIDENCE.md#capture-a-local-snapshot) says, so the user's own edits stay apart from the fix.
+
+Done when the `Kickoff:` line is ready, the contract is pinned with one quoted or linked source, and the starting working-tree state is saved.
 
 ## 2. Reproduce
 
@@ -40,7 +42,7 @@ Done when one saved command has run and gone red on the exact symptom, with its 
 
 ## 3. Find the cause
 
-Rank three to five falsifiable hypotheses before testing any, each with its prediction: if this is the cause, then this change makes the loop go green, or that change makes it worse. Name each hypothesis by what it says. Show the ranking when the user is present, since they often re-rank it from what they know, and continue without waiting for an answer.
+Rank three to five falsifiable hypotheses before testing any, each with its prediction: if this is the cause, then this change makes the loop go green, or that change makes it worse. Name each hypothesis by what it says. When the red output pins the cause line and that line has one caller, one hypothesis with its probe is enough. Show the ranking when the user is present, since they often re-rank it from what they know, and continue without waiting for an answer.
 
 Probe the cheapest first, one variable per probe: a debugger or REPL before logs, logs at the boundaries that separate hypotheses, each tagged with one prefix such as `[DEBUG-a4f2]` so one grep removes them. When more than one hypothesis survives and the probes are independent, use [investigator](../INVESTIGATE.md) workers through [native delegation](../WORKERS.md), one hypothesis each, with the loop command, the saved evidence, and the user's authorization. For a performance symptom, measure first: a baseline timing, a profile, or a query plan, then bisect the cost.
 
@@ -52,7 +54,7 @@ Done when one hypothesis is supported by a probe at the pinned line and every ot
 
 Run each when its trigger holds, before any fix lands: together they decide between a revert and a forward fix, and which callers the fix must cover. Record each in the note as done, or as skipped with its reason.
 
-- **Origin**, when "it used to work", a passing earlier run, a release note, or history suggests a regression: bisect with the loop in a disposable clone or worktree (`git bisect run <loop command>`), quote the breaking commit's intent from its message, PR, or issue, and choose a revert or a forward fix. The fix preserves the quoted intent.
+- **Origin**, when "it used to work", a passing earlier run, a release note, or history suggests a regression: bisect with the loop in a disposable clone or worktree. Wrap the loop so that a build, install, or unrelated failure exits 125, which `git bisect run` skips, and only the symptom exits 1; pass the saved script by absolute path, as in `git bisect run /abs/path/loop.sh`. Afterwards run `git bisect reset` and remove the clone or worktree, as with `git worktree remove <path>`. Quote the breaking commit's intent from its message, PR, or issue, and choose a revert or a forward fix. The fix preserves the quoted intent.
 - **Reach**, when the cause sits in code with two or more callers or in a copied pattern: list every caller and path that hits the line or the assumption, by symbol search and by searching for the copied pattern. Each caller is affected, so the fix and the test cover it, or cleared with pinned counterevidence.
 
 Done when origin and reach each carry a result with evidence or a skip reason.
@@ -67,7 +69,7 @@ Done when the original loop is green, the regression test has a recorded red and
 
 ## 6. Record and deliver
 
-Fill [diagnosis-template.md](references/diagnosis-template.md) at the investigation location, removing unused prompts, and compose it as [diagnosis-page.md](references/diagnosis-page.md) says. Pin committed code at its commit; capture uncommitted bytes beside the note as [evidence](../EVIDENCE.md#capture-a-local-snapshot) says, and cite an applied fix as the diff. Before every delivery, follow the [shared page workflow](../HTML-PAGES.md#fill-the-content-then-render): finish the note and the evidence it links, render the page when HTML was chosen, then run `python3 <package>/skills/render_page.py <diagnosis.md> --check --sync-labels`, with `--markdown-only` for text. Repair every reported problem before presenting the note as complete. Use a [second reader](../FRESH-REVIEW.md) for a consequential fix when useful.
+Fill [diagnosis-template.md](references/diagnosis-template.md) at the investigation location, removing unused prompts, and compose it as [diagnosis-page.md](references/diagnosis-page.md) says. Pin committed code at its commit; capture uncommitted bytes beside the note as [evidence](../EVIDENCE.md#capture-a-local-snapshot) says, and cite an applied fix as the diff of the files it touched, taken against the step 1 capture for a file that was already modified. Before every delivery, follow the [shared page workflow](../HTML-PAGES.md#fill-the-content-then-render): finish the note and the evidence it links, render the page when HTML was chosen, then run `python3 <package>/skills/render_page.py <diagnosis.md> --check --sync-labels`, with `--markdown-only` for text. Repair every reported problem before presenting the note as complete. Use a [second reader](../FRESH-REVIEW.md) for a consequential fix when useful.
 
 Deliver the verdict and the fix state in chat, link the note and any page, and hand over the next command: HumanLayer's `visual-pr` when an applied fix is ready for a PR, user-invoked, so give the command with the note and run record as context; `/aantoniadis-skills:plan-change` (`$` instead of `/` in Codex) when a behavior decision stayed open. Commit only when the kickoff or the prompt authorized it. Publication and application changes beyond the fix need their own authorization, as [asking](../ASKING.md) says.
 

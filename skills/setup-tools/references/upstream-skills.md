@@ -50,7 +50,7 @@ Source: https://github.com/mattpocock/skills (MIT). Our workflows use:
 | --- | --- | --- | --- |
 | `grilling` | model-invoked | plan-change | a demanding interview on the unresolved choices |
 | `to-spec`, `to-tickets` | user-invoked | the handoff from plan-change | the spec and tickets Matt's format publishes to the tracker, synthesized from the planning conversation |
-| `implement` | user-invoked on Codex, model-invoked on Claude Code; handed off either way | the handoff from plan-change | implementing an agreed ticket in a fresh session; it calls `tdd` and `code-review` beside it |
+| `implement` | user-invoked on Codex, model-invoked on Claude Code; handed off either way | the handoffs from plan-change and check-acceptance | implementing an agreed ticket in a fresh session; it calls `tdd` and `code-review` beside it |
 | `writing-for-agents` | model-invoked | authoring, see AGENTS.md | writing skill text |
 
 The kind is the author's choice, set in the skill's frontmatter
@@ -69,4 +69,4 @@ Source: https://github.com/humanlayer/skills (MIT). Our workflows use:
 | Skill | Kind | Used by | For |
 | --- | --- | --- | --- |
 | `show-me` | user-invoked | the handoff from explain | a visual recap of the finished explanation: component trees, file trees, code-shape diffs |
-| `visual-pr` | user-invoked | the handoff from plan-change | creating or updating the PR with its own description template |
+| `visual-pr` | user-invoked | the handoffs from plan-change and fix-bug | creating or updating the PR with its own description template |

@@ -80,7 +80,7 @@ Done when the section lists each such behavior with its pinned source, or states
 
 ## 6. Search for bugs
 
-When selected, load [find-bugs](../find-bugs/SKILL.md) and follow it as a scoped helper, yourself or through native delegation. Supply the head, the base when pinned, the feature scope (commit set and traced files or symbols), the report directory, the local tool record when available, and hypotheses from the verification step. Keep its probe scripts, fixtures, logs, and environment records under the report directory's `runs/bugs/`. Integrate returned defects as bug cards with the [acceptance origins](references/report-format.md#bug-origins):
+When selected, load [find-bugs](../find-bugs/SKILL.md) and follow it as a scoped helper, yourself or through native delegation. Supply the head, the base when pinned, the feature scope (commit set and traced files or symbols), the report directory, the local tool record when available, and hypotheses from the verification step. Keep its probe scripts, fixtures, logs, and environment records under the report directory's `runs/bugs/`. Read the worker's questions as well as its defects: a question that carries a verified break becomes a defect under find-bugs' intent rule. Integrate returned defects as bug cards with the [acceptance origins](references/report-format.md#bug-origins):
 
 - A bug that breaks a requirement sets that row to Partial or Unmet and links its card.
 - Every other bug gets its own card.

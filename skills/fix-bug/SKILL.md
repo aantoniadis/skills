@@ -24,7 +24,7 @@ Pin the **contract**, what should happen, with its evidence, from the strongest 
 
 Before the first edit to a project file, save `git status --porcelain` under `runs/bugs/<n>/`, and capture each already-modified file you will edit as [evidence](../EVIDENCE.md#capture-a-local-snapshot) says, so the user's own edits stay apart from the fix.
 
-Done when the `Kickoff:` line is ready, the contract is pinned with one quoted or linked source, and the starting working-tree state is saved.
+Done when the `Kickoff:` line is ready, the contract is pinned with one quoted or linked source, and the starting working-tree state is saved or no edit is planned.
 
 ## 2. Reproduce
 

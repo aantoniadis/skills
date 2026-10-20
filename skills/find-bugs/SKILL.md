@@ -24,7 +24,7 @@ Done when the compared revisions, the included working-tree state, and excluded 
 
 ## 2. Generate and investigate candidates
 
-Read every changed line with one question: under what input, version, timing, or caller does it misbehave? Tools add leads; the reading finds the rest. Choose tools using [CODE-TOOLS.md](../CODE-TOOLS.md) and any [local tool record](../TOOL-SETUP.md). Tool results are leads, not defects. Reuse results only when their revisions, inputs, environment, and scope match. Selected tools should answer a useful question; missing optional setup does not stop source investigation.
+Read every changed line with one question: under what input, version, timing, or caller does it misbehave? Tools add leads; the reading finds the rest. Choose tools using [CODE-TOOLS.md](../CODE-TOOLS.md) and the local tool record that `python3 <package>/skills/tool_setup_path.py --show <project>` prints. Tool results are leads, not defects. Reuse results only when their revisions, inputs, environment, and scope match. Selected tools should answer a useful question; missing optional setup does not stop source investigation.
 
 Useful leads include:
 
@@ -45,7 +45,7 @@ Use the cheapest adequate check through the relevant public boundary: a focused 
 
 Verify that the probe loads the intended checkout and dependencies. Compare base and head under equivalent relevant inputs and environments; record differences and their limits. If the base cannot run, label its result as a prediction. A model or instrumented run establishes only what it exercises. Instrumentation can expose a real defect; determine whether it observes the failure or introduces a condition outside supported use.
 
-For standalone work, keep useful scripts, inputs, commands, output, and environment details at the investigation location: the directory that `python3 <package>/skills/investigation_dir.py <topic>` creates and prints, which keeps `.scratch/` out of commits. With a caller's report directory, save probe scripts, fixtures, logs, and environment records under `runs/bugs/`; tool results can go under `runs/tools/`. Use fresh disposable environments or worktrees when needed, within the caller's tool scope. Preserve the caller's report and leave presentation and publication to it.
+For standalone work, keep useful scripts, inputs, commands, output, and environment details at the investigation location: the directory that `python3 <package>/skills/investigation_dir.py <topic>` creates and prints, which keeps `.scratch/` out of commits. With a caller's report directory, save probe scripts, fixtures, logs, and environment records under `runs/bugs/`; tool results can go under `runs/tools/`. Redact credentials and tokens in every saved command, output, and environment record; quote only the lines that carry the signal. Use fresh disposable environments or worktrees when needed, within the caller's tool scope. Preserve the caller's report and leave presentation and publication to it.
 
 For an executed finding returned to a caller, save the probe script before running it so the saved file is the one that ran. A short wrapper can invoke an existing test. Retain the result and exact command, not only the script. Classify each investigated hypothesis as supported, contradicted with counterevidence, or unresolved with the missing check. Record useful drops compactly in notes rather than making the reader inspect every abandoned lead.
 

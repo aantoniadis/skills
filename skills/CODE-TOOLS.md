@@ -1,7 +1,8 @@
 # Tools for a code question
 
-Choose tools for the uncertainty the task needs to resolve. Read the
-[local tool record](TOOL-SETUP.md) if present, then use the host's
+Choose tools for the uncertainty the task needs to resolve. Print the
+local tool record with `python3 <package>/skills/tool_setup_path.py --show <project>`,
+then use the host's
 current capabilities and the project's scripts and configuration. A missing
 record does not prevent investigation. Use [setup-tools](setup-tools/SKILL.md)
 when reusable preparation or repair would materially help.

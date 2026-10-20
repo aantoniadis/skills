@@ -1599,13 +1599,17 @@ def review_problems(source, note):
     keep(problems, check_prompts, source)
     sections = markdown_sections(source, 2)
     names = [name for name, _ in sections]
-    required = ("What the change does", "Requirements", "What to look at", "Behavior changes", "Questions for the author", "Verification", "Evidence and record")
+    required = ("What the change does", "What to look at", "Behavior changes", "Questions for the author", "Verification", "Evidence and record")
     for name in required:
         if names.count(name) != 1:
             problems.append(f"Review requires exactly one '## {name}' section.")
     if any(names.count(name) != 1 for name in required):
         return problems  # Stop: the checks below read these sections, and without them they would only crash.
     bodies = dict(sections)
+    # The small shape: a review with no intent source may leave Requirements out, saying so in the record.
+    if names.count("Requirements") > 1 or ("Requirements" not in bodies
+                                            and not re.search(r"no intent source", bodies["Evidence and record"], re.I)):
+        problems.append("Review requires exactly one '## Requirements' section, or 'No intent source' stated under Evidence and record.")
     problems += record_gaps(bodies["Evidence and record"], ("Gaps", "Provenance", *(() if "Reading plan" in bodies else ("Changed files",))))
     for name in ("Questions for the author", "Reading plan"):
         if name in bodies and (names.count(name) != 1 or not bodies[name].strip()):
@@ -1629,7 +1633,8 @@ def review_problems(source, note):
             if not row[4].find("a", href=True) and not re.search(r"unknown|not (?:yet )?(?:inspected|verified|run)", row[4].get_text(), re.I):
                 problems.append(f"Behavior '{name}': each scenario needs linked evidence or an explicit unknown.")
     behavior_targets = {"#" + slug(name) for name, _ in parts} or {"#behavior-changes"}
-    for row in keep(problems, review_table, bodies["Requirements"], REQUIREMENT_COLUMNS, "Requirements", problems) or []:
+    requirements = bodies.get("Requirements")
+    for row in (keep(problems, review_table, requirements, REQUIREMENT_COLUMNS, "Requirements", problems) or []) if requirements is not None else []:
         status = row[1].get_text(" ", strip=True)
         if status not in FULFILLMENT:
             problems.append(f"Requirements: unsupported status '{status}'; use {', '.join(FULFILLMENT)}.")

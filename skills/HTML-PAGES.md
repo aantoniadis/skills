@@ -150,7 +150,7 @@ same-page fragments, local file existence, keyboard scrolling regions, common
 external asset references, and in the Markdown the evidence floor of
 [EVIDENCE.md](EVIDENCE.md): a pinned line, observation, quote, or label in every
 claim block, and a source map under every Mermaid fence, including explicitly proposed elements linked to decisions or requirements; the same command
-checks a note that has no page. Shared verification tables follow the result and origin rules of [report-format.md](pr-review-guide/references/report-format.md#requirements-and-verification-tables) in explanations, plans, and reviews. A PR review adds `--review`, as its [final structural check](pr-review-guide/references/report-format.md#final-structural-check) says; an acceptance report adds `--acceptance` instead. Code and links can move or repeat. Keep code in
+checks a note that has no page. Shared verification tables follow the result and origin rules of [report-format.md](REPORT-PARTS.md#requirements-and-verification-tables) in explanations, plans, and reviews. A PR review adds `--review`, as its [final structural check](pr-review-guide/references/report-format.md#final-structural-check) says; an acceptance report adds `--acceptance` instead. Code and links can move or repeat. Keep code in
 `<code>` elements and all report content in one `<main>` region. Fenced excerpts
 retain exact whitespace. The renderer strips raw HTML, so an anchor is a
 heading slug, not an `<a id>`; link to sections by their heading text.

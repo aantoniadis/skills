@@ -1,6 +1,6 @@
 {
   "name": "@aantoniadis/skills",
-  "version": "0.4.1",
+  "version": "0.5.0",
   "description": "Skills for coding agents: understand code, plan changes, fix bugs, find defects, review PRs, check acceptance. OpenCode skill discovery plugin.",
   "keywords": [
     "opencode-plugin",

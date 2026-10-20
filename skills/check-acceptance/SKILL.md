@@ -22,7 +22,7 @@ Hold the kickoff round from [asking](../ASKING.md) first, with the questions the
 
 Pin `head` as a full SHA: the checkout's HEAD, or a named branch resolved to its SHA. A `base` is optional and serves attribution only. When a base is inferable, such as the merge-base of a feature branch with the default branch, find it and state it as an assumption instead of asking. Write `head`, `base` when pinned, and `repository: owner/name` in the report's front matter. Record local modifications and relevant configuration; dirty source follows the [snapshot rule](../EVIDENCE.md#capture-a-local-snapshot).
 
-Create `report.md` at the location the caller supplied, else the routine location from [asking](../ASKING.md), with the review record `review.md` beside it and tool outputs and probes under `runs/`. The review record holds one run record per check, failed and blocked checks included, with its command, conditions, result, and limits, and each consequential correction with the prior claim, its replacement, the reason, and the evidence. Read the [local tool record](../TOOL-SETUP.md) if present.
+Create `report.md` at the location the caller supplied, else the investigation location that `python3 <package>/skills/investigation_dir.py <topic>` creates and prints, with the review record `review.md` beside it and tool outputs and probes under `runs/`. The review record holds one run record per check, failed and blocked checks included, with its command, conditions, result, and limits, and each consequential correction with the prior claim, its replacement, the reason, and the evidence. Redact credentials and tokens in every saved command, output, and environment record; quote only the lines that carry the signal. Print the local tool record with `python3 <package>/skills/tool_setup_path.py --show <project>`; `none` means no setup ran.
 
 Collect the intent sources: GitHub issues and epics through `gh` (body, comments, sub-issues, linked PRs); Jira or Linear tickets through the host's MCP connector when connected; URLs; local files; a [plan-change](../plan-change/SKILL.md) plan, whose acceptance outcomes map one-to-one to requirements; pasted text. Record each source's collection time, because issues change. Name an inaccessible source as a gap.
 
@@ -68,7 +68,7 @@ The **Met bar:** a structural requirement can be Met from pinned source. A behav
 - **Not applicable** needs a recorded, agreed scope decision that excludes the requirement; link that decision and give the reason.
 - **Partial** applies when some named entry points or conditions hold and others fail. It names the ones that hold and the remainder, and it still names each failing one.
 
-For a large source set, use an [investigator](../INVESTIGATE.md) per source or requirement group through [native delegation](../WORKERS.md), framing the scenario to trace, not a suspicion to confirm.
+For more than about 8 requirements or more than 2 sources, use an [investigator](../INVESTIGATE.md) per source or requirement group through [native delegation](../WORKERS.md), framing the scenario to trace, not a suspicion to confirm. Verify a smaller set yourself.
 
 Done when every row's status meets the Met bar, and its evidence cell links pinned source, a run record, or a bug card, or names the gap.
 
@@ -80,7 +80,7 @@ Done when the section lists each such behavior with its pinned source, or states
 
 ## 6. Search for bugs
 
-When selected, load [find-bugs](../find-bugs/SKILL.md) and follow it as a scoped helper, yourself or through native delegation. Supply the head, the base when pinned, the feature scope (commit set and traced files or symbols), the report directory, the local tool record when available, and hypotheses from the verification step. Keep its probe scripts, fixtures, logs, and environment records under the report directory's `runs/bugs/`. Integrate returned defects as bug cards with the [acceptance origins](references/report-format.md#bug-origins):
+When selected, load [find-bugs](../find-bugs/SKILL.md) and follow it as a scoped helper, yourself or through native delegation. Supply the head, the base when pinned, the feature scope (commit set and traced files or symbols), the report directory, the local tool record when available, and hypotheses from the verification step. Keep its probe scripts, fixtures, logs, and environment records under the report directory's `runs/bugs/`. Read the worker's questions as well as its defects: a question that carries a verified break becomes a defect under find-bugs' intent rule. Integrate returned defects as bug cards with the [acceptance origins](references/report-format.md#bug-origins):
 
 - A bug that breaks a requirement sets that row to Partial or Unmet and links its card.
 - Every other bug gets its own card.

@@ -157,6 +157,12 @@ class ReviewReportTests(unittest.TestCase):
                 self.reject(REPORT.replace("## " + heading, "## Other"), "requires exactly one")
         self.reject(REPORT.replace("**Coverage:**", "Coverage:"), "opening requires")
 
+    def test_small_shape_leaves_out_requirements_only_without_intent(self):
+        start, end = REPORT.index("## Requirements"), REPORT.index("\n## ", REPORT.index("## Requirements") + 1) + 1
+        small = REPORT[:start] + REPORT[end:]
+        self.reject(small, "No intent source")
+        page.check_review(small.replace("### Provenance\n", "### Provenance\n\nNo intent source: no PR description, ticket, or spec.\n"), self.note)
+
     def test_requirement_status_and_trace_link_are_checked(self):
         for status in page.FULFILLMENT:
             page.check_review(REPORT.replace("| Unmet |", f"| {status} |"), self.note)

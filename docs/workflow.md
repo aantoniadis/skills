@@ -250,7 +250,7 @@ flowchart LR
 
 | Owner | Artifact convention |
 | --- | --- |
-| Our investigation and report skills | Recorded `Investigations:` location, else project convention, else `.scratch/<topic>/`; HTML is an optional companion |
+| Our investigation and report skills | Recorded `Investigations:` location, else `.scratch/<topic>/`, kept out of commits; HTML is an optional companion |
 | Our planning workflow | One authoritative plan/spec, material revision notes, and self-contained tickets at the selected project/tracker locations |
 | Matt's original local ticket workflow | One file per ticket under `.scratch/<feature-slug>/issues/`, in dependency order |
 | HumanLayer's original `visual-pr` | `.humanlayer/tasks/<task-slug>/pr-description.md` when that task directory exists, otherwise `.humanlayer/tasks/pr-<number>/description.md` |

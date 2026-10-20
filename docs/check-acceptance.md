@@ -11,9 +11,9 @@ ticket only when you ask for that write.
 ## How it works
 
 1. **Kickoff and pin.** A kickoff round asks only the choices the prompt
-   leaves open: familiarity, text or text plus an HTML companion, confirming
-   the requirement list before verification (recommended) or running straight
-   through, and the search for bugs. For the list, "go" runs straight through.
+   leaves open: familiarity, text or text plus an HTML companion, running
+   straight through (recommended) or confirming the requirement list before
+   verification, and the search for bugs.
    The head is a full SHA. A base is optional and serves attribution only; an
    inferable one is stated as an assumption. Each source is collected with its
    time, because issues change, and an inaccessible source is named as a gap.
@@ -21,8 +21,10 @@ ticket only when you ask for that write.
    condition, quoted and linked to the issue, comment, ticket field, or plan
    heading. Explicit acceptance criteria stay apart from inferred ones. A later
    comment that revises the body is quoted beside it: the spec owner's comment
-   stating a new value wins; anyone else's revision, a question, or a
-   suggestion makes the row Needs clarification. A vague
+   stating a new value wins. The spec owner is whoever you or the project
+   name, else the human who wrote the source; a bot-created or imported
+   ticket has none until someone is named. Anyone else's revision, a
+   question, or a suggestion makes the row Needs clarification. A vague
    requirement such as "fast" is Needs clarification with a measurable reading
    proposed. The list is shown for confirmation only when you choose that;
    "go", no answer, or a non-interactive session runs straight through, and

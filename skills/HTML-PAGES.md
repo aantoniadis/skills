@@ -128,10 +128,12 @@ Resolve [render_page.py](render_page.py) beside this reference in the installed
 package. `python3 <resolved-script-path> <note.md> --check --sync-labels [--repo <checkout>]` checks the note and an existing
 companion; it leaves the HTML unchanged and refreshes only the Markdown key, as above. The checker does not invoke the renderer or
 require the template's markup. It requires Python 3.10+, `markdown-it-py`, and
-`beautifulsoup4`. For a page
+`beautifulsoup4`; when `python3` lacks them, it uses the package environment
+that [setup-tools](setup-tools/SKILL.md) prepares. For a page
 with pinned GitHub links, rendering and `--check` also run `git`. If the
 renderer, checker, or a dependency cannot run, recover as
-[CODE-TOOLS.md](CODE-TOOLS.md) says.
+[CODE-TOOLS.md](CODE-TOOLS.md) says. When the checker still cannot run,
+deliver the note labeled structurally unchecked, with the blocker named.
 
 For a text-only delivery, add `--markdown-only` to `--check`. This validates
 the current Markdown even when an older HTML companion exists; it neither

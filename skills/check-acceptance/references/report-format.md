@@ -48,7 +48,7 @@ With a base pinned, every card attributes its origin, and *no base pinned* fails
 
 ## Questions for the author
 
-Keep two labeled lists, `**Spec owner:**` and `**Author:**`. The **spec owner** is the person who owns the intent source, such as the issue author or the ticket's reporter: Needs clarification rows and conflicting intent go to them. The **author** is whoever wrote the feature code, the same person the *ask the author* phrase means. Each question links its evidence: a source heading, an attention item, or a bug card. A list with no question states none, with the reason.
+Keep two labeled lists, `**Spec owner:**` and `**Author:**`. The **spec owner**, as [extracting requirements](../SKILL.md#2-extract-requirements) defines it, receives Needs clarification rows and conflicting intent. When no one is the spec owner, the list says so and its questions go to the user. The **author** is whoever wrote the feature code, the same person the *ask the author* phrase means. Each question links its evidence: a source heading, an attention item, or a bug card. A list with no question states none, with the reason.
 
 ## Evidence and record
 

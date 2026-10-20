@@ -1,0 +1,5 @@
+# Re-check an existing report
+
+A follow-up, such as "re-check after the fixes", resumes the same report and review record. Collect the intent sources again and compare them with the report's quotes and collection times: an edited body, a new comment, or a changed sub-issue reopens the rows that source feeds, under the [step 2](../SKILL.md#2-extract-requirements) rules, and adds any row it newly asks for. When the head moved, list the arrived commits, split into feature-relevant ones (touching the feature scope or linked to a source) and unrelated ones, and offer to re-pin. A re-pin reopens only rows whose traced code, linked work, or evidence changed; restate the `**Requirement list:**` line when rows were added; record what was rechecked, each new collection time, and what still refers to the earlier head. Run the check in [step 7](../SKILL.md#7-check-and-deliver) after the last edit.
+
+Done when every source has a current collection time or is named as a gap, every reopened row has a current status and evidence, and the report passes the check against the head in force.

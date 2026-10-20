@@ -59,8 +59,11 @@ It reports the template's unfilled prompts, which shows the checker and its
 dependencies run; an import error names a missing dependency
 ([check mechanics](../HTML-PAGES.md#check-mechanics-and-meaning-separately)).
 
-For an original skill, read its `SKILL.md` at the found path; a listing
-entry without a readable file is a gap.
+For a model-invoked original skill, read its `SKILL.md` at the found path.
+For a user-invoked one, check that the file is readable, as with
+`test -r <path>`, and leave its contents unread, as
+[package references](../REFERENCES.md) say. A listing entry without a
+readable file is a gap.
 
 For a tool that can silently return incomplete output, compare against an
 independently known example. Inspect exit status and output using the tool's
@@ -81,6 +84,14 @@ Perform setup within the user's existing authorization. Ask only for a
 missing consequential choice or permission, with the concrete command,
 expected benefit, cost, and fallback. Continue independent work while a
 choice is pending. Give short manual instructions for sign-in or activation.
+
+When the report checker's import error names `markdown-it-py` or
+`beautifulsoup4`, prepare the package environment, which the checker then
+uses on its own:
+
+```bash
+v="${XDG_STATE_HOME:-$HOME/.local/state}/aantoniadis-skills/venv"; python3 -m venv "$v" && "$v/bin/python3" -m pip install -q markdown-it-py beautifulsoup4
+```
 
 Install a missing original skill only with the user's authorization, using
 the command for their host from the same reference; otherwise record the gap

@@ -1,6 +1,6 @@
 ---
 name: check-acceptance
-description: Checks delivered code against a set of requirements — GitHub issues, an epic, Jira or Linear tickets, a spec or plan, or pasted text — and reports which are met, partly met, unmet, unverified, or unclear, with evidence; also delivered behavior nobody asked for, and a search for bugs when selected. Use when the user asks whether issues or an epic are done, wants an acceptance or requirements check before closing tickets or releasing, or asks what is missing or implemented wrong. Not for one PR's review guide (pr-review-guide), comparing one diff with its spec (code-review), defects in a diff alone (find-bugs), or deciding intended behavior (plan-change).
+description: Checks delivered code against a set of requirements — GitHub issues, an epic, Jira or Linear tickets, a spec or plan, or pasted text — and reports which are met, partly met, unmet, unverified, or unclear, with evidence; also delivered behavior nobody asked for, and a search for bugs when selected. Use when the user asks whether issues or an epic are done, wants an acceptance or requirements check before closing tickets or releasing, or asks what is missing or implemented wrong. Not for one PR's review guide (pr-review-guide), comparing one diff with its spec (Matt Pocock's code-review), defects in a diff alone (find-bugs), or deciding intended behavior (plan-change).
 argument-hint: "<issues, epic, tickets, spec, or text; revision to check and base if known>"
 ---
 
@@ -14,9 +14,11 @@ Tell the person who accepts delivered work, for each requirement, whether the co
 
 The check changes no application code or tests. It writes to a ticket only when the user asks for that write: a comment, label, close, or reopen on the tickets the request names, as step 7 describes. A recommendation in the report is not a request. The report gives counts and blockers, not a merge or ship verdict; the ship decision is the user's.
 
+**Re-check of an existing report:** for a follow-up such as "re-check after the fixes", read [follow-up.md](references/follow-up.md) first; it resumes the report and review record instead of restarting.
+
 ## 1. Kickoff and pin
 
-Hold the kickoff round from [asking](../ASKING.md) first, with the questions the request leaves open: how much codebase familiarity to assume; the deliverable, text (recommended) or text plus an HTML companion; whether to confirm the extracted requirement list before verification (recommended) or run straight through; and *Search for bugs?*, *Yes* (recommended) or *No*. Apply a choice the request states without asking. The confirm question is an exception to the [asking](../ASKING.md) rule that "go" applies the recommendations: "go", no answer, or a non-interactive session runs straight through. The first delivery states every applied choice in its `Kickoff:` line.
+Hold the kickoff round from [asking](../ASKING.md) first, with the questions the request leaves open: how much codebase familiarity to assume; the deliverable, text (recommended) or text plus an HTML companion; whether to run straight through (recommended) or confirm the extracted requirement list before verification; and *Search for bugs?*, *Yes* (recommended) or *No*. Apply a choice the request states without asking. The first delivery states every applied choice in its `Kickoff:` line.
 
 Pin `head` as a full SHA: the checkout's HEAD, or a named branch resolved to its SHA. A `base` is optional and serves attribution only. When a base is inferable, such as the merge-base of a feature branch with the default branch, find it and state it as an assumption instead of asking. Write `head`, `base` when pinned, and `repository: owner/name` in the report's front matter. Record local modifications and relevant configuration; dirty source follows the [snapshot rule](../EVIDENCE.md#capture-a-local-snapshot).
 
@@ -31,7 +33,7 @@ Done when the `Kickoff:` line is ready, `head` is a full SHA, the base is pinned
 - Atomize each source into rows of one observable condition each, quoted and linked to the specific source: the issue, comment, ticket field, or plan heading.
 - Keep explicit acceptance criteria separate from requirements inferred from description prose, and label inferred ones *inferred*.
 - Deduplicate across sources; keep every source link on the merged row.
-- When a later comment revises the body, quote both. The **spec owner** is the person who owns the intent source, such as the issue author or the ticket's reporter. The spec owner's latest comment that states a new value or wording supersedes the body, as in "actually the header should be `Y`"; check the row against it. A revision by anyone other than the spec owner, or one phrased as a question or a suggestion, as in "does the header need `status`?" or "maybe add `status`", leaves the row **Needs clarification**.
+- When a later comment revises the body, quote both. The **spec owner** is the person the user or the project names as owner of the intent source; otherwise the human who wrote it, such as the issue author or the ticket's reporter. A source that a bot or an import created has no spec owner until someone names one. The spec owner's latest comment that states a new value or wording supersedes the body, as in "actually the header should be `Y`"; check the row against it. A revision by anyone other than the spec owner, or one phrased as a question or a suggestion, as in "does the header need `status`?" or "maybe add `status`", leaves the row **Needs clarification**.
 - A vague non-functional requirement, such as "fast" or "secure", is **Needs clarification**, with a measurable reading proposed and labeled *inferred*.
 
 When the user explicitly chose to confirm, show the list with each quote, source, reading, and flagged conflict, and stop once. The rows under *Requirements* are the list, and its `**Requirement list:**` line says whether the user confirmed it, as [report-format.md](references/report-format.md#requirements) describes.
@@ -96,9 +98,3 @@ Reply with the absolute report link, counts by status, and the top gaps. Then ha
 When the user asks for ticket updates, make the writes the request names, after the report passes the check. Draft each comment under the report directory with its rows, statuses, evidence links, and the pinned head, then post it. A request scoped by status, such as "close the met ones", covers only tickets whose rows are all Met; name each ticket left out and why. Record every write and its URL in the review record, and list them in the reply.
 
 Done when the checker passes after the last edit, or the report is labeled structurally unchecked with the blocker, and the reply carries the link, counts, gaps, and handoff commands.
-
-## 8. Re-check, do not restart
-
-A follow-up, such as "re-check after the fixes", resumes the same report and review record. Collect the intent sources again and compare them with the report's quotes and collection times: an edited body, a new comment, or a changed sub-issue reopens the rows that source feeds, under the step 2 rules, and adds any row it newly asks for. When the head moved, list the arrived commits, split into feature-relevant ones (touching the feature scope or linked to a source) and unrelated ones, and offer to re-pin. A re-pin reopens only rows whose traced code, linked work, or evidence changed; restate the `**Requirement list:**` line when rows were added; record what was rechecked, each new collection time, and what still refers to the earlier head. Run the check in step 7 after the last edit.
-
-Done when every source has a current collection time or is named as a gap, every reopened row has a current status and evidence, and the report passes the check against the head in force.

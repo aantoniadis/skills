@@ -49,7 +49,9 @@ establish a broader guarantee.
 ## Capture a local snapshot
 
 Uncommitted or non-Git code has no commit URL. Keep the inspected bytes beside
-the note and cite them by relative path. From the project root, with the note's
+the note and cite them by relative path. Capture only the source files the
+note cites; credentials and environment files such as `.env` stay out of the
+copy. From the project root, with the note's
 directory in `note_dir`:
 
 ```bash

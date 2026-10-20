@@ -84,18 +84,24 @@ Before the first check or preparation command that can write, take a baseline
 of the working tree and the index from the project root. The snapshot is a Git
 tree object built in a temporary index: content, mode, and symlink changes in
 tracked and untracked files show in the diff, ignored output does not, and the
-project's own index is untouched. The second command force-adds project
-instruction files that the project ignores.
+project's own index is untouched. The snapshot writes its objects to a
+temporary object directory, `objs`, so untracked files, credentials included,
+stay out of the project's object store. The second `git add` force-adds
+project instruction files that the project ignores.
 
 ```bash
-snap() { local i; i=$(mktemp -u); GIT_INDEX_FILE="$i" git add -A . && git ls-files -z --others --ignored --exclude-standard -- CLAUDE.md AGENTS.md AGENT.md | GIT_INDEX_FILE="$i" xargs -0r git add --force -- && GIT_INDEX_FILE="$i" git write-tree; rm -f "$i"; }
-before=$(snap); staged=$(git write-tree)
+objs=$(mktemp -d); alt=$(git rev-parse --path-format=absolute --git-path objects)
+snap() ( export GIT_INDEX_FILE="$(mktemp -u)" GIT_OBJECT_DIRECTORY="$objs" GIT_ALTERNATE_OBJECT_DIRECTORIES="$alt"; git add -A . && git ls-files -z --others --ignored --exclude-standard -- CLAUDE.md AGENTS.md AGENT.md | xargs -0r git add --force -- && git write-tree; rm -f "$GIT_INDEX_FILE" )
+before=$(snap); staged=$(git write-tree); echo "objs=$objs alt=$alt before=$before staged=$staged"
 ```
 
-After commands that can write, and before reporting completion:
+Record the four printed values: a later shell sets them again before it
+defines `snap` and runs the comparison. When setup stops before the
+comparison, delete `objs` anyway. After commands that can write, and before
+reporting completion:
 
 ```bash
-git diff-tree -r --name-status "$before" "$(snap)"; [ "$staged" = "$(git write-tree)" ] || echo "index changed"
+GIT_OBJECT_DIRECTORY="$objs" GIT_ALTERNATE_OBJECT_DIRECTORIES="$alt" git diff-tree -r --name-status "$before" "$(snap)"; [ "$staged" = "$(git write-tree)" ] || echo "index changed"; rm -rf "$objs"
 ```
 
 An empty diff and an unchanged index mean the project files are as the user

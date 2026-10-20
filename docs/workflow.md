@@ -17,8 +17,9 @@ After [installation](../README.md#install), our seven skills are registered as
 `aantoniadis-skills:<name>`. The examples below use Claude Code's `/` prefix;
 use `$` instead in Codex. In OpenCode, run a skill with
 `opencode run --command <name>` or the `/skills` menu. Hosts can also select
-skills through their normal discovery. Each of our skills opens
-with a kickoff round from [asking](../skills/ASKING.md) for the choices your
+skills through their normal discovery. Each of our skills except find-bugs
+and setup-tools opens with a kickoff round from
+[asking](../skills/ASKING.md) for the choices your
 prompt leaves open, one recommendation per question; a prompt that states them
 skips those questions, and "go" takes the recommendations. The exception is
 check-acceptance's question about confirming the requirement list: there, "go"

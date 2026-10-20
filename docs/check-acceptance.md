@@ -21,8 +21,10 @@ ticket only when you ask for that write.
    condition, quoted and linked to the issue, comment, ticket field, or plan
    heading. Explicit acceptance criteria stay apart from inferred ones. A later
    comment that revises the body is quoted beside it: the spec owner's comment
-   stating a new value wins; anyone else's revision, a question, or a
-   suggestion makes the row Needs clarification. A vague
+   stating a new value wins. The spec owner is whoever you or the project
+   name, else the human who wrote the source; a bot-created or imported
+   ticket has none until someone is named. Anyone else's revision, a
+   question, or a suggestion makes the row Needs clarification. A vague
    requirement such as "fast" is Needs clarification with a measurable reading
    proposed. The list is shown for confirmation only when you choose that;
    "go", no answer, or a non-interactive session runs straight through, and

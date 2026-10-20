@@ -59,8 +59,11 @@ It reports the template's unfilled prompts, which shows the checker and its
 dependencies run; an import error names a missing dependency
 ([check mechanics](../HTML-PAGES.md#check-mechanics-and-meaning-separately)).
 
-For an original skill, read its `SKILL.md` at the found path; a listing
-entry without a readable file is a gap.
+For a model-invoked original skill, read its `SKILL.md` at the found path.
+For a user-invoked one, check that the file is readable, as with
+`test -r <path>`, and leave its contents unread, as
+[package references](../REFERENCES.md) say. A listing entry without a
+readable file is a gap.
 
 For a tool that can silently return incomplete output, compare against an
 independently known example. Inspect exit status and output using the tool's

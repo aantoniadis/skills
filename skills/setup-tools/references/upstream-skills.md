@@ -53,11 +53,12 @@ Source: https://github.com/mattpocock/skills (MIT). Our workflows use:
 | `implement` | user-invoked on Codex, model-invoked on Claude Code; handed off either way | the handoff from plan-change | implementing an agreed ticket in a fresh session; it calls `tdd` and `code-review` beside it |
 | `writing-for-agents` | model-invoked | authoring, see AGENTS.md | writing skill text |
 
-The kind is the author's choice, read from the skill's frontmatter
+The kind is the author's choice, set in the skill's frontmatter
 (`disable-model-invocation: true`), its `agents/openai.yaml`
 (`allow_implicit_invocation: false`), or a description that reserves it for
-the user. [Package references](../../REFERENCES.md) say what each kind means
-for our skills.
+the user. This table records it, so take the kind from here; a user-invoked
+skill's files stay unread. [Package references](../../REFERENCES.md) say what
+each kind means for our skills.
 
 Any other skill the install brings is usable directly through the host.
 

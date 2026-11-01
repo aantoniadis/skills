@@ -15,5 +15,8 @@ The [investigator](INVESTIGATE.md) offers tracing guidance; the
 useful guidance for the question.
 
 Integrate findings into the current artifact with their evidence and limits.
-Compare conflicting results against their source conditions. If a worker
-cannot answer, continue with the available evidence and state the gap.
+Compare conflicting results against their source conditions. A worker that
+fails, stops early, or returns no result checked nothing: start it once more,
+and if it fails again, record its scope as *not run* with the reason. An empty
+result never counts as nothing found. If a worker cannot answer, continue with
+the available evidence and state the gap.

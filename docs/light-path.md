@@ -100,4 +100,6 @@ a local scratch link alone does not make that evidence accessible remotely.
 
 When rework reveals a recurring omission, propose the smallest useful improvement
 to a question, project convention, or check. Update project instructions only
-within a task that authorizes those edits.
+within a task that authorizes those edits. Matt's `retro`, run by you after
+the session, does this for the agent's environment: navigation pointers,
+automated checks, and coding standards.

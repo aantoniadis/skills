@@ -2,7 +2,9 @@
 
 Use this guidance for a scoped check through [native delegation](WORKERS.md).
 The assignment identifies the artifact, consequential questions or sections,
-source conditions, existing evidence, and desired depth. Return findings without
+source conditions, existing evidence, and desired depth. It passes the
+artifact and the contract it must satisfy, not the lead's conclusion about it;
+a reader handed the conclusion tends to confirm it. Return findings without
 editing the artifact unless the assignment explicitly authorizes edits.
 
 ## Read for the assigned question
@@ -40,8 +42,22 @@ check, include the short artifact-first understanding and any material correctio
 from source. Use a per-claim ledger only when the assignment needs that detail.
 Let the host handle communication and delivery.
 
-The lead resolves supported findings, qualifies unsupported claims, or records
-why a finding does not apply. Recheck affected conclusions and retain material
+The lead resolves each finding. A supported finding is fixed or its claim
+qualified. To dismiss a finding, cite evidence the reader could check: a
+pinned source line, a recorded run, or a decision recorded in the artifact.
+"This was intentional" is not evidence, and the lead's wish to dismiss a
+finding about its own artifact is not evidence that the reader is wrong. When
+the deciding fact sits outside everything the reader could read, such as a
+team convention or a verbal decision, ask the user instead of dismissing the
+finding. A reader who could not follow a passage found a missing connection:
+add it where a human reader needs it, and ask the user when only a reader
+without the project's history would. Classify each finding in this order:
+the contract was unclear, so fix the contract and re-read; supported and
+actionable; real but accepted as a trade-off, recorded with the reason; or
+noise from context the reader lacked, which asks whether the contract should
+have carried it. Two rounds with substantive findings and none classified
+actionable mean the lead is validating, not checking: stop and show the user.
+Recheck affected conclusions and retain material
 corrections with the artifact. This review neither creates user agreement nor
 proves runtime behavior or publication authority.
 

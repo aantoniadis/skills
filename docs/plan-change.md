@@ -51,7 +51,10 @@ new approval is needed only when the destination or content lacks it. Take the
 `to-spec` and `to-tickets` handoff when you want Matt's format and tracker
 publication; you run those commands, and they synthesize from this session.
 The [combined workflow](workflow.md) shows the exact prompts for drafting,
-implementation in a fresh session, and PR creation. Review the draft's meaning:
+implementation (Matt's `implement` per ticket in a fresh session, or
+`implement-spec` for the whole ticketed spec in one run), and PR creation.
+The agreed test seams travel in the spec and tickets: `to-spec` checks them
+with you, and `implement-spec` has no seam step of its own. Review the draft's meaning:
 agent self-review and the presence of decision IDs do not establish that every
 acceptance criterion matches an agreement.
 

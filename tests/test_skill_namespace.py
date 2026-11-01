@@ -48,7 +48,7 @@ def check_references():
         assert manifest["name"] == PACKAGE
         assert manifest["skills"] == "./skills/"
         versions.add(manifest["version"])
-    assert set(skills) == {"setup-tools", "explain", "plan-change", "find-bugs", "pr-review-guide", "fix-bug", "check-acceptance"}
+    assert set(skills) == {"setup-tools", "explain", "plan-change", "find-bugs", "pr-review-guide", "fix-bug", "check-acceptance", "whats-next"}
     versions.add(json.loads((ROOT / "package.json").read_text())["version"])  # the OpenCode package
     marketplace = json.loads((ROOT / ".claude-plugin/marketplace.json").read_text())
     assert marketplace["name"] == "aantoniadis"
@@ -113,7 +113,7 @@ def check_references():
             continue
         if path.name == "SKILL.md" or re.search(r"\bdiagram", path.read_text(), re.I):
             assert "EVIDENCE.md" in path.read_text(), path
-    assert len(upstream) == 9, sorted(upstream)
+    assert len(upstream) == 10, sorted(upstream)
     print(f"Names, package references, manifests, links, and provenance: {len(skills)} skills / {len(upstream)} original skills passed")
 
 

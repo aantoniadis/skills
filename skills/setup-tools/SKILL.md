@@ -105,8 +105,8 @@ than a fixed interface shared by all tools.
 After preparation, repeat the relevant operation from step 2. Reuse an
 earlier successful check when its inputs and environment remain unchanged.
 Resolve a cheap setup error when authorized; otherwise record the gap and
-fallback. Compare project files with the baseline after commands that can
-write and before reporting completion.
+fallback. As the last step before reporting completion, compare project
+files with the baseline once.
 
 Done when prepared capabilities have observed operations and honest limits,
 or their remaining setup and usable fallback are clear.

@@ -1,10 +1,10 @@
 # skills
 
 Skills for coding agents, shipped as the **`aantoniadis-skills`** plugin for
-Claude Code, Codex, and OpenCode. Seven skills cover the work around a change:
+Claude Code, Codex, and OpenCode. Eight skills cover the work around a change:
 set a project up for evidence, understand the code, plan the behavior, fix a
-reported bug, find the defects, review the PR, and check delivered work
-against its requirements. Matt Pocock's and HumanLayer's originals, installed
+reported bug, find the defects, review the PR, check delivered work
+against its requirements, and name the next step. Matt Pocock's and HumanLayer's originals, installed
 separately, carry a plan through spec, tickets, implementation, and the PR.
 
 ```bash
@@ -66,8 +66,9 @@ runs the checkout directly.
 
 ### Original skills
 
-Our skills work with six originals: Matt Pocock's `grilling`, `to-spec`,
-`to-tickets`, and `implement`, and HumanLayer's `show-me` and `visual-pr`.
+Our skills work with seven originals: Matt Pocock's `grilling`, `to-spec`,
+`to-tickets`, `implement`, and `implement-spec`, and HumanLayer's `show-me`
+and `visual-pr`.
 Install them once per machine, one route per host:
 
 ```bash
@@ -77,7 +78,7 @@ claude plugin install mattpocock-skills@claude-plugins-official
 codex plugin marketplace add mattpocock/skills
 codex plugin add mattpocock-skills@mattpocock
 # Matt Pocock's skills: OpenCode and other hosts (-a <agent> selects the host)
-npx skills@latest add mattpocock/skills -g
+npx skills@latest add mattpocock/skills -g   # later: npx skills@latest update
 # HumanLayer's skills: every host
 npx skills@latest add humanlayer/skills --skill show-me --skill visual-pr -g
 ```
@@ -86,7 +87,7 @@ npx skills@latest add humanlayer/skills --skill show-me --skill visual-pr -g
 `mattpocock:implement` or `humanlayer:visual-pr`
 ([skills/REFERENCES.md](skills/REFERENCES.md)) and respect each author's
 choice of who runs it: `plan-change` invokes `grilling` through the host; the
-other five are user-invoked, so our skills finish their own deliverable and
+other six are user-invoked, so our skills finish their own deliverable and
 hand you the command, such as `/mattpocock-skills:to-spec` in Claude Code or
 `/to-spec` after an `npx skills` install. Each original then runs its own
 workflow, unchanged.
@@ -101,6 +102,7 @@ workflow, unchanged.
 | [`find-bugs`](skills/find-bugs/SKILL.md) | You want the defects in a change before it merges, or before you review it | Ranked defects with evidence, material questions, and review limits | [docs/find-bugs.md](docs/find-bugs.md) |
 | [`fix-bug`](skills/fix-bug/SKILL.md) | A test fails, an issue reports wrong behavior, or production shows a symptom | A demonstrated cause, a fix with a regression test that went red then green, and a diagnosis page a reviewer can verify | [docs/fix-bug.md](docs/fix-bug.md) |
 | [`pr-review-guide`](skills/pr-review-guide/SKILL.md) | You have to review a PR you did not write | A guide to a pinned snapshot: what the change means, where to look, what to skim, what to ask the author | [docs/pr-review-guide.md](docs/pr-review-guide.md) |
+| [`whats-next`](skills/whats-next/SKILL.md) | You are not sure which skill to run next, or whether to start a new session | The next step, its command for your host, and the session to run it in, from the checkout and the notes already written | [docs/whats-next.md](docs/whats-next.md) |
 | [`check-acceptance`](skills/check-acceptance/SKILL.md) | You need to know whether a set of issues, an epic, tickets, or a spec is delivered | Per-requirement status at a pinned revision with evidence, delivered behavior nobody asked for, and a search for bugs when selected | [docs/check-acceptance.md](docs/check-acceptance.md) |
 
 The skills start from context and settled choices, and ask only about open
@@ -110,11 +112,13 @@ inspected. `setup-tools` keeps what it learns in a
 [local record](skills/TOOL-SETUP.md) outside the repository.
 
 With the originals: `plan-change` hands agreed decisions to Matt's `to-spec`
-and `to-tickets`, Matt's `implement` builds an unblocked ticket, `fix-bug`
-takes a reported symptom to a fixed, recorded cause, `find-bugs` runs before
+and `to-tickets`, Matt's `implement` builds an unblocked ticket and
+`implement-spec` lands a whole ticketed spec on one integration branch,
+`fix-bug` takes a reported symptom to a fixed, recorded cause, `find-bugs` runs before
 HumanLayer's `visual-pr` opens the PR, `pr-review-guide` serves the PR's
 human reviewer, and `check-acceptance` checks the built result against the
-requirements across a set of issues. An original you run keeps its own
+requirements across a set of issues. `whats-next` names the next step and
+its session when you are not sure. An original you run keeps its own
 behavior, such as committing or pushing, including after one of our handoffs;
 `grilling`, which `plan-change` invokes, works within that skill's scope.
 

@@ -1,6 +1,6 @@
 # Using our skills with the originals
 
-Our seven skills establish the evidence, decisions, and review context for a
+Our eight skills establish the evidence, decisions, and review context for a
 change. Matt Pocock's originals turn that context into specs, tickets, and
 implementation. HumanLayer's originals supply visual explanations and PR
 presentations. Start at the skill matching the current task and reuse existing context. These
@@ -11,14 +11,50 @@ the established scope, appropriate implementation checks, and focused review.
 Interviews and separate sessions are options when useful or
 selected by the project.
 
+## Which skill, in which session
+
+| When | Run | Session | It hands off to |
+| --- | --- | --- | --- |
+| You are not sure where you are, or which session to use | `whats-next` | Any | The next row, with its command and session |
+| A new checkout, or a later skill's tool failed | `setup-tools` | Any; once per checkout | Nothing; later skills read its record |
+| You need to know how a flow works before touching it | `explain` | Start the planning session here | `plan-change`, with the note path; HumanLayer's `show-me`, run by you, for a visual recap |
+| The ticket is vague, or the change has consequences beyond its own function | `plan-change` | The planning session: start it here when no `explain` ran; keep it open until the tickets exist | Its own spec and ticket drafts, or Matt's `to-spec` and `to-tickets` |
+| The plan is agreed and you want the spec and tickets | `plan-change` drafts, or you run `/to-spec` then `/to-tickets` | The same planning session, unbroken: the originals synthesize from the conversation | `implement` or `implement-spec` |
+| One ticket is unblocked | `/implement` | A new session per ticket, on the feature branch | `code-review` inside; `find-bugs` and `visual-pr` after |
+| Every ticket has its blocking edges and you want the whole spec built | `/implement-spec` | One new session; it runs its own implementer subagents | `check-acceptance` on the integration branch |
+| A test fails, an issue reports wrong behavior, or production shows a symptom | `fix-bug` | Where the symptom arrives: the implementing session for a check it broke, a new one for an issue or production symptom | `visual-pr` for the PR; `plan-change` for an open behavior decision |
+| The branch is done and the PR is not open yet | `find-bugs`, then `/visual-pr` | The implementing session, or a new one checked out on the branch | The PR |
+| You have to review a PR you did not write | `pr-review-guide` | A new session, without the author's context | `find-bugs` inside, when selected |
+| You need to know whether the epic, tickets, or spec is delivered | `check-acceptance` | A new session on the delivered head | `plan-change` or `implement` for gaps; `fix-bug` for bugs |
+| A contained change in familiar code | The [light path](light-path.md) | The current session | Nothing new |
+
+A new session means a fresh context window: a new session in the host, or
+its clear command. Two session rules carry the flow. Keep understanding, planning, spec, and
+tickets in one unbroken session: Matt's `to-spec` and `to-tickets` synthesize
+from the conversation, and `plan-change` reuses the note and the answers you
+gave. Do not clear before the tickets exist; if the session nears the host's
+limit, compact at a step boundary. Build and review in fresh sessions: one per
+`implement`, one for `implement-spec`, one for `pr-review-guide`, one for
+`check-acceptance`. A fresh session reads only what the ticket, spec, tracker,
+and repository hold, so decisions and test seams go there, not in chat; Matt's
+`handoff`, run before you clear, writes a pointer document for it.
+
+Which interview: an idea with no repository under it takes Matt's `grill-me`.
+A change to code takes `plan-change`, which can invoke Matt's `grilling` for
+a hard interview and adds what an interview alone cannot: the behavior
+comparison through the consumers, the evidence record, preserved behavior,
+and the slices. Matt's `grill-with-docs` is the alternative when you want his
+flow end to end, with `GLOSSARY.md` and ADRs; run one of the two on a change,
+not both. A contained change in familiar code takes neither.
+
 ## How to invoke them
 
-After [installation](../README.md#install), our seven skills are registered as
+After [installation](../README.md#install), our eight skills are registered as
 `aantoniadis-skills:<name>`. The examples below use Claude Code's `/` prefix;
 use `$` instead in Codex. In OpenCode, run a skill with
 `opencode run --command <name>` or the `/skills` menu. Hosts can also select
-skills through their normal discovery. Each of our skills except find-bugs
-and setup-tools opens with a kickoff round from
+skills through their normal discovery. Each of our skills except find-bugs,
+setup-tools, and whats-next opens with a kickoff round from
 [asking](../skills/ASKING.md) for the choices your
 prompt leaves open, one recommendation per question; a prompt that states them
 skips those questions, and "go" takes the recommendations.
@@ -29,25 +65,14 @@ Matt's and HumanLayer's originals are installed through their own routes
 in Codex, `/implement` or the `skill` tool in OpenCode; an `npx skills`
 install registers each as `/<name>`. Our skills keep each author's choice of
 who runs it, as [package references](../skills/REFERENCES.md) say: `grilling`
-is invoked through the host; `to-spec`, `to-tickets`, `implement`, `show-me`,
-and `visual-pr` are user-invoked, so our skill finishes its deliverable and
+is invoked through the host; `to-spec`, `to-tickets`, `implement`,
+`implement-spec`, `show-me`, and `visual-pr` are user-invoked, so our skill finishes its deliverable and
 hands you the command. A call inside an original such as Matt's `/tdd` means
 the original installed beside it.
 
-| Work | Skill that owns it | Original sources it uses |
-| --- | --- | --- |
-| Prepare investigation tools | Our `setup-tools` | None; a sign-in or activation step only a human can do gets short manual instructions |
-| Explain current code | Our `explain` | HumanLayer's `show-me`, run by you afterwards, for a visual recap: component trees, file trees, code-shape diffs |
-| Decide intended behavior | Our `plan-change` | Optional Matt `grilling`, or the selected original interview/domain mode |
-| Draft a spec and tickets from those decisions | Our `plan-change` drafts locally and owns review and publication, or hands you Matt's `to-spec` and `to-tickets` | Matt's originals, run by you, synthesize from the planning conversation and publish under their own workflow |
-| Implement an agreed ticket | Matt's `implement` | Matt's `tdd` where possible and `code-review` after implementation |
-| Fix a reported bug | Our `fix-bug` | Project tools recorded during setup; Matt's `diagnosing-bugs` is the loop-only alternative you run directly |
-| Find defects in a change | Our `find-bugs` | Project tools recorded during setup |
-| Create or update the PR | HumanLayer's `visual-pr` | Its original description template and visual references |
-| Help a human review the PR | Our `pr-review-guide` | Our `find-bugs` for the search for bugs |
-| Check delivered work against its requirements | Our `check-acceptance` | Our `find-bugs` for the search for bugs; Matt's `implement`, which you run, for the gaps it reports |
-
 ## 1. Prepare the project
+
+**Session:** any; once per checkout, again only to repair a tool.
 
 Package installation provides the local skills; the originals are installed
 separately through their own routes. Project setup is optional: use it when useful
@@ -81,6 +106,8 @@ conventions, the other verifies investigation capabilities.
 
 ## 2. Understand the existing behavior
 
+**Session:** start the planning session here and keep it open through step 4.
+
 Use one concrete question that will inform the change:
 
 ```text
@@ -93,21 +120,23 @@ actual path to the planning step. For a visual recap, run HumanLayer's original 
 
 ## 3. Agree on the change
 
+**Session:** the same one; `plan-change` reuses the note and your answers.
+
 ```text
 /aantoniadis-skills:plan-change Plan repeat-safe order confirmation. Reuse our understanding note at <note path>. Decide the repeated-call and concurrent-call behavior, preserve reservation rollback, and agree where we will test it.
 ```
 
-The skill can use Matt's original interview guidance while owning the plan. It
-records named decisions, changed and preserved behavior, evidence limits,
+The skill can invoke Matt's `grilling` for a hard interview while owning the
+plan. It records named decisions, changed and preserved behavior, evidence limits,
 accepted risks, test seams, and the slices blocked by unresolved choices.
 Routine coding choices remain with implementation. [How it works](plan-change.md).
 
 ## 4. Draft, review, and publish the spec and tickets
 
-Two routes. Keep either in the planning session so the agreed context is
-available.
+**Session:** the same planning session, unbroken; both routes read the
+conversation.
 
-Matt's format and tracker publication: when the plan is delivered,
+Two routes. Matt's format and tracker publication: when the plan is delivered,
 `plan-change` hands you the command, because `to-spec` and `to-tickets` are
 user-invoked and synthesize from the conversation so far:
 
@@ -115,6 +144,10 @@ user-invoked and synthesize from the conversation so far:
 /mattpocock-skills:to-spec Use the plan at <plan path>.
 /mattpocock-skills:to-tickets Use the spec at <spec URL or path>.
 ```
+
+`to-spec` sketches the test seams and checks them with you before it writes;
+the plan's agreed seams answer that question. `to-tickets` gives each ticket
+its blocking edges, which `implement-spec` reads as a task graph.
 
 Our drafting and review:
 
@@ -140,29 +173,57 @@ Direct use of Matt's `to-spec` or `to-tickets` follows their original publicatio
 workflow and readiness defaults. Use the `plan-change` prompt above when you
 want our decision-preservation and draft-review process.
 
-## 5. Implement an unblocked ticket
+## 5. Implement the tickets
 
-Continue in the current session or start a fresh one with an issue URL or local
-ticket path, its supporting spec, and accessible evidence. Replace the placeholders below
-with actual paths or URLs; use a feature branch for the work:
+**Session:** a new one per ticket for `implement`, or one new session for
+`implement-spec`. Only a build small enough to finish inside the planning
+session stays there.
+
+One ticket at a time: start a fresh session with an issue URL or local
+ticket path, its supporting spec, and accessible evidence; clear between
+tickets. Check out the feature branch first; `implement` commits to the
+current branch and does not create one. Replace the placeholders with actual
+paths or URLs:
 
 ```text
-/mattpocock-skills:implement On branch feat/order-confirmation, implement <ticket URL or path> using <spec URL or path>. Follow the named decisions, preserved invariants, agreed test seam, and feedback instructions. Reopen a newly needed behavior decision before affected work. Report the delivered subset and verification actually run.
+/mattpocock-skills:implement Implement <ticket URL or path> using <spec URL or path>. Follow the named decisions, preserved invariants, agreed test seam, and feedback instructions. Reopen a newly needed behavior decision before affected work. Report the delivered subset and verification actually run.
 ```
 
-The original `implement` uses TDD where possible at the agreed seams, runs
-checks, calls Matt's `code-review` installed beside it, and commits to the
-current branch. Work any
-ticket whose blockers are complete; the tracker or ticket files carry those
-blocking relationships.
+The original `implement` fetches the ticket and states its title, uses TDD
+where possible at the agreed seams, runs checks, calls Matt's `code-review`
+installed beside it, and commits to the current branch. Work any ticket whose
+blockers are complete; the tracker or ticket files carry those blocking
+relationships.
+
+The whole spec in one run: after `to-tickets` has written the blocking edges,
+start one fresh session and run:
+
+```text
+/mattpocock-skills:implement-spec Implement <spec URL or path> and its tickets. Follow the named decisions, preserved invariants, and the test seams named in the spec and tickets. Report the integration branch, the tickets resolved, and the verification actually run.
+```
+
+`implement-spec` reads the tickets as a task graph, starts a fresh implementer
+subagent per ticket in its own worktree, each driving `tdd`, merges each onto
+one integration branch, runs `code-review` once at the end, and resolves the
+tickets. It opens a draft PR only when the tracker closes work through PRs or
+you ask for one. It needs the tracker that `setup-matt-pocock-skills`
+configured and a host that runs subagents in the background with worktrees.
+It has no seam step of its own, so `plan-change` carries the agreed seams
+into the spec and tickets. Afterwards, `pr-review-guide` reviews the
+integration branch and `check-acceptance` checks it against the spec (step 9).
 
 A fresh session cannot read another machine's ignored scratch files. Put
 required decisions in the ticket and make supporting evidence available through
-the tracker, committed documents, or files present in that session. Feedback
-returns to the recorded planning destination when implementation finds a
-consequential mismatch.
+the tracker, committed documents, or files present in that session. Matt's
+`handoff`, which you run before clearing, writes a handoff document in the
+temp directory that points the fresh session at the plan, spec, and tickets.
+Feedback returns to the recorded planning destination when implementation
+finds a consequential mismatch.
 
 ## 6. Fix a reported bug
+
+**Session:** where the symptom arrives: the implementing session for a check
+it broke, a new one for an issue or a production symptom.
 
 For a failing test, an issue with steps, or a production symptom:
 
@@ -173,10 +234,13 @@ For a failing test, an issue with steps, or a production symptom:
 The skill pins the contract, reproduces the symptom with one saved command,
 finds the cause, lands the fix with a regression test that went red then
 green, and widens by evidence to origin, reach, and consequence. The
-`diagnosis.md` note and its page carry the runs a reviewer can check.
+`diagnosis.md` note and its page carry the runs a reviewer can check. Matt's
+`diagnosing-bugs` is the loop-only alternative you run directly.
 [How it works](fix-bug.md).
 
 ## 7. Check defects and open the PR
+
+**Session:** the implementing session, or a new one checked out on the branch.
 
 For a focused search for bugs before creating the PR:
 
@@ -185,7 +249,7 @@ For a focused search for bugs before creating the PR:
 ```
 
 This investigates defects; it does not fix them or publish a PR. Request any
-fixes separately. It complements the original `implement` skill's code review.
+fixes separately. It complements the `code-review` that Matt's `implement` and `implement-spec` run.
 [How it works](find-bugs.md).
 
 Then request HumanLayer's original PR workflow explicitly:
@@ -197,9 +261,13 @@ Then request HumanLayer's original PR workflow explicitly:
 The original commits pending task changes, pushes the branch, creates the PR
 or updates the existing one, and writes the description in its own template
 under `.humanlayer/tasks/`. The decision and verification requirements in the
-prompt are the task it receives from our planning workflow.
+prompt are the task it receives from our planning workflow. When you write the
+PR without it, Matt's model-invoked `pr` shapes the body.
 
 ## 8. Review the PR
+
+**Session:** a new one; the reviewer's guide should not inherit the author's
+context.
 
 ```text
 /aantoniadis-skills:pr-review-guide <PR URL> I am unfamiliar with this codebase. Explain the main changes, where to start, what to skim, and how the delivered behavior relates to the agreed spec.
@@ -216,7 +284,10 @@ reports; it does not approve, merge, or fix the PR. [How it works](pr-review-gui
 
 ## 9. Check delivered work against its requirements
 
-For a set of issues, an epic, tickets, or a spec, after implementation:
+**Session:** a new one on the delivered head.
+
+For a set of issues, an epic, tickets, or a spec, after implementation,
+including the integration branch that `implement-spec` leaves:
 
 ```text
 /aantoniadis-skills:check-acceptance Epic #120 and its sub-issues. Check the feature branch at its current head against main. Confirm the requirement list first; search for bugs.
@@ -236,7 +307,7 @@ flowchart LR
     U[Our explain] --> N[Our plan-change]
     N --> D[Matt spec and ticket drafts]
     D --> C[Our checks and your approval]
-    C --> I[Matt implement]
+    C --> I[Matt implement or implement-spec]
     I --> F[Our find-bugs]
     B[Our fix-bug, for a reported symptom] --> P
     F --> P[HumanLayer visual-pr]
@@ -250,15 +321,19 @@ flowchart LR
 
 | Owner | Artifact convention |
 | --- | --- |
-| Our investigation and report skills | Recorded `Investigations:` location, else project convention, else `.scratch/<topic>/`; HTML is an optional companion |
+| Our investigation and report skills | Recorded `Investigations:` location, else `.scratch/<topic>/`, kept out of commits; HTML is an optional companion |
 | Our planning workflow | One authoritative plan/spec, material revision notes, and self-contained tickets at the selected project/tracker locations |
 | Matt's original local ticket workflow | One file per ticket under `.scratch/<feature-slug>/issues/`, in dependency order |
+| Matt's original `implement-spec` | One integration branch holding every ticket's merged work; a draft PR only when the tracker closes work through PRs or you ask |
 | HumanLayer's original `visual-pr` | `.humanlayer/tasks/<task-slug>/pr-description.md` when that task directory exists, otherwise `.humanlayer/tasks/pr-<number>/description.md` |
 | Direct original architecture or visual skills | Their own presentation and output conventions; our shared HTML workflow applies to our reports |
 
 Any other installed original runs the same way through the host's
 registration. Supply the task and its boundaries;
-an original follows its own workflow, not all of ours.
+an original follows its own workflow, not all of ours. For an effort too
+large for one planning session, Matt's `wayfinder` maps decision tickets
+first and merges at `to-spec`; Matt's `retro`, run after a session, proposes
+changes to the agent's environment.
 
 When an original is not installed, the agent names the install command from
 [original skills](../skills/setup-tools/references/upstream-skills.md) and

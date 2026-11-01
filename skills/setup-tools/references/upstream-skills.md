@@ -50,7 +50,8 @@ Source: https://github.com/mattpocock/skills (MIT). Our workflows use:
 | --- | --- | --- | --- |
 | `grilling` | model-invoked | plan-change | a demanding interview on the unresolved choices |
 | `to-spec`, `to-tickets` | user-invoked | the handoff from plan-change | the spec and tickets Matt's format publishes to the tracker, synthesized from the planning conversation |
-| `implement` | user-invoked on Codex, model-invoked on Claude Code; handed off either way | the handoffs from plan-change and check-acceptance | implementing an agreed ticket in a fresh session; it calls `tdd` and `code-review` beside it |
+| `implement` | user-invoked | the handoffs from plan-change and check-acceptance | implementing one agreed ticket, or a small spec, in a fresh session; it fetches a ticket reference, calls `tdd` and `code-review` beside it, and commits to the current branch |
+| `implement-spec` | user-invoked | the handoff from plan-change | implementing a whole ticketed spec in one run: one fresh implementer subagent per ticket in its own worktree, each calling `tdd`, merged onto one integration branch, with `code-review` once at the end; it needs the tracker that Matt's setup skill configured and a host that runs subagents in the background with worktrees |
 | `writing-for-agents` | model-invoked | authoring, see AGENTS.md | writing skill text |
 
 The kind is the author's choice, set in the skill's frontmatter

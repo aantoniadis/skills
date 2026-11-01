@@ -17,9 +17,10 @@ Build a mental model grounded in inspected code: the reader can follow a concret
 Establish the learning questions, scope, reader's familiarity, and one concrete scenario from context. For registration before considering 2FA, useful questions include when an account exists, when a session authenticates it, and what each state permits. Find code facts yourself.
 
 Hold the kickoff round from [asking](../ASKING.md) first, with the questions
-the request leaves open: the reader's familiarity; the deliverable, a note or
-a note with HTML (recommend HTML for broad onboarding or relationships that
-benefit from visual layout, and text for a narrow question); and the scope
+the request leaves open: the reader's familiarity; the deliverable, a chat
+answer (recommend it for a narrow question), a note, or a note with HTML
+(recommend HTML for broad onboarding or relationships that benefit from
+visual layout); and the scope
 boundary, with a proposed starting point. Apply a choice the request states
 without asking. A helper run, where another workflow owns the report, holds
 no round and reuses the caller's choices.
@@ -56,7 +57,7 @@ A pinned line is a commit-pinned repository URL, or the relative path with a `#L
 
 ## Maintain the explanation
 
-For a reusable explanation or requested artifact, keep one scope-specific `understanding.md` at the routine location from [asking](../ASKING.md). A narrow chat answer can stand on its own evidence. For a new note, fill [understanding-template.md](references/understanding-template.md), adapting its sections to the learning questions and removing unused prompts. Before delivering, run `python3 <package>/skills/render_page.py <note.md> --check --sync-labels --markdown-only` for text, and without `--markdown-only` for HTML; it checks the note and writes the label key when the note uses status tables or diagrams. Organize it around the current learning questions. Update affected sections as the conversation develops, preserving still-valid findings outside the follow-up's scope. Put useful investigation chronology, review resolutions, and presentation history in an existing log or nearby `review.md`.
+For a reusable explanation or requested artifact, keep one scope-specific `understanding.md` at the investigation location: the directory that `python3 <package>/skills/investigation_dir.py <topic> <project>` creates and prints. A narrow chat answer can stand on its own evidence. For a new note, fill [understanding-template.md](references/understanding-template.md), adapting its sections to the learning questions and removing unused prompts. Before delivering, run `python3 <package>/skills/render_page.py <note.md> --check --sync-labels --markdown-only` for text, and without `--markdown-only` for HTML; it checks the note and writes the label key when the note uses status tables or diagrams. Organize it around the current learning questions. Update affected sections as the conversation develops, preserving still-valid findings outside the follow-up's scope. Put useful investigation chronology, review resolutions, and presentation history in an existing log or nearby `review.md`.
 
 Include what the reader needs to reuse the explanation:
 
@@ -77,6 +78,7 @@ Before delivering, check that:
 - Each learning question has an evidence-backed answer, or is explicitly unresolved with the blocking gap and next useful check. For multiple questions, compare the Questions answered rows with the user's questions; for one, check the opening. Label partial understanding accordingly.
 - The explanation connects the concrete flow, relevant alternatives, and decisive code; a reader can trace why the predicted outcome follows.
 - The note and any companion presented in this delivery agree on findings, evidence status, and limitations. A deferred HTML update is recorded explicitly.
+- For reference documentation of a module's contract, rather than an answer to one question, an engineer new to the code could write functionally equivalent code from the note alone, without guessing defaults, error handling, side effects, or output shapes. The note covers external contracts, behavior rules, side effects, configuration, limits, and errors, and leaves out private helpers and syntax.
 - Every claim carries its evidence, every diagram element is mapped, the answers have been compared with their sources, and material edits retain their evidence limits.
 
 State the central answer and link any delivered artifacts. Offer follow-up questions when they identify useful next work, with how each could be settled. Use as many as help, including none when the question is settled. A follow-up reuses supported findings and traces only the new question, with native delegation when useful.

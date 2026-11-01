@@ -50,7 +50,7 @@
 
 ### {{slice_name}}
 
-**Scope:** {{decision_references_controlling_code_or_interfaces_and_delivered_subset}}.
+**Scope:** {{decision_references_controlling_code_or_interfaces_each_marked_existing_new_changed_or_removed_and_delivered_subset}}.
 
 **Depends on:** {{prerequisite_decisions_slices_or_explicit_none}}.
 

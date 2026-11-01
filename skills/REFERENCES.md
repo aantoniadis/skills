@@ -11,16 +11,14 @@ checkout or plugin cache. If missing, report the package dependency problem.
 `mattpocock:<name>` and `humanlayer:<name>` identify the original skill
 `<name>` by Matt Pocock or HumanLayer, installed separately and unchanged.
 The [original skills](setup-tools/references/upstream-skills.md) table says
-which of two kinds each is. The author's gate sets the kind; `implement` is
-gated only on Codex, and we hand it off on every host because it starts a
-fresh session.
+which of two kinds each is. The author's gate sets the kind on every host.
 
 - **Model-invoked** (`grilling`, `writing-for-agents`): invoke it through the host's skill tool
   under the name the host lists, within the caller's scope and authorization.
   Only on a host with no skill tool, read its `SKILL.md` and companion files
   from the path in the [local tool record](TOOL-SETUP.md).
-- **User-invoked** (`to-spec`, `to-tickets`, `implement`, `show-me`,
-  `visual-pr`): marked `disable-model-invocation: true`, Codex
+- **User-invoked** (`to-spec`, `to-tickets`, `implement`, `implement-spec`,
+  `show-me`, `visual-pr`): marked `disable-model-invocation: true`, Codex
   `allow_implicit_invocation: false`, or a description that reserves it for
   the user. Only the user runs it, so our skills hand off: finish the current
   deliverable, then give the user the command the host registers, such as

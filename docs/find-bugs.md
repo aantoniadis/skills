@@ -17,14 +17,17 @@ predictions and include material questions and review limits.
 3. **Resolve uncertainty.** Reuse applicable source and run evidence. A source-only
    search can return inferred findings with a proposed settling check. When a
    probe is useful and authorized, run the smallest adequate check against the intended checkout and
-   dependencies. Compare base and head under equivalent conditions. Retain
+   dependencies. Compare base and head under equivalent conditions, with the base
+   in a disposable worktree so your checkout stays untouched. Retain
    scripts, commands, output, inputs, and environment limits. A probe confirms
    an observation; the contract determines whether it is a defect.
 4. **Check and deliver.** Seek counterevidence, distinguish new and worsened
    defects from unchanged pre-existing behavior, and retain actionable static
    findings. Instrumentation is useful when it observes a real failure. Ask the
    author only about material missing intent or facts. Return ranked findings
-   under `## Defects`, with evidence and relevant questions; detailed drops and
+   under `## Defects`, with evidence and relevant questions. A material
+   pre-existing defect that a probe executed goes under `## Outside the change`.
+   Detailed drops and
    tool logs stay in the investigation notes.
 
 Dependency checks use the project's supported-version commands, constraints,

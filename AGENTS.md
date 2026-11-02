@@ -16,7 +16,9 @@ Check each before a skill change ships:
   workflow summary, because an agent may follow the description instead of
   the body.
 - Order: the most important instructions near the top of `SKILL.md`. After
-  compaction, Claude Code keeps only the first 5,000 tokens of an invoked skill.
+  compaction, Claude Code keeps only the first 5,000 tokens of each invoked
+  skill, within 25,000 tokens for all of them, and can drop older skills
+  entirely; invoking the skill again restores it.
 - Size: `SKILL.md` under 500 lines; reference files linked one level deep from
   `SKILL.md`; a contents list on a reference file over 100 lines.
 - Freedom: exact commands for fragile sequences such as baselines, checkers,
@@ -28,7 +30,12 @@ Check each before a skill change ships:
   stale, except inside a marked example.
 - Validate: `claude plugin validate .` and `claude plugin validate skills`,
   the local test suite, and one realistic prompt per trigger branch when a
-  description changes.
+  description changes. For a behavior change, run the affected `evals/` cases
+  against the branch and a `main` worktree, three runs each, with
+  `python3 evals/run.py --plugin-dir <checkout> --out <new scratch dir>`;
+  `--regrade` re-judges saved outputs after a rubric edit. Use it rather than
+  `claude plugin eval`, which runs shell commands read-only and without `git`,
+  which these skills need for probes, worktrees, and reports.
 
 
 ## Shipping

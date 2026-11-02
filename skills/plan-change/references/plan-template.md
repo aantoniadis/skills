@@ -34,6 +34,8 @@
 
 {{repeat_for_each_consequential_decision}}
 
+{{at_the_tested_contract_depth_add_Contract_section_from_contract_probes_otherwise_remove}}
+
 ## Behavior at a glance
 
 | Scenario | Current | Planned | Consumer consequence | Status and evidence |

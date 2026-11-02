@@ -27,6 +27,7 @@ class ReportLabelTests(unittest.TestCase):
                               ('verification-results', page.CHECK_RESULTS),
                               ('verification-origins', page.CHECK_ORIGINS),
                               ('decisions', page.DECISION_STATUSES),
+                              ('contract', page.CONTRACT_STATUSES),
                               ('questions', page.QUESTION_STATUSES),
                               ('review-actions', page.ACTION_PHRASES),
                               ('review-evidence', page.EVIDENCE_PHRASES),

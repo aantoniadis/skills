@@ -225,6 +225,8 @@ PLAN_COLUMNS = ("Scenario", "Current", "Planned", "Consumer consequence", "Statu
 COMPARISON_COLUMNS = (SCENARIO_COLUMNS, EXPLANATION_COLUMNS, PLAN_COLUMNS)
 DECISION_COLUMNS = ("Decision", "Status", "Meaning and evidence", "Next action")
 DECISION_STATUSES = ("Agreed", "Proposed", "Open", "Reopened", "Superseded")
+CONTRACT_COLUMNS = ("Clause", "Seam", "Status", "Evidence")
+CONTRACT_STATUSES = ("Proven", "Decided", "Accepted risk", "Assumed")
 QUESTION_COLUMNS = ("Question", "Status", "Answer and evidence", "Follow-up")
 QUESTION_STATUSES = ("Answered", "Partial", "Unresolved")
 BLOCKER_COLUMNS = ("Blocker", "What would settle it", "Affected work")
@@ -236,6 +238,7 @@ STATUS_TABLES = {
     REQUIREMENT_COLUMNS: ("requirements", FULFILLMENT),
     VERIFICATION_COLUMNS: ("verification", CHECK_RESULTS),
     DECISION_COLUMNS: ("decisions", DECISION_STATUSES),
+    CONTRACT_COLUMNS: ("contract", CONTRACT_STATUSES),
     QUESTION_COLUMNS: ("questions", QUESTION_STATUSES),
     BLOCKER_COLUMNS: ("blockers", ()),
 }
@@ -243,6 +246,7 @@ TABLE_LABELS = {
     REQUIREMENT_COLUMNS: ("requirements",),
     VERIFICATION_COLUMNS: ("verification-results", "verification-origins"),
     DECISION_COLUMNS: ("decisions",),
+    CONTRACT_COLUMNS: ("contract",),
     QUESTION_COLUMNS: ("questions",),
 }
 
@@ -967,7 +971,7 @@ def render(source, source_name, diagram_renderer="auto", repo=None, directory=No
                     item.string = cell.get_text(" ", strip=True)
                     if tag == "dt":
                         label = item.get_text()
-                        if group in ("requirements", "verification-results", "decisions", "questions"):
+                        if group in ("requirements", "verification-results", "decisions", "contract", "questions"):
                             badge = soup.new_tag("span", attrs={"class": ["status", "status-" + slug(label)]})
                             badge.string = label
                             item.clear(); item.append(badge)
@@ -1012,7 +1016,7 @@ def render(source, source_name, diagram_renderer="auto", repo=None, directory=No
                 for column, cell in zip(columns, row.find_all("td")):
                     cell.attrs.update({"data-label": column, "role": "cell"})
             for row in table.select("tbody tr"):
-                cell = row.find_all("td")[1]
+                cell = row.find_all("td")[columns.index("Status") if "Status" in columns else 1]
                 label = cell.get_text(" ", strip=True)
                 if label in statuses:
                     badge = soup.new_tag("span", attrs={"class": ["status", "status-" + slug(label)]})
@@ -1766,9 +1770,10 @@ def check_learning_plan(source):
     problems = []
     for table in document.find_all("table"):
         columns = tuple(th.get_text(" ", strip=True) for th in table.select("thead th"))
-        if columns not in (QUESTION_COLUMNS, DECISION_COLUMNS, BLOCKER_COLUMNS):
+        if columns not in (QUESTION_COLUMNS, DECISION_COLUMNS, CONTRACT_COLUMNS, BLOCKER_COLUMNS):
             continue
-        label = "Questions answered" if columns == QUESTION_COLUMNS else "Decisions" if columns == DECISION_COLUMNS else "Blockers"
+        label = {QUESTION_COLUMNS: "Questions answered", DECISION_COLUMNS: "Decisions",
+                 CONTRACT_COLUMNS: "Contract"}.get(columns, "Blockers")
         if not table.select("tbody tr"):
             problems.append(f"{label}: add rows or remove the unused table.")
 
@@ -1783,6 +1788,9 @@ def check_learning_plan(source):
                 linked_headings(cells[2], label)
             elif columns == BLOCKER_COLUMNS:
                 linked_headings(cells[2], label, slices=True)
+            elif columns == CONTRACT_COLUMNS:
+                if cells[2].get_text(strip=True) not in CONTRACT_STATUSES:
+                    raise ValueError("Contract: use Proven, Decided, Accepted risk, or Assumed.")
             else:
                 status = cells[1].get_text(strip=True)
                 if status not in DECISION_STATUSES:

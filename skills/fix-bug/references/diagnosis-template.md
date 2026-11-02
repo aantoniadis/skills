@@ -21,9 +21,9 @@ Output: `{{output_excerpt}}` · {{link_to_the_saved_script_under_runs_bugs}}
 | Criterion | Evidence |
 | --- | --- |
 | Red on the exact symptom | {{how_the_output_matches_the_reported_symptom_with_the_run_link}} |
-| Deterministic | {{runs_and_rate_recorded_or_the_pinned_conditions}} |
-| Fast | {{measured_duration}} |
-| Runs unattended | {{how_it_ran_without_a_human_or_the_hitl_script_used}} |
+| Deterministic | {{runs_and_rate_with_the_run_link_or_the_pinned_conditions}} |
+| Fast | {{measured_duration_with_the_run_link}} |
+| Runs unattended | {{how_it_ran_without_a_human_or_the_hitl_script_used_with_the_run_link}} |
 
 {{what_was_cut_during_minimisation_and_what_stayed_load_bearing_with_the_run_link_or_the_artifacts_only_branch_with_what_was_tried}}
 

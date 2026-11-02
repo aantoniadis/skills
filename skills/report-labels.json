@@ -42,7 +42,7 @@
   "contract": {
     "title": "Contract clause statuses",
     "options": {
-      "Proven": "A probe crossed the real seam and the clause held. The evidence links the run and states the conditions it covered; other conditions remain unproven.",
+      "Proven": "A probe of the candidate behavior crossed the real seam and the clause held. The evidence links the run and states the conditions it covered; other conditions remain unproven.",
       "Decided": "The user, or an authorized autopilot policy, chose this behavior after a probe or comparison. The evidence links the decision; a decision does not prove runtime behavior.",
       "Accepted risk": "The user accepted the clause without proof, or after a probe broke it. The evidence names the gap or the failed probe, and the acceptance.",
       "Assumed": "No probe or decision supports the clause yet. Slices that rely on it are blocked at the tested-contract depth."

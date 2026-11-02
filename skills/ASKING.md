@@ -30,6 +30,8 @@ The recommendations apply when the user answers "go", names only some
 choices, or the tool returns no answer, as in a non-interactive session. The
 next reply then states every applied choice, supplied or defaulted, in one
 line that starts with `Kickoff:` or `Checkpoint:`, so the user can correct it.
+Mark each choice applied without the user's answer as a default and name the
+alternative, such as "drop deleted ids (default; say if you want tombstones)".
 
 A **kickoff** is the round each skill names. Ask it first. Before it, identify
 the target and look at its size, such as the diff stat, the failing test, or

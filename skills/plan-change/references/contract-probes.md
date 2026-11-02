@@ -34,8 +34,8 @@ A clause names its consumer and the behavior that consumer relies on. Its
 status is one of these:
 
 - **Assumed:** no probe or decision supports it yet. A new clause starts here.
-- **Proven:** a probe that crossed the real seam held. Evidence links the run
-  and states the conditions it covered.
+- **Proven:** a probe of the candidate crossed the real seam and held.
+  Evidence links the run and states the conditions it covered.
 - **Decided:** the user, or an authorized autopilot policy, chose this behavior
   after a probe or comparison. Evidence links the decision.
 - **Accepted risk:** the user accepted the clause without proof, or after a
@@ -49,11 +49,12 @@ starts. A clause that would change an interface, a data format, a stored
 record, or another feature's behavior ranks above one that changes a local
 detail. Probe the highest-ranked clause first.
 
-A **probe** is the smallest throwaway code that crosses the real seam: the
-neighboring feature's actual code, the real external system or a local
-sandbox of it such as a container or a test account, and the real platform
-when lifecycle matters. A mock or model shows only how the mock or model
-behaves. Run the candidate next to its neighbors, because a feature that
+A **probe** is a throwaway prototype of the clause's candidate behavior, built
+on the decisions so far, run against the real seam: the neighboring feature's
+actual code, the real external system or a local sandbox of it such as a
+container or a test account, and the real platform when lifecycle matters.
+A run of today's code is the baseline: it shows why a clause matters and
+proves no clause. A mock or model shows only how the mock or model behaves. Run the candidate next to its neighbors, because a feature that
 works alone can still conflict at a shared seam.
 
 Write each probe to **break** its clause. Aim the inputs, timing, concurrency,

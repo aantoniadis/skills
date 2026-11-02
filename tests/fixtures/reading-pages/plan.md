@@ -64,6 +64,15 @@ depends on the rollback investigation ([scope](sample-record.md#L29)).
 
 **Choice:** proposed only — evaluate an outbox. Transaction boundaries and consumer deduplication need evidence before agreement ([candidate](sample-record.md#L25)).
 
+## Contract
+
+| Clause | Seam | Status | Evidence |
+| --- | --- | --- | --- |
+| A repeat confirmation returns the original confirmation ID | Order handler and its callers | Decided | [Return existing confirmation](#return-existing-confirmation) ([record](sample-record.md#L19)) |
+| Unavailable stock leaves the order pending with no event | Inventory service | Proven | Fictional sequential model only ([record](sample-record.md#L21)) |
+| The event bus delivers each publication at least once | Event bus | Accepted risk | Fictional owner accepted duplicate delivery ([record](sample-record.md#L25)) |
+| The losing concurrent caller receives a retryable error | Order handler and its callers | Assumed | Not verified: no probe or decision; [Coordinate concurrent requests](#coordinate-concurrent-requests) is open |
+
 ## Behavior at a glance
 
 | Scenario | Current | Planned | Consumer consequence | Status and evidence |
@@ -179,6 +188,15 @@ These labels describe separate judgments. Read each against its stated scope and
 | Open | The desired behavior or choice remains undecided. |
 | Reopened | A previously settled choice needs a new answer after changed evidence or scope. Its history is retained. |
 | Superseded | A historical choice has been replaced by another decision. The report links its replacement. |
+
+### Key: Contract clause statuses
+
+| Option | Meaning |
+| --- | --- |
+| Proven | A probe of the candidate behavior crossed the real seam and the clause held. The evidence links the run and states the conditions it covered; other conditions remain unproven. |
+| Decided | The user, or an authorized autopilot policy, chose this behavior after a probe or comparison. The evidence links the decision; a decision does not prove runtime behavior. |
+| Accepted risk | The user accepted the clause without proof, or after a probe broke it. The evidence names the gap or the failed probe, and the acceptance. |
+| Assumed | No probe or decision supports the clause yet. Slices that rely on it are blocked at the tested-contract depth. |
 
 ### Key: Diagram evidence
 

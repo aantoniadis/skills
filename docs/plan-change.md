@@ -9,7 +9,8 @@ by whom, on what evidence.
 
 1. **Context.** Reuse the outcome, scope, preservation requirements, and existing
    decisions. A kickoff round asks the choices the prompt leaves open: plan, spec, or
-   tickets; HTML or text; whether you decide each choice or authorize a policy.
+   tickets; HTML or text; a plan or a plan with a tested contract; whether you
+   decide each choice or authorize a policy.
    Stated choices are applied without asking. Review requests produce findings; requested
    revisions update the authoritative plan.
 2. **Investigate and decide.** Compare today's and proposed behavior through the
@@ -18,12 +19,20 @@ by whom, on what evidence.
    it is not required for every plan. Reuse evidence and run focused checks
    within authorization. Bring unresolved choices with options and a
    recommendation, then record answers or decisions under your authorized policy.
+   At the tested-contract depth, the skill also drafts a contract at each seam
+   the change crosses (neighboring features, shared state, external systems,
+   platform lifecycle) and runs throwaway probes that try to break each clause
+   against the real code and systems. A probe that breaks a clause comes back to
+   you with its output and options; you decide the revised clause
+   ([contract probes](../skills/plan-change/references/contract-probes.md)).
 3. **Retain evidence.** Keep decisions, material revisions, and blockers in the
    plan. Separate history and milestone copies are useful for larger changes.
    Retain source snapshots for evidence from dirty or non-Git files.
 4. **Readiness.** Connect decisions to delivery slices, preserved behavior,
    acceptance outcomes, and checks. Missing consequential choices block their
    slices; planned implementation tests alone do not block a settled plan.
+   At the tested-contract depth, an unproven, undecided, and unaccepted
+   contract clause blocks the slices that rely on it.
 5. **Handoff.** Produce self-contained specs or tickets when selected, or
    hand you Matt's `to-spec` and `to-tickets` command when you want their
    format and publication; those originals are user-invoked and synthesize

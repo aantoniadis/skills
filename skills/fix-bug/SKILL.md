@@ -22,6 +22,8 @@ Pin the **contract**, what should happen, with its evidence, from the strongest 
 - **Works as specified:** write the note with the mismatch and the deciding source, and deliver it through step 6 with no fix.
 - **An open behavior decision:** write the note with the question and its owner, ask the owner, and offer the [plan-change](../plan-change/SKILL.md) handoff.
 
+For a list of findings, such as a review's bug cards, give each item its own verdict. An item its source marks *you decide*, or whose intended behavior the source leaves open, is an open behavior decision: ask its question with a recommendation, in the kickoff round when the source already marks it, otherwise as a checkpoint, and fix it only after the answer.
+
 Before the first edit to a project file, save `git status --porcelain` under `runs/bugs/<n>/`, and capture each already-modified file you will edit as [evidence](../EVIDENCE.md#capture-a-local-snapshot) says, so the user's own edits stay apart from the fix.
 
 Done when the `Kickoff:` line is ready, the contract is pinned with one quoted or linked source, and the starting working-tree state is saved or no edit is planned.

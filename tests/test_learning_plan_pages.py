@@ -198,6 +198,12 @@ Unknown: recovery is not inspected.
                 with self.assertRaises(ValueError):
                     page.check_learning_plan(source.replace(old, new))
 
+    def test_contract_rows_use_a_clause_status(self):
+        source = (ROOT / 'tests/fixtures/reading-pages/plan.md').read_text()
+        page.check_learning_plan(source)
+        with self.assertRaisesRegex(ValueError, "Contract: use Proven"):
+            page.check_learning_plan(source.replace('| Inventory service | Proven |', '| Inventory service | Probably |'))
+
     def test_blockers_require_resolution_and_affected_slice(self):
         source = """# Plan
 
@@ -259,10 +265,11 @@ Unknown: blocked by recovery.
         self.assertEqual([x.get_text() for x in soup.select(".verification-table .status")], ["Not run"] * 3)
         self.assertEqual(tuple(x["data-column"] for x in soup.select_one("article.scenario").select("[data-column]")), page.PLAN_COLUMNS)
         self.assertTrue(all(x.get("data-label") for x in soup.select(".decisions-table td")))
+        self.assertEqual([x.get_text() for x in soup.select(".contract-table .status")], ["Decided", "Proven", "Accepted risk", "Assumed"])
 
     def test_changed_status_outcome_or_owning_section_is_rejected(self):
         for name, selector in (("understanding", '[data-column="Outcome"]'), ("plan", '.decisions-table .status'), ("plan", '[data-column="Planned"]'),
-                               ('understanding', '.questions-table .status'), ('plan', '.blockers-table td')):
+                               ('understanding', '.questions-table .status'), ('plan', '.blockers-table td'), ('plan', '.contract-table .status')):
             with self.subTest(name=name, selector=selector):
                 note, source, soup = self.render_sample(name)
                 soup.select_one(selector).string = "Incorrect replacement"

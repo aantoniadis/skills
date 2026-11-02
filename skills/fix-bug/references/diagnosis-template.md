@@ -1,3 +1,6 @@
+---
+kind: diagnosis-note
+---
 # {{symptom_in_domain_terms}}
 
 **Verdict:** {{symptom_contract_cause_and_fix_state_in_one_paragraph_with_the_deciding_pins_and_the_run_record_link}}

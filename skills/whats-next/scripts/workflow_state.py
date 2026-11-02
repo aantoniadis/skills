@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Print a project's workflow state for whats-next: the Git position, the notes and reports
-our skills already wrote, and the workflow markers in the checkout. Read-only; creates nothing."""
+our skills already wrote (by the `kind:` in their front matter, else by their template's marker
+line), and the workflow markers in the checkout. Read-only; creates nothing."""
 
 import argparse
 import datetime
@@ -12,22 +13,27 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 from investigation_dir import RECORD  # noqa: E402
 from tool_setup_path import INSTRUCTIONS, git, git_root, project_root, record_path  # noqa: E402
 
-# (kind, owning skill, the line every copy of that skill's template carries)
+# (front-matter kind, printed kind, owning skill, the marker line the template carried before `kind:` existed)
 KINDS = (
-    ("understanding note", "explain", r"^\*\*Answer:\*\*"),
-    ("plan", "plan-change", r"^## Delivery slices$"),
-    ("diagnosis note", "fix-bug", r"^\*\*Checked:\*\*"),
-    ("PR review guide", "pr-review-guide", r"^## What the change does$"),
-    ("acceptance report", "check-acceptance", r"^## What was asked$"),
+    ("understanding-note", "understanding note", "explain", r"^\*\*Answer:\*\*"),
+    ("plan", "plan", "plan-change", r"^## Delivery slices$"),
+    ("diagnosis-note", "diagnosis note", "fix-bug", r"^\*\*Checked:\*\*"),
+    ("pr-review-guide", "PR review guide", "pr-review-guide", r"^## What the change does$"),
+    ("acceptance-report", "acceptance report", "check-acceptance", r"^## What was asked$"),
 )
+KIND_LINE = re.compile(r"\A---\n(?:(?!---\n)[^\n]*\n)*?kind:\s*([\w-]+)\s*\n(?:(?!---\n)[^\n]*\n)*?---\n")
 SUMMARY = re.compile(r"^\*\*(?:Readiness|Bottom line|Verdict|Answer):\*\*\s*(.+)", re.M)
 SKIP = {".git", "node_modules", ".venv", "venv", "dist", "build"}
 CAP = 400  # Markdown files read before the scan stops and says so.
 
 
 def classify(text):
-    for kind, skill, marker in KINDS:
-        if re.search(marker, text, re.M):
+    declared = KIND_LINE.match(text)
+    for slug, kind, skill, marker in KINDS:
+        if declared and declared.group(1) == slug:
+            return kind, skill
+    for slug, kind, skill, marker in KINDS:
+        if not declared and re.search(marker, text, re.M):
             return kind, skill
     return None
 

@@ -1,4 +1,5 @@
-"""workflow_state.py reports the Git position and classifies our skills' notes by their template markers."""
+"""workflow_state.py reports the Git position and classifies our skills' notes by the `kind:` in their
+front matter, else by their template's marker line."""
 
 import os
 import re
@@ -72,6 +73,20 @@ class WorkflowStateTests(unittest.TestCase):
         plan.write_text("# Order\n\n## Delivery slices\n")
         out = run(str(self.repo), cwd=self.root, env=self.env)
         self.assertIn(f"- plan (plan-change): `{plan.resolve()}` · ", out)
+
+    def test_kind_front_matter_outranks_markers(self):
+        notes = self.repo / ".scratch/n"
+        notes.mkdir(parents=True)
+        # A plan whose author removed Delivery slices is still a plan; a note that declares a kind is that kind
+        # even when it carries another template's marker; an unknown kind falls back to nothing, not to a marker.
+        (notes / "plan.md").write_text("---\nkind: plan\nhead: abc\n---\n# Rename\n\n**Readiness:** ready.\n")
+        (notes / "note.md").write_text("---\nkind: understanding-note\n---\n# Flow\n\n## What the change does\n")
+        (notes / "odd.md").write_text("---\nkind: recipe\n---\n# Odd\n\n## Delivery slices\n")
+        out = run(str(self.repo), cwd=self.root, env=self.env)
+        self.assertIn("- plan (plan-change): `.scratch/n/plan.md` · ", out)
+        self.assertIn(" · ready.", out)
+        self.assertIn("- understanding note (explain): `.scratch/n/note.md` · ", out)
+        self.assertNotIn("odd.md", out)
 
     def test_outside_git(self):
         plain = self.root / "plain"

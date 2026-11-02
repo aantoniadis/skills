@@ -24,15 +24,16 @@ For a new note, start from the calling skill's Markdown template:
 | Acceptance report | [report-template.md](check-acceptance/references/report-template.md) | [Report format](check-acceptance/references/report-format.md) |
 | Bug diagnosis | [diagnosis-template.md](fix-bug/references/diagnosis-template.md) | [Diagnosis-page guidance](fix-bug/references/diagnosis-page.md) and the calling skill |
 
-Replace every `{{...}}` prompt with supported content. Repeat items and sections
+Replace every `{{...}}` prompt with supported content. Keep the front matter's
+`kind` line: whats-next classifies the note by it, and `--check` rejects any
+other value. Repeat items and sections
 when the subject needs them; remove optional sections that add nothing. The
 calling skill's obligations and evidence rules still apply. A template starts
 the document; it neither proves completeness nor requires empty sections.
 Update an existing note in place instead of replacing it with the template.
 
 For HTML delivery, generate the companion from the authoritative Markdown with
-`python3 <resolved-script-path> <note.md> --sync-labels [--repo <checkout>]`, with `--review` for a PR review or `--acceptance` for an acceptance report, using [render_page.py](render_page.py)
-beside this reference in the installed package. The renderer fills
+`python3 <package>/skills/render_page.py <note.md> --sync-labels [--repo <checkout>]`, with `--review` for a PR review or `--acceptance` for an acceptance report. The renderer fills
 [page-template.html](page-template.html); it owns typography, spacing, colors,
 navigation, tables, code cards, and disclosures. Choose the reading order and
 leading visual in Markdown, then regenerate HTML after content changes.
@@ -124,8 +125,7 @@ a model. Keep material alternatives available without JavaScript.
 
 ## Check mechanics and meaning separately
 
-Resolve [render_page.py](render_page.py) beside this reference in the installed
-package. `python3 <resolved-script-path> <note.md> --check --sync-labels [--repo <checkout>]` checks the note and an existing
+`python3 <package>/skills/render_page.py <note.md> --check --sync-labels [--repo <checkout>]` checks the note and an existing
 companion; it leaves the HTML unchanged and refreshes only the Markdown key, as above. The checker does not invoke the renderer or
 require the template's markup. It requires Python 3.10+, `markdown-it-py`, and
 `beautifulsoup4`; when `python3` lacks them, it uses the package environment
@@ -135,22 +135,10 @@ renderer, checker, or a dependency cannot run, recover as
 [CODE-TOOLS.md](CODE-TOOLS.md) says. When the checker still cannot run,
 deliver the note labeled structurally unchecked, with the blocker named.
 
-For a text-only delivery, add `--markdown-only` to `--check`. This validates
-the current Markdown even when an older HTML companion exists; it neither
-reads nor updates that companion. Record a deferred companion as stale and
-omit it from delivery. Before presenting HTML again, reconcile it and run the
-normal check without `--markdown-only`.
-
-Markdown checks reject unfilled template prompts in prose, missing local link
-targets, and broken heading links within the note or to other local Markdown
-files. Links to local HTML fragments are checked against their IDs. Literal template syntax in inline
-code or fences remains allowed. These checks also run for HTML delivery.
-Mechanical checks of HTML cover exact code text, retained link destinations, unique IDs,
-same-page fragments, local file existence, keyboard scrolling regions, common
-external asset references, and in the Markdown the evidence floor of
-[EVIDENCE.md](EVIDENCE.md): a pinned line, observation, quote, or label in every
-claim block, and a source map under every Mermaid fence, including explicitly proposed elements linked to decisions or requirements; the same command
-checks a note that has no page. Shared verification tables follow the result and origin rules of [report parts](REPORT-PARTS.md#requirements-and-verification-tables) in explanations, plans, and reviews. A PR review adds `--review`, as its [final structural check](pr-review-guide/references/report-format.md#final-structural-check) says; an acceptance report adds `--acceptance` instead. Code and links can move or repeat. Keep code in
+The checker names each failure; fix what the message names and rerun. It
+enforces the evidence floor of [EVIDENCE.md](EVIDENCE.md), a pinned line,
+observation, quote, or label in every claim block and a source map under every
+Mermaid fence, and the result and origin rules of [report parts](REPORT-PARTS.md#requirements-and-verification-tables) for shared verification tables; the same command checks a note that has no page. A PR review adds `--review`, as its [final structural check](pr-review-guide/references/report-format.md#final-structural-check) says; an acceptance report adds `--acceptance` instead. Code and links can move or repeat. Keep code in
 `<code>` elements and all report content in one `<main>` region. Fenced excerpts
 retain exact whitespace. The renderer strips raw HTML, so an anchor is a
 heading slug, not an `<a id>`; link to sections by their heading text.

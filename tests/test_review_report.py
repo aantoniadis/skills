@@ -132,7 +132,7 @@ class ReviewReportTests(unittest.TestCase):
             page.check('---\nhead: ' + 'a' * 40 + '\n---\n' + REPORT, html, self.note)
 
     def test_snapshot_syntax_and_required_record_sections(self):
-        for meta in ('head: nonsense', 'base: main', 'repository: not-a-repository'):
+        for meta in ('head: nonsense', 'base: main', 'repository: not-a-repository', 'kind: review', 'kind: acceptance-report'):
             self.reject('---\n' + meta + '\n---\n' + REPORT, 'Front matter')
             self.note.write_text('---\n' + meta + '\n---\n' + REPORT)
             checked = subprocess.run([sys.executable, str(ROOT / 'skills/render_page.py'), str(self.note),
@@ -140,6 +140,7 @@ class ReviewReportTests(unittest.TestCase):
             self.assertNotEqual(checked.returncode, 0)
             self.assertIn('Front matter', checked.stderr)
         page.check_review('---\nhead: ' + 'a' * 40 + '\nbase: ' + 'b' * 40 + '\nrepository: acme/widgets\n---\n' + REPORT, self.note)
+        page.check_review('---\nkind: pr-review-guide\n---\n' + REPORT, self.note)
         for heading in ('Questions for the author', 'Gaps', 'Changed files', 'Provenance'):
             self.reject(REPORT.replace(heading, 'Other'), heading)
         with_plan = REPORT.replace('### Changed files', '### Inventory').replace('## Behavior changes', '## Reading plan\n\n[source.py](source.py): inspect the counter.\n\n## Behavior changes')

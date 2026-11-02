@@ -66,13 +66,3 @@ reader identify who acts, under which conditions, and what happens next? Does
 the wording retain every qualification that changes the conclusion? Resolve
 unclear terms and references. Treat sentence length as a readability aid;
 retain the detail needed to explain the behavior correctly.
-
-## When full ASD-STE100 compliance is requested
-
-Consult the [official standard](https://asd-ste100.org/STE_downloads.html) for
-the requested issue, or the current issue if none is specified. Review the
-applicable writing rules, dictionary meanings, and use of technical terms.
-Identify the issue and scope reviewed. Claim compliance only when that review
-supports it; state any unchecked requirements if a full review is unavailable.
-Continue with usable prose and its stated limits. Clear wording or an automated
-checker alone does not establish compliance.

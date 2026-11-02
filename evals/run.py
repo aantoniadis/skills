@@ -11,13 +11,15 @@ Each run is an unsandboxed `claude -p` session with Bash, as you, on your
 machine. Run it only on this repository's own plugin and cases.
 
 Graders: regex (target last_message | trace), tool_used (tool, input_match, min, max),
-file_exists (path glob over files the run created), llm (body is the rubric; judged
-once by --judge-model). Here "trace" is what the agent wrote and ran (assistant text
+file_exists (path glob over files the run created), files_unchanged (match: a regex over
+the relative paths of files the scaffold created; fails when one changed or vanished),
+llm (body is the rubric; judged once by --judge-model). Here "trace" is what the agent wrote and ran (assistant text
 and tool inputs), never tool results, so text it only read cannot match.
 """
 import argparse
 import concurrent.futures
 import fnmatch
+import hashlib
 import json
 import re
 import subprocess
@@ -55,8 +57,10 @@ def load_case(case_dir):
                 graders=graders)
 
 
-def files(root):
-    return {str(p.relative_to(root)) for p in root.rglob("*") if p.is_file() and ".git" not in p.parts}
+def digests(root):
+    """Relative path -> content hash of every file under root, so a run's edits show whatever tool made them."""
+    return {str(p.relative_to(root)): hashlib.sha256(p.read_bytes()).hexdigest()
+            for p in root.rglob("*") if p.is_file() and ".git" not in p.parts}
 
 
 def parse_stream(path):
@@ -90,7 +94,7 @@ def judge(rubric, final, model):
     return bool(verdicts) and verdicts[-1] == "PASS", out[:300]
 
 
-def grade(graders, final, trace, tool_calls, created, judge_model):
+def grade(graders, final, trace, tool_calls, created, judge_model, changed=()):
     results = {}
     for name, meta, body in graders:
         kind = meta["type"]
@@ -108,6 +112,9 @@ def grade(graders, final, trace, tool_calls, created, judge_model):
             hits = [f for f in created if fnmatch.fnmatch(f, meta["path"])]
             want = meta.get("exists", "true") != "false"
             ok, why = bool(hits) == want, ", ".join(hits[:3]) or "none created"
+        elif kind == "files_unchanged":
+            hits = [f for f in changed if re.search(meta["match"], f)]
+            ok, why = not hits, ", ".join(hits[:3]) or "unchanged"
         elif kind == "llm":
             ok, why = judge(body, final, judge_model)
         else:
@@ -121,7 +128,7 @@ def run_one(case, run, args):
     work.mkdir(parents=True)
     if case["scaffold"]:
         subprocess.run(["bash", str(case["scaffold"])], cwd=work, check=True, capture_output=True)
-    before = files(work)
+    before = digests(work)
     stream = work.parent / f"{work.name}.jsonl"
     with open(stream, "w") as out:
         subprocess.run(["claude", "-p", case["prompt"], "--plugin-dir", args.plugin_dir, "--model", args.model,
@@ -131,9 +138,11 @@ def run_one(case, run, args):
                         "--output-format", "stream-json", "--verbose"],
                        cwd=work, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.DEVNULL, timeout=3600)
     final, trace, tool_calls, info = parse_stream(stream)
-    created = sorted(files(work) - before)
-    return {"case": case["name"], "run": run, **info, "final": final, "created": created,
-            "graders": grade(case["graders"], final, trace, tool_calls, created, args.judge_model)}
+    after = digests(work)
+    created = sorted(set(after) - set(before))
+    changed = sorted(path for path, digest in before.items() if after.get(path) != digest)
+    return {"case": case["name"], "run": run, **info, "final": final, "created": created, "changed": changed,
+            "graders": grade(case["graders"], final, trace, tool_calls, created, args.judge_model, changed)}
 
 
 def main():
@@ -170,12 +179,18 @@ def main():
         with concurrent.futures.ThreadPoolExecutor(args.jobs) as pool:
             results = list(pool.map(lambda job: run_one(*job, args), jobs))
     out.write_text(json.dumps(results, indent=1))
+    failed = 0
     for case in cases:
         runs = [r for r in results if r["case"] == case["name"]]
+        if not runs:
+            continue  # --regrade without --case: cases the saved results never ran
         cost = sum(r.get("total_cost_usd") or 0 for r in runs)
         print(f"{case['name']}  ${cost:.2f}")
         for name, *_ in case["graders"]:
-            print(f"  {name:28} " + "".join("P" if r["graders"][name]["passed"] else "F" for r in runs))
+            grid = "".join("P" if r["graders"][name]["passed"] else "F" for r in runs)
+            failed += grid.count("F")
+            print(f"  {name:28} {grid}")
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

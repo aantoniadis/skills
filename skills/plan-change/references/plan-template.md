@@ -1,3 +1,6 @@
+---
+kind: plan
+---
 # {{title}}
 
 **Outcome:** {{who_needs_the_change_the_workflow_and_requested_result}}.

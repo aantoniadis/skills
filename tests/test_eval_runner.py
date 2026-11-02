@@ -16,10 +16,12 @@ class EvalRunnerTests(unittest.TestCase):
         calls = [("Edit", '{"file_path": "/w/.scratch/r/head/notes/index.py"}'), ("Bash", '{"command": "git diff"}')]
         result = run.grade(graders, final, "git diff main", calls, [], "unused")
         self.assertTrue(all(r["passed"] for r in result.values()), result)
-        calls.append(("Edit", '{"file_path": "/w/notes/index.py"}'))
-        result = run.grade(graders, "## Defects", "sed -i 's/a/b/' notes/index.py", calls, [], "unused")
+        # The checkout grader reads file contents, so an edit through any tool, Bash heredocs included, trips it.
+        result = run.grade(graders, "## Defects", "sed -i 's/a/b/' notes/index.py", calls, [], "unused",
+                           changed=["notes/index.py"])
         self.assertEqual({k for k, r in result.items() if not r["passed"]},
                          {"checkout-untouched", "no-sed-on-source", "outside-section"})
+        self.assertTrue(run.grade(graders, final, "", [], [], "", changed=[".scratch/r/probe.py"])["checkout-untouched"]["passed"])
 
     def test_contract_pattern_unescapes_and_file_glob_sees_only_new_files(self):
         case = run.load_case(ROOT / "evals/plan-change-tested-contract")

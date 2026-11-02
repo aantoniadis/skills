@@ -18,7 +18,7 @@ The check changes no application code or tests. It writes to a ticket only when 
 
 ## 1. Kickoff and pin
 
-Hold the kickoff round from [asking](../ASKING.md) first, with the questions the request leaves open: how much codebase familiarity to assume; the deliverable, text (recommended) or text plus an HTML companion; whether to run straight through (recommended) or confirm the extracted requirement list before verification; and *Search for bugs?*, *Yes* (recommended) or *No*. Apply a choice the request states without asking. The first delivery states every applied choice in its `Kickoff:` line.
+Hold the kickoff round from [asking](../ASKING.md) first, with the questions the request leaves open: how much codebase familiarity to assume; the deliverable, text plus an HTML companion (recommended) or text only; whether to run straight through (recommended) or confirm the extracted requirement list before verification; and *Search for bugs?*, *Yes* (recommended) or *No*. Apply a choice the request states without asking. The first delivery states every applied choice in its `Kickoff:` line.
 
 Pin `head` as a full SHA: the checkout's HEAD, or a named branch resolved to its SHA. A `base` is optional and serves attribution only. When a base is inferable, such as the merge-base of a feature branch with the default branch, find it and state it as an assumption instead of asking. Write `head`, `base` when pinned, and `repository: owner/name` in the report's front matter. Record local modifications and relevant configuration; dirty source follows the [snapshot rule](../EVIDENCE.md#capture-a-local-snapshot).
 

@@ -1,4 +1,5 @@
 ---
+kind: acceptance-report
 repository: acme/widgets
 base: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 head: bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb

@@ -1,3 +1,6 @@
+---
+kind: diagnosis-note
+---
 # Confirmation retries reserve stock twice
 
 **Verdict:** A confirmed order held two reservations after one stock timeout. The contract is one reservation per confirmed order, pinned by [test_confirm.py:5](https://github.com/acme/shop/blob/cccccccccccccccccccccccccccccccccccccccc/tests/test_confirm.py#L5). The cause is the retry loop calling `reserve` with no idempotency key at [confirm.py:13](https://github.com/acme/shop/blob/cccccccccccccccccccccccccccccccccccccccc/orders/confirm.py#L13). Fixed by restoring the key at both callers; the regression test went red, then green ([run record](runs/bugs/1/run.md)).

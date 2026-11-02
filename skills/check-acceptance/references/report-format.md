@@ -8,7 +8,7 @@ For a new report, fill [report-template.md](report-template.md). Replace every p
 
 Use these headings as written and in this order, because the checker looks for them:
 
-- **Front matter** — flat `key: value` lines only: `head` (full SHA, required), `base` (full SHA, only when pinned), and `repository: owner/name`. Intent sources go under *Provenance*, never in front matter.
+- **Front matter** — flat `key: value` lines only: `kind: acceptance-report` (from the template), `head` (full SHA, required), `base` (full SHA, only when pinned), and `repository: owner/name`. Intent sources go under *Provenance*, never in front matter.
 - **Title** — `# <what was checked, as a short statement>`.
 - **Bottom line** — the paragraph under the title, starting `**Bottom line:**`: counts by status, blockers, and the first action. It gives no merge or ship verdict.
 - **Reviewed and coverage** — `**Reviewed:**` names the head, the base or `no base`, and the collection time; `**Coverage:**` names the sources reached and missed, the depth, and material gaps.

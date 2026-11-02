@@ -1,4 +1,5 @@
 ---
+kind: acceptance-report
 head: {{head_sha}}
 base: {{base_sha_or_remove_this_line_when_no_base_is_pinned}}
 repository: {{owner}}/{{repo}}

@@ -36,6 +36,11 @@ class AcceptanceReportTests(unittest.TestCase):
             page.check(REPORT, html, NOTE, repo=Path(directory))
         self.assertEqual(len(page.parse(html).select("table.requirements-table")), 2)
 
+    def test_kind_matches_the_mode(self):
+        self.reject(REPORT.replace("kind: acceptance-report", "kind: pr-review-guide"), "kind is pr-review-guide")
+        self.reject(REPORT.replace("kind: acceptance-report", "kind: audit"), "kind must be one of")
+        page.check_acceptance(REPORT.replace("kind: acceptance-report\n", ""), NOTE)
+
     def test_head_is_required_and_full(self):
         head = line(REPORT, "head:")
         self.reject(REPORT.replace(head, ""), "requires head")
@@ -118,7 +123,7 @@ class AcceptanceReportTests(unittest.TestCase):
     def test_template_sections_match_the_contract(self):
         template = (ROOT / "skills/check-acceptance/references/report-template.md").read_text()
         front, body = page.split_front_matter(template)
-        self.assertEqual(list(front), ["head", "base", "repository"])
+        self.assertEqual(list(front), ["kind", "head", "base", "repository"])
         self.assertEqual(tuple(name for name, _ in page.markdown_sections(body, 2)),
                          page.ACCEPTANCE_SECTIONS + ("Status and label key",))
 

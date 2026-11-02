@@ -87,10 +87,18 @@ def raise_all(problems):
         raise Failures(problems)
 
 
-def check_front_matter(front, review=False):
+NOTE_KINDS = ("understanding-note", "plan", "diagnosis-note", "pr-review-guide", "acceptance-report")
+
+
+def check_front_matter(front, review=False, kind=None):
+    """kind: the note kind the running mode checks; a note that declares another kind is the wrong note for it."""
     unfilled = [key for key, value in front.items() if PROMPT.search(value)]
     if unfilled:
         raise ValueError(f"Front matter contains unfilled template prompts: {', '.join(unfilled)}.")
+    if "kind" in front and front["kind"] not in NOTE_KINDS:
+        raise ValueError(f"Front matter kind must be one of {', '.join(NOTE_KINDS)}; whats-next reads it.")
+    if kind and front.get("kind", kind) != kind:
+        raise ValueError(f"Front matter kind is {front['kind']}; this check is for a {kind}.")
     if review:
         for key in ("base", "head"):
             if key in front and not source_peek.SHA.fullmatch(front[key]):
@@ -1596,7 +1604,7 @@ def review_problems(source, note):
     """Every failure of the review contract, in reading order; empty when the review passes."""
     problems = []
     front, source = split_front_matter(source)
-    keep(problems, check_front_matter, front, review=True)
+    keep(problems, check_front_matter, front, review=True, kind="pr-review-guide")
     document = parse(MARKDOWN.render(source))
     if len(document.find_all("h1")) != 1 or document.find().name != "h1":
         problems.append("Review requires one opening H1 title.")
@@ -1670,7 +1678,7 @@ def acceptance_problems(source, note):
     source includes its front matter. ponytail: checks shape and evidence markers, not whether a requirement is met."""
     problems = []
     front, source = split_front_matter(source)
-    keep(problems, check_front_matter, front, review=True)
+    keep(problems, check_front_matter, front, review=True, kind="acceptance-report")
     if "head" not in front:
         problems.append("Acceptance front matter requires head as a full commit SHA.")
     document = parse(MARKDOWN.render(source))

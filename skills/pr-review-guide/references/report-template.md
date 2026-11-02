@@ -1,4 +1,5 @@
 ---
+kind: pr-review-guide
 base: {{merge_base_sha}}
 head: {{head_sha}}
 repository: {{owner}}/{{repo}}

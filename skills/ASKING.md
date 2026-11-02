@@ -39,8 +39,13 @@ the file list, so the recommendations fit it. A choice the request already
 states, in any wording, is settled: "I'm new to this code" answers familiarity, "HTML" or
 "text only" the deliverable, "find bugs" or "skip the bug search" the search,
 "go deep", "full review", or "quick overview" the depth. Skip those questions
-and ask only the open ones; when none is open, ask nothing. A small change
-still gets its open questions.
+and ask only the open ones; when none is open, ask nothing. A **small target**
+takes the recommendations without a round: a diff of at most 5 files and 150
+changed lines, or one failing check whose contract is already pinned. State
+each defaulted choice in the `Kickoff:` line with its alternative, as below,
+name the size that settled them, such as "1 file, 9 lines", and continue; the
+user corrects a choice in their next message. A target with no measurable
+size, such as a question or a ticket, keeps its open questions.
 
 A **checkpoint** settles a new choice during the work and never re-asks what
 the kickoff settled. Honor a stop or redirect through the host's normal

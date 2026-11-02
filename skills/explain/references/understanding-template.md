@@ -1,3 +1,6 @@
+---
+kind: understanding-note
+---
 # {{title}}
 
 **Answer:** {{central_answer_conditions_and_material_limits}}

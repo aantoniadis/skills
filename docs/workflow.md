@@ -57,7 +57,8 @@ skills through their normal discovery. Each of our skills except find-bugs,
 setup-tools, and whats-next opens with a kickoff round from
 [asking](../skills/ASKING.md) for the choices your
 prompt leaves open, one recommendation per question; a prompt that states them
-skips those questions, and "go" takes the recommendations.
+skips those questions, "go" takes the recommendations, and a small diff (at most
+5 files and 150 changed lines) takes them without a round.
 
 Matt's and HumanLayer's originals are installed through their own routes
 ([original skills](../README.md#original-skills)) and registered by the host:

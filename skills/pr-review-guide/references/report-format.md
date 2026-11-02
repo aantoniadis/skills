@@ -78,7 +78,7 @@ and retain consequential alternatives in another view or the scenario table.
 Label explanatory states as proposed models when the code has no such states;
 distinguish server completion from the consumer's recognition of the result.
 
-A chart visualizes recorded measurements, not guessed precision. A model or fictional example is labeled throughout and establishes no real-system result. Choose a diagram when it answers a consequential ordering, state, or data-flow question more clearly than prose or a table. Do not add a diagram quota or repeat a trivial table as a graph.
+A chart visualizes recorded measurements, not guessed precision. A model or fictional example is labeled throughout and establishes no real-system result.
 
 ## Chat reply
 
@@ -90,7 +90,7 @@ The page shows the what-to-do and how-we-know phrases as chips, ranked findings 
 
 ## Final structural check
 
-Before every report delivery, run `python3 <package>/skills/render_page.py <report.md> --check --review --sync-labels` after the last edit, including for text-only delivery and follow-up updates. Repair structural failures and rerun the check before presenting the report as complete. If the checker cannot run, state that blocker and label the report structurally unchecked. Use `--review` when rendering a companion in this format. The validator checks declared snapshot syntax, opening scope, required sections and record subsections, tables and statuses, behavior fields and scenario comparisons, linked evidence, and local anchors. A supplied `base` or `head` must be a full commit SHA and `repository` must be `owner/name`; syntax does not establish commit availability. Local or inaccessible snapshots need explicit source identity and gaps in Provenance. Unfilled template prompts fail validation. Keep all content consistent between Markdown and HTML, including on custom pages. The shared page workflow checks a source fingerprint to detect a companion made from older Markdown; custom composition still needs meaning review.
+Before every report delivery, run `python3 <package>/skills/render_page.py <report.md> --check --review --sync-labels` after the last edit, including for text-only delivery and follow-up updates. Repair structural failures and rerun the check before presenting the report as complete. If the checker cannot run, state that blocker and label the report structurally unchecked. Use `--review` when rendering a companion in this format. The checker names each failure; fix what the message names and rerun. A supplied `base` or `head` must be a full commit SHA, `repository` must be `owner/name`, and `kind` stays `pr-review-guide`; syntax does not establish commit availability. Local or inaccessible snapshots need explicit source identity and gaps in Provenance. Keep all content consistent between Markdown and HTML, including on custom pages. The shared page workflow checks a source fingerprint to detect a companion made from older Markdown; custom composition still needs meaning review.
 
 For a text-only delivery, add `--markdown-only` to that command, retaining
 `--check --review --sync-labels`. This checks the current report independently

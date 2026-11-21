@@ -40,10 +40,11 @@ the same list, and every unit ends with a disposition.
    under `## Defects`, with evidence and relevant questions, and state in plain
    words what was checked and what was left unchecked. A material
    pre-existing defect that a probe executed goes under `## Outside the change`.
-   A confirmed consequence dropped as immaterial goes under
-   `## Minor observations`, one line naming the condition that would make it
-   material. The ledger, detailed drops, and tool logs stay in the investigation
-   notes.
+   A confirmed consequence whose materiality depends on an unverifiable scale
+   or configuration goes under `## Minor observations`, one line naming that
+   condition; a confirmed failure any caller of the changed path can trigger
+   stays a defect. The ledger, detailed drops, and tool logs stay in the
+   investigation notes.
 
 Dependency checks use the project's supported-version commands, constraints,
 and resolver in a fresh environment.

@@ -21,12 +21,15 @@ import concurrent.futures
 import fnmatch
 import hashlib
 import json
+import os
 import re
 import subprocess
 import sys
 from pathlib import Path
 
 EVALS = Path(__file__).resolve().parent
+# A run started from a herdr-core session must not act on that session: skills label and open sessions through HC_*.
+ENV = {k: v for k, v in os.environ.items() if not k.startswith("HC_")}
 
 
 def front(path):
@@ -136,7 +139,7 @@ def run_one(case, run, args):
                         "--allowedTools", case["tools"], "--disallowedTools", "Bash(gh:*),Bash(git push:*)",
                         "--permission-mode", "acceptEdits", "--max-turns", case["max_turns"],
                         "--output-format", "stream-json", "--verbose"],
-                       cwd=work, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.DEVNULL, timeout=3600)
+                       cwd=work, env=ENV, stdin=subprocess.DEVNULL, stdout=out, stderr=subprocess.DEVNULL, timeout=3600)
     final, trace, tool_calls, info = parse_stream(stream)
     after = digests(work)
     created = sorted(set(after) - set(before))

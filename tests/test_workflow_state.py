@@ -1,6 +1,7 @@
 """workflow_state.py reports the Git position and classifies our skills' notes by the `kind:` in their
-front matter, else by their template's marker line."""
+front matter, else by their template's marker line. Inside herdr-core it also lists the project's sessions."""
 
+import json
 import os
 import re
 import shutil
@@ -32,7 +33,8 @@ class WorkflowStateTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.root = Path(self.tmp.name)
-        self.env = {**os.environ, "XDG_STATE_HOME": str(self.root / "state")}
+        # The suite can run inside herdr-core; only the session tests may see it.
+        self.env = {**{k: v for k, v in os.environ.items() if not k.startswith("HC_")}, "XDG_STATE_HOME": str(self.root / "state")}
         self.repo = self.root / "repo"
         self.repo.mkdir()
         subprocess.run(["bash", "-c", "git init -q -b main && echo a > a && git add . && git -c user.email=t@t -c user.name=t commit -qm init"
@@ -52,6 +54,7 @@ class WorkflowStateTests(unittest.TestCase):
             self.assertRegex(out, rf"(?m)^- {re.escape(kind)}: `(?:docs|\.scratch)/n\d/{re.escape(template.name)}` · \d{{4}}-\d\d-\d\d", kind)
         self.assertNotIn("plain.md", out)
         self.assertIn("- Local tool record (", out)
+        self.assertNotIn("## Sessions", out, "no session list outside herdr-core")
         self.assertFalse((self.root / "state").exists(), "the scan must create nothing")
 
     def test_recorded_location_tickets_and_summary(self):
@@ -87,6 +90,56 @@ class WorkflowStateTests(unittest.TestCase):
         self.assertIn(" · ready.", out)
         self.assertIn("- understanding note (explain): `.scratch/n/note.md` · ", out)
         self.assertNotIn("odd.md", out)
+
+    def herdr_core(self, terminals):
+        """A stub `hc` that answers `ls` and `get` from `terminals`, logs every call, and fails for an unknown address."""
+        bin_dir = self.root / "bin"
+        bin_dir.mkdir()
+        (self.root / "terminals.json").write_text(json.dumps(terminals))
+        stub = bin_dir / "hc"
+        stub.write_text(f"""#!{sys.executable}
+import json, sys
+args = [a for a in sys.argv[1:] if a != "--json"]
+open({str(self.root / "hc.log")!r}, "a").write(" ".join(args) + "\\n")
+terminals = json.load(open({str(self.root / "terminals.json")!r}))
+if args == ["ls"]:
+    print(json.dumps({{"hidden_finished": 0, "terminals": [{{"address": t["address"]}} for t in terminals]}}))
+elif args[0] == "get" and any(t["address"] == args[1] for t in terminals):
+    print(json.dumps(next(t for t in terminals if t["address"] == args[1])))
+else:
+    sys.exit('{{"error":{{"kind":"not_found","message":"no terminal"}}}}')
+""")
+        stub.chmod(0o755)
+        return {**self.env, "PATH": f"{bin_dir}{os.pathsep}{self.env['PATH']}", "HC_TERMINAL_ID": "t1"}
+
+    def test_sessions_of_the_project_inside_herdr_core(self):
+        here = str(self.repo.resolve())
+        env = self.herdr_core([
+            # `cwd` is the launch folder: this session started elsewhere and works in the project now.
+            {"address": "t1", "name": None, "cwd": "/elsewhere", "foreground": {"cwd": here}, "parent": None, "die_with_parent": False,
+             "status": {"app": "claude-code", "state": "working"}, "turn": 4, "title": "Plan the export",
+             "labels": {"herdr.space": "sp9", "herdr.tab": "tb1", "where": "repo / 1"}},
+            {"address": "t2", "name": "find-bugs-export", "cwd": here, "foreground": None, "parent": "t1", "die_with_parent": True,
+             "status": {"app": "claude-code", "state": "done"}, "turn": 1, "title": None, "labels": {"step": "find-bugs", "for": "feat/x"}},
+            {"address": "t3", "name": "implement-t1", "cwd": here + "/sub", "foreground": {"cwd": here + "/sub"}, "parent": "t1",
+             "die_with_parent": False, "status": None, "turn": 0, "argv": ["/usr/bin/codex"], "labels": {}},
+            {"address": "t4", "name": None, "cwd": "/other/project", "foreground": {"cwd": "/other/project"}, "parent": None,
+             "die_with_parent": False, "status": {"app": "claude-code", "state": "done"}, "turn": 9, "labels": {}},
+        ])
+        out = run(str(self.repo), cwd=self.root, env=env)
+        self.assertIn('- `t1` (this session) · claude-code · working, turn 4 · opened by the user · "Plan the export" · space `sp9`', out)
+        self.assertIn("- `t2` find-bugs-export · claude-code · done, turn 1 · started by `t1`, ends with it · for=feat/x step=find-bugs", out)
+        self.assertIn("- `t3` implement-t1 · codex · no status, turn 0 · started by `t1`, outlives it", out)
+        self.assertNotIn("`t4`", out, "a session of another project is not listed")
+        calls = (self.root / "hc.log").read_text().split("\n")
+        self.assertTrue(all(call.split()[0] in ("ls", "get") for call in calls if call), f"the scan only reads: {calls}")
+
+    def test_hc_failure_is_reported_not_raised(self):
+        env = self.herdr_core([])
+        (self.root / "bin/hc").write_text("#!/bin/sh\necho 'core is not running' >&2\nexit 1\n")
+        out = run(str(self.repo), cwd=self.root, env=env)
+        self.assertIn("## Sessions in herdr-core\n- `hc` did not answer, so the sessions are unknown: core is not running", out)
+        self.assertIn("- Branch: `feat/x`", out)
 
     def test_outside_git(self):
         plain = self.root / "plain"

@@ -26,6 +26,8 @@ which of two kinds each is. The author's gate sets the kind on every host.
   after `$` in Codex, with the context it needs. Take the kind from the table;
   its files, frontmatter included, stay unread. The host hides its description
   on purpose, and the skill then runs its own workflow, publication included.
+  Inside herdr-core, `whats-next` can open that command in a new session after
+  the user's explicit yes to it; that yes is the user running it.
 
 A call inside an original to another of its skills, such as `/tdd` inside
 `implement`, means the original of that name installed beside it. With no

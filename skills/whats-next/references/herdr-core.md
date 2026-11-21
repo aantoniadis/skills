@@ -2,7 +2,6 @@
 
 herdr-core keeps each agent session alive in a terminal that the `hc` command
 controls; the Herdr window shows them as tabs. `hc --skill` prints its manual.
-This file holds what that manual leaves out for this skill.
 
 Two kinds of session matter here. A **session** has a tab, and the user works
 in it. A **worker** has no tab: it runs one step, reports to the session that
@@ -10,23 +9,30 @@ started it, and ends when that session ends.
 
 ## Judge the listed sessions
 
-Each line of `## Sessions in herdr-core` is one live session of this project:
-its address and name, the agent, the status and turn, who started it, the
-labels, and the title. `(this session)` marks the one that ran the scan.
+Each line of `## Sessions in herdr-core` is one live session of this project.
+`(this session)` marks the one that ran the scan.
 
 `Close` covers this session. Give each other listed session one verdict in
 the `Sessions` line of the answer. Take the first that holds:
 
-1. **close**: Git or the files show the evidence for its step: the report,
-   the commit, the ticket Status, or the PR that its `step` and `for` labels
-   name.
+1. **close**: it has a `step` label, and Git or the files show the evidence
+   for that step: the report, the commit, the ticket Status, or the PR that
+   its `step` and `for` labels name.
 2. **keep**: it has a `step` label and that evidence is missing. Name the
    missing evidence. This holds at every status, because the status describes
    the last turn and the evidence describes the step: a session at `done`
    without its evidence is keep, with `hc read <address>` as the way to look
    at it. A step that seems early or needless is keep too; the user decides.
    For `blocked`, say that a person has to answer it.
-3. **no verdict**: it has no `step` label. Give its title and status.
+3. **keep**: its line says `nothing written yet`. One of our skills
+   created that notes folder in the session, also in one the user opened by
+   hand, and has delivered no note.
+4. **close** or **keep**: its line names a note or report in its `notes`
+   folder. Place that note in the step 2 table as if it were the user's
+   position. Keep when the row keeps the work in the same session. Close
+   when the row allows a new session, or when no row continues from that
+   note. Name the row.
+5. **no verdict**: it has neither label. Give its title and status.
 
 A worker counts toward `Close`: this session stays open while a worker it
 started has the verdict keep.

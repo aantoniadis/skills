@@ -117,8 +117,9 @@ def hc(*args):
     return json.loads(result.stdout)
 
 
-def sessions(root):
-    """The live herdr-core sessions whose program works under `root`, and this session. Nothing outside herdr-core."""
+def sessions(root, found):
+    """The live herdr-core sessions whose program works under `root`, and this session, each with the notes
+    and reports from `found` that sit in the folder its `notes` label names. Nothing outside herdr-core."""
     here = os.environ.get("HC_TERMINAL_ID")
     if not here or not shutil.which("hc"):
         return []
@@ -139,8 +140,13 @@ def sessions(root):
                      f"{status.get('state') or 'no status'}, turn {info.get('turn', 0)}",
                      f"started by `{parent}`, {'ends with it' if info.get('die_with_parent') else 'outlives it'}" if parent
                      else "opened by the user"]
-            ours = " ".join(f"{key}={value}" for key, value in sorted(labels.items()) if not key.startswith("herdr.") and key != "where")
+            ours = " ".join(f"{key}={value}" for key, value in sorted(labels.items())
+                            if not key.startswith("herdr.") and key not in ("where", "notes"))
             parts += [ours] if ours else []
+            if labels.get("notes"):  # investigation_dir.py sets it when a skill creates its notes folder in that session
+                folder = (root / labels["notes"]).resolve()
+                written = sorted({f"{kind} ({skill})" for _, path, kind, skill, _ in found if path.resolve().is_relative_to(folder)})
+                parts += [f"notes `{labels['notes']}`: {', '.join(written) or 'nothing written yet'}"]
             parts += [f"\"{info['title']}\""] if info.get("title") else []
             if info["address"] == here:
                 parts[0] += " (this session)"
@@ -169,7 +175,7 @@ def report(project):
         lines.append(f"- scan stopped after {CAP} Markdown files; narrow the project directory")
     lines += ["", "## Markers"]
     lines += [f"- {name}: {'yes' if present else 'no'}" for name, present in markers(root)]
-    lines += sessions(root)
+    lines += sessions(root, found)
     return "\n".join(lines)
 
 

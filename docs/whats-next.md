@@ -50,9 +50,11 @@ named skill holds.
 Inside herdr-core the scan also lists the live sessions that work in the
 project, from `hc ls` and `hc get`, and the answer says keep or close for
 each. The verdict comes from Git and the files: a session at `done` has only
-ended its last turn. Only a session that `whats-next` opened carries the
-`step` label the verdict needs: a session you opened by hand, or one where you
-pasted the command, is listed with its title and status and gets no verdict.
+ended its last turn. A session gets a verdict when `whats-next` opened it, or
+when one of our skills created its notes folder there: the skill's
+`investigation_dir.py` call labels the session with that folder, also in a
+session you opened by hand. Any other session, such as one running Matt's
+`implement`, is listed with its title and status and gets no verdict.
 A session in a linked worktree outside the project directory is not listed. The skill opens sessions only from Claude Code; on
 Codex and OpenCode it gives the command, as it does outside herdr-core. It
 closes a worker only when you say so, and never a session it did not start.

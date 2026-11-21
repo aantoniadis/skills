@@ -2,7 +2,10 @@
 """Create and print the investigation location for a topic, keeping `.scratch/` out of commits."""
 
 import argparse
+import os
 import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -38,12 +41,27 @@ def investigation_dir(project, topic):
     return path
 
 
+def label_session(path, project):
+    """Inside herdr-core, label this session with its notes folder, so whats-next can tell what the session works on."""
+    here = os.environ.get("HC_TERMINAL_ID")
+    if not here or not shutil.which("hc"):
+        return
+    root = project_root(project)
+    try:
+        subprocess.run(["hc", "label", here, f"notes={path.relative_to(root) if path.is_relative_to(root) else path}"],
+                       capture_output=True, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        pass  # the location is the result; a missing label only costs whats-next a verdict
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("topic", help="short name for the work, such as the PR or bug")
     parser.add_argument("project", nargs="?", default=".", help="project directory (default: current directory)")
     args = parser.parse_args()
     try:
-        print(investigation_dir(args.project, args.topic))
+        location = investigation_dir(args.project, args.topic)
+        label_session(location, args.project)
+        print(location)
     except (OSError, ValueError) as error:
         parser.exit(1, f"{error}\n")

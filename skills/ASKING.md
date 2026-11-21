@@ -56,7 +56,9 @@ the path on an `Investigations:` line in the project's instructions, such as
 ``- Investigations: `docs/investigations` ``, else `.scratch/<topic>/` in the
 project root. `python3 <package>/skills/investigation_dir.py <topic> <project>`
 creates it and prints it; for `.scratch/` in a Git checkout it also adds
-`/.scratch/` to the local exclude file, which Git never commits.
+`/.scratch/` to the local exclude file, which Git never commits. Inside
+herdr-core it also labels the session with that path, so `whats-next` can
+tell what each open session works on.
 
 A review of the working tree leaves the investigation location out of
 its scope.

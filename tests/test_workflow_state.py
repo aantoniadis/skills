@@ -125,12 +125,23 @@ else:
              "die_with_parent": False, "status": None, "turn": 0, "argv": ["/usr/bin/codex"], "labels": {}},
             {"address": "t4", "name": None, "cwd": "/other/project", "foreground": {"cwd": "/other/project"}, "parent": None,
              "die_with_parent": False, "status": {"app": "claude-code", "state": "done"}, "turn": 9, "labels": {}},
+            # Opened by hand: investigation_dir.py labelled each with the notes folder its skill created.
+            {"address": "t5", "name": None, "cwd": here, "foreground": {"cwd": here}, "parent": None, "die_with_parent": False,
+             "status": {"app": "claude-code", "state": "done"}, "turn": 12, "labels": {"notes": ".scratch/order", "where": "repo / 2"}},
+            {"address": "t6", "name": None, "cwd": here, "foreground": {"cwd": here}, "parent": None, "die_with_parent": False,
+             "status": {"app": "claude-code", "state": "working"}, "turn": 3, "labels": {"notes": ".scratch/retry"}},
         ])
+        plan = self.repo / ".scratch/order/plan.md"
+        plan.parent.mkdir(parents=True)
+        plan.write_text("---\nkind: plan\n---\n# Order\n\n**Readiness:** ready.\n")
+        (self.repo / ".scratch/retry").mkdir()
         out = run(str(self.repo), cwd=self.root, env=env)
         self.assertIn('- `t1` (this session) · claude-code · working, turn 4 · opened by the user · "Plan the export" · space `sp9`', out)
         self.assertIn("- `t2` find-bugs-export · claude-code · done, turn 1 · started by `t1`, ends with it · for=feat/x step=find-bugs", out)
         self.assertIn("- `t3` implement-t1 · codex · no status, turn 0 · started by `t1`, outlives it", out)
         self.assertNotIn("`t4`", out, "a session of another project is not listed")
+        self.assertIn("- `t5` · claude-code · done, turn 12 · opened by the user · notes `.scratch/order`: plan (plan-change)", out)
+        self.assertIn("- `t6` · claude-code · working, turn 3 · opened by the user · notes `.scratch/retry`: nothing written yet", out)
         calls = (self.root / "hc.log").read_text().split("\n")
         self.assertTrue(all(call.split()[0] in ("ls", "get") for call in calls if call), f"the scan only reads: {calls}")
 

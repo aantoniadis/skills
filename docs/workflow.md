@@ -29,7 +29,7 @@ selected by the project.
 | A contained change in familiar code | The [light path](light-path.md) | The current session | Nothing new |
 
 A new session means a fresh context window: a new session in the host, or
-its clear command. Two session rules carry the flow. Keep understanding, planning, spec, and
+its clear command. Inside herdr-core, `whats-next` opens it on your yes. Two session rules carry the flow. Keep understanding, planning, spec, and
 tickets in one unbroken session: Matt's `to-spec` and `to-tickets` synthesize
 from the conversation, and `plan-change` reuses the note and the answers you
 gave. Do not clear before the tickets exist; if the session nears the host's

@@ -57,7 +57,8 @@ ticket only when you ask for that write.
    structure check. The reply gives the report link, counts by status, and the
    top gaps, then hands gaps and Unmet rows to `plan-change` or Matt's
    `implement`, and bugs to `fix-bug`, each command carrying the report path
-   and the rows it concerns. Needs clarification rows are listed as questions
+   and the rows it concerns, with the evidence that ends that step and the
+   session you can close. Needs clarification rows are listed as questions
    for the spec owner. Asked for ticket updates, it makes the writes you named
    once the report passes its check; a request such as "close the met ones"
    covers only tickets whose rows are all Met, and the reply lists each write

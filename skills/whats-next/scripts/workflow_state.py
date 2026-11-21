@@ -1,11 +1,16 @@
 #!/usr/bin/env python3
 """Print a project's workflow state for whats-next: the Git position, the notes and reports
 our skills already wrote (by the `kind:` in their front matter, else by their template's marker
-line), and the workflow markers in the checkout. Read-only; creates nothing."""
+line), the workflow markers in the checkout, and, inside herdr-core, the live sessions working
+in the project. Read-only; creates nothing."""
 
 import argparse
 import datetime
+import json
+import os
 import re
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -105,6 +110,53 @@ def markers(root):
     ]
 
 
+def hc(*args):
+    result = subprocess.run(["hc", *args, "--json"], capture_output=True, text=True, timeout=10)
+    if result.returncode != 0:
+        raise ValueError(result.stderr.strip() or f"hc {args[0]} exited {result.returncode}")
+    return json.loads(result.stdout)
+
+
+def sessions(root, found):
+    """The live herdr-core sessions whose program works under `root`, and this session, each with the notes
+    and reports from `found` that sit in the folder its `notes` label names. Nothing outside herdr-core."""
+    here = os.environ.get("HC_TERMINAL_ID")
+    if not here or not shutil.which("hc"):
+        return []
+    lines = ["", "## Sessions in herdr-core"]
+    try:
+        for listed in hc("ls")["terminals"]:
+            info = hc("get", listed["address"])
+            # `cwd` is the launch folder; the foreground program's folder says where the session works now.
+            folder = (info.get("foreground") or {}).get("cwd") or info.get("cwd") or ""
+            # shortcut: a session in a linked worktree outside the root is not listed, compare Git common dirs when that is needed
+            if info["address"] != here and not Path(folder).resolve().is_relative_to(root):
+                continue
+            labels = info.get("labels") or {}
+            status = info.get("status") or {}
+            parent = info.get("parent")
+            parts = [f"`{info['address']}`" + (f" {info['name']}" if info.get("name") else ""),
+                     status.get("app") or Path((info.get("argv") or ["program"])[0]).name,
+                     f"{status.get('state') or 'no status'}, turn {info.get('turn', 0)}",
+                     f"started by `{parent}`, {'ends with it' if info.get('die_with_parent') else 'outlives it'}" if parent
+                     else "opened by the user"]
+            ours = " ".join(f"{key}={value}" for key, value in sorted(labels.items())
+                            if not key.startswith("herdr.") and key not in ("where", "notes"))
+            parts += [ours] if ours else []
+            if labels.get("notes"):  # investigation_dir.py sets it when a skill creates its notes folder in that session
+                folder = (root / labels["notes"]).resolve()
+                written = sorted({f"{kind} ({skill})" for _, path, kind, skill, _ in found if path.resolve().is_relative_to(folder)})
+                parts += [f"notes `{labels['notes']}`: {', '.join(written) or 'nothing written yet'}"]
+            parts += [f"\"{info['title']}\""] if info.get("title") else []
+            if info["address"] == here:
+                parts[0] += " (this session)"
+                parts += [f"space `{labels['herdr.space']}`"] if labels.get("herdr.space") else []
+            lines.append("- " + " · ".join(parts))
+    except (OSError, ValueError, KeyError, subprocess.TimeoutExpired) as error:
+        lines.append(f"- `hc` did not answer, so the sessions are unknown: {' '.join(str(error).split())[:200]}")
+    return lines
+
+
 def report(project):
     root = project_root(project)
     lines = [f"# Workflow state: {root}", ""]
@@ -123,6 +175,7 @@ def report(project):
         lines.append(f"- scan stopped after {CAP} Markdown files; narrow the project directory")
     lines += ["", "## Markers"]
     lines += [f"- {name}: {'yes' if present else 'no'}" for name, present in markers(root)]
+    lines += sessions(root, found)
     return "\n".join(lines)
 
 

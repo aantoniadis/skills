@@ -12,8 +12,9 @@ behind the placement, as [evidence](../EVIDENCE.md) says.
 
 Give one answer: where the user is in the workflow, the next step, the exact
 command, and the session to run it in. Read the state first; ask only when two
-positions fit. Write nothing to the project, and stop after the answer: the
-user runs the next step.
+positions fit. Write nothing to the project. Stop after the answer: the user
+runs the next step, or inside herdr-core says yes to opening its session, as
+step 4 says.
 
 ## 1. Read the state
 
@@ -23,7 +24,9 @@ files, the investigation location, every note and report our skills left
 (understanding note, plan, diagnosis note, PR review guide, acceptance report)
 with its summary line and date, local tickets, `visual-pr` tasks, Matt's
 tracker setup, and whether a local tool record exists. It reads only and
-creates nothing.
+creates nothing. Inside herdr-core it also prints the project's live sessions
+under `## Sessions in herdr-core`; when it does, read
+[sessions in herdr-core](references/herdr-core.md) before step 3.
 
 Add what the scan cannot see: the step this conversation just finished and the
 path or URL it reported, the decisions the user stated, and the argument when
@@ -71,8 +74,17 @@ Reply in this shape, with the real paths and URLs from the scan:
 **Run:** <the command for this host, with the paths and the choices already settled>
 **Session:** <same | new> — <reason>
 **Carry:** <the paths or URLs the next step needs, which a fresh session cannot see>
+**Done when:** <the evidence that ends that step: a report path, a ticket Status, a PR>
+**Close:** <the session to close, and when; the reason when one stays open>
+**Sessions:** <only when the scan lists other sessions: each one, keep or close, with the evidence>
 **Also possible:** <one alternative row, and when it is the better one>
 ```
+
+For `Close`: a new session closes once its `Done when` evidence exists. This
+session closes now when the next step runs in a new session and `Carry` holds
+everything that step needs; a planning session reopens only when
+implementation reports a surprise against the plan. It stays open when the
+next step continues here.
 
 Write the command as the host registers it: `/aantoniadis-skills:<name>` in
 Claude Code, `$aantoniadis-skills:<name>` in Codex, `/<name>` or
@@ -82,3 +94,9 @@ kickoff choice the conversation already settled inside the command, so the
 next skill asks less. When an original is not installed, give its install
 command and the local route instead. Name what was not checked, such as a
 tracker that could not be reached. Done when the user can paste the command.
+
+## 4. Open the session, inside herdr-core
+
+When the scan printed `## Sessions in herdr-core` and `Session` says new,
+offer to open that session as [sessions in herdr-core](references/herdr-core.md)
+says. Everywhere else, the answer ends the task.

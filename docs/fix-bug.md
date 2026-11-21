@@ -35,7 +35,8 @@ page a reviewer can verify.
    investigation location, checked by `render_page.py`; runs under
    `runs/bugs/<n>/`; the fix and test in the working tree unless a commit was
    authorized; the `visual-pr` command handed over when an applied fix is ready
-   for a PR.
+   for a PR, with the evidence that ends that step and the session you can
+   close.
 
 Diagnosis only runs steps 1 to 4 and leaves application code and tests
 unchanged: the note lists affected callers as unfixed and any fix as a

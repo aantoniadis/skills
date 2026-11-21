@@ -40,6 +40,9 @@ by whom, on what evidence.
    coverage check before delivery.
    Publish within existing authorization or present concrete drafts for approval.
    Include evidence and a feedback destination the next reader can access.
+   Each handoff command comes with the evidence that ends that step and the
+   session you can close; the planning session can close once the handoff is
+   delivered.
 
 Ordinary local checks need no new
 checkpoint; material unapproved costs, side effects, or scope changes do.

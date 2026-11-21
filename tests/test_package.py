@@ -27,7 +27,9 @@ class PackageTests(unittest.TestCase):
                 result = subprocess.run([shutil.which("npm"), "pack", "--dry-run", "--ignore-scripts", "--json"],
                                         cwd=root, capture_output=True, text=True, timeout=60)
                 self.assertEqual(result.returncode, 0, result.stderr)
-                return {f["path"] for f in json.loads(result.stdout)[0]["files"]}
+                packed = json.loads(result.stdout)  # a list up to npm 11, an object keyed by package name from npm 12
+                entry = packed[0] if isinstance(packed, list) else next(iter(packed.values()))
+                return {f["path"] for f in entry["files"]}
 
             clean = payload()
             for name in ("skills/diagram-renderer/node_modules/fixture/package.json",

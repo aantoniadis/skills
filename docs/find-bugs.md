@@ -7,11 +7,14 @@ predictions and include material questions and review limits.
 One read of a change finds part of what repeated reads find. On two public
 pull requests, one read reported about a third to a half of what five reads
 reported together. The default is one read. A **thorough** search, asked for
-in words such as "thorough" or "find everything", runs three independent
-finders and one finder for shared state, then merges and checks what they
-return. It costs about five times one read and found about what five merged
-reads found. Neither depth is a completeness claim: the delivery says how many
-reads searched the change.
+in words such as "thorough" or "find everything", runs five independent
+finders: three general ones, one for shared state, and one that makes each
+added file, process, or network call fail and gives each new path a hostile
+filesystem state. The lead records a decision for every candidate they
+return, verifies the delivered ones, and estimates from their overlap what
+share of what such reads find this search found. It costs about six times one
+read. Neither depth is a completeness claim: the delivery says how many reads
+searched the change.
 
 ## How it works
 
@@ -22,7 +25,7 @@ reads searched the change.
 2. **Investigate leads.** In a thorough search, each finder gets the pins and
    nothing from the lead's own reading, and returns every candidate it could
    not contradict. Every search compares the project's type checker or linter
-   at base and head. Select useful project tools and applicable prepared
+   at base and head over the repository root. Select useful project tools and applicable prepared
    results. Coverage gaps, dependency compatibility, new consumers,
    and history can expose hypotheses. Each hypothesis needs a
    plausible trigger, predicted result, and contract it would violate.
@@ -40,9 +43,10 @@ reads searched the change.
    author only about material missing intent or facts. Return ranked findings
    under `## Defects`, with evidence and relevant questions. A material
    pre-existing defect that a probe executed goes under `## Outside the change`.
-   A confirmed consequence whose materiality depends on an unverifiable scale
-   or configuration goes under `## Minor observations`; a confirmed failure
-   any caller of the changed path can trigger stays a defect. The findings are
+   A confirmed consequence that occurs only at the head, through a public
+   entry point, where a consumer sees it, is a defect. One whose materiality
+   depends on an unverifiable scale or configuration goes under
+   `## Minor observations`. The findings are
    saved as `findings.md`. A later search of the same base and head lists the
    earlier findings it did not report again, marked as not rechecked, so
    repeated searches add up. Each search works in its own folder and opens
@@ -52,6 +56,13 @@ reads searched the change.
 
 Dependency checks use the project's supported-version commands, constraints,
 and resolver in a fresh environment.
+
+The remaining-share helper reads the thorough search's candidate table. It
+exits 1 while a candidate has no decision, and it estimates, from how many
+finders returned each delivered candidate, what share of what such reads find
+this search found (the bias-corrected Chao2 estimator, rough with five
+finders). The failure-point helper lists the added lines that open, read,
+write, close, rename, delete, lock, spawn, or connect, for the fault finder.
 
 The static-delta helper runs a type checker or linter command in an exported
 copy of two commits and prints the diagnostics the head has and the base

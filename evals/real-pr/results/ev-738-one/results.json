@@ -1,0 +1,247 @@
+[
+ {
+  "case": "find-bugs-fl738",
+  "run": 0,
+  "num_turns": 16,
+  "total_cost_usd": 1.0498366000000001,
+  "is_error": false,
+  "truncated": false,
+  "final": "I found one defect on `fix/soft-rw-generation-log`: a paused process can be granted the write lock while another process also holds it. I ran a probe that shows both writers holding the lock. This was one read of the branch (head `ed3fdd0`) against its merge-base with main (`20929f7`), committed changes only; another read could find more.\n\n## Defects\n\n**1. A paused committer can reuse a deleted generation number, so two writers hold the lock at once**\n- **Where:** `src/filelock/_soft_rw/_protocol.py:239-257` (`GenerationLog.commit`). The two places that delete old generations are `:256` (`unlink(G - 65)`) and `:218-219`.\n- **Trigger:** process A reads the latest generation N and works out the next state. Before A links `gen/N+1`, other processes commit 66 or more generations, and the commit of N+66 deletes `gen/N+1`. Two things can open that window:\n  - a pause in A (GC, SIGSTOP, or a suspended VM, which the module docstring says the design handles);\n  - a slow NFS client while about 33 or more peers each acquire and release.\n- **Consequence:** the name `gen/N+1` is free again, so A's no-replace hard link succeeds and `commit` returns `True`. A is granted from its outdated view of N while the real latest generation names another writer. So:\n  - Two writers hold the lock at the same time.\n  - Generation N+1 now belongs to two different transitions, which breaks the documented promise that a generation is unique to one transition.\n  - Other processes ignore A's record, and A only learns it lost the lock at its next heartbeat (30 s by default), through `on_compromise`.\n  - A resource that rejects lower generations (fencing) would refuse A; a caller that doesn't fence gets two writers at once.\n- **Origin:** new. The base has no generation log; it used a state mutex.\n- **Evidence:** executed. `.scratch/soft-rw-generation-log/search-1/resurrected_generation.py` simulates A's pause by wrapping A's `_log.commit`. During the pause, a second lock B on the same path does 33 read acquire/release cycles, then takes the write lock. Output:\n  ```\n  A derived successor generation 1 writer=True\n  B holds write at generation 67\n  gen/00000000000000000001 exists before A links: False\n  A acquired write at generation 1\n  both hold write: True\n  a fresh observer's head: generation 67, writer is B: True\n  ```\n  Base: not run, because the protocol under test doesn't exist there.\n- **What to do:** the link has to fail, or be detected, when the generation number has already been deleted. Two options: check after linking that `gen/N` still exists, or never reuse generation names.\n\n## Minor observations\n- Every call to `latest()` checks 64 generation names that don't exist yet. That happens on every poll (up to 4 times per poll interval) and every heartbeat. On NFS each check can be a server round trip; I didn't measure the cost.\n- If `<lock>.rw` is deleted and recreated while a process keeps running, that process keeps its remembered generation numbers (`_protocol.py:225`) while new processes start from 1. The two sides would then not exclude each other. The docs don't say whether deleting this directory is supported; I didn't probe it.\n\n## Questions for the author\nNone remain.\n\n## What else I checked\n- I read all changed source under `src/filelock/_soft_rw/`, plus `_lease.py` and the changelog fragments.\n- **Type check:** `ty check --error-on-warning .` (the tox `type` env) reports no new diagnostic at head. Base and head both fail on the same 6 sphinx-import errors in `docs/conf.py`.\n- **Weakened checks:** the removed tests were rewritten into the new protocol, storage and sync suites. I found no added suppression that hides a defect.\n- **Tests:** `pytest tests/soft_rw` at head: 212 passed, 1 skipped.\n\nThe findings are saved in `.scratch/soft-rw-generation-log/findings.md`.",
+  "created": [
+   ".scratch/soft-rw-generation-log/findings.md",
+   ".scratch/soft-rw-generation-log/search-1/resurrected_generation.head.log",
+   ".scratch/soft-rw-generation-log/search-1/resurrected_generation.py",
+   ".scratch/soft-rw-generation-log/search-1/static_delta.txt",
+   ".scratch/soft-rw-generation-log/search-1/version.py",
+   ".scratch/soft-rw-generation-log/search-1/weakened.txt",
+   "src/filelock/__pycache__/__init__.cpython-313.pyc",
+   "src/filelock/__pycache__/_api.cpython-313.pyc",
+   "src/filelock/__pycache__/_async.cpython-313.pyc",
+   "src/filelock/__pycache__/_async_read_write.cpython-313.pyc",
+   "src/filelock/__pycache__/_descriptor.cpython-313.pyc",
+   "src/filelock/__pycache__/_error.cpython-313.pyc",
+   "src/filelock/__pycache__/_identity.cpython-313.pyc",
+   "src/filelock/__pycache__/_lease.cpython-313.pyc",
+   "src/filelock/__pycache__/_marker.cpython-313.pyc",
+   "src/filelock/__pycache__/_read_write.cpython-313.pyc",
+   "src/filelock/__pycache__/_soft.cpython-313.pyc",
+   "src/filelock/__pycache__/_soft_protocol.cpython-313.pyc",
+   "src/filelock/__pycache__/_strict.cpython-313.pyc",
+   "src/filelock/__pycache__/_unix.cpython-313.pyc",
+   "src/filelock/__pycache__/_util.cpython-313.pyc",
+   "src/filelock/__pycache__/_windows.cpython-313.pyc",
+   "src/filelock/__pycache__/asyncio.cpython-313.pyc",
+   "src/filelock/__pycache__/version.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/__init__.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_async.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_protocol.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_storage.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_sync.cpython-313.pyc",
+   "tasks/__pycache__/capabilities.cpython-313.pyc",
+   "tests/__pycache__/capability_marks.cpython-313.pyc",
+   "tests/__pycache__/conftest.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/process_helpers.cpython-313.pyc",
+   "tests/soft_rw/__pycache__/test_soft_rw_async.cpython-313-pytest-9.1.1.pyc",
+   "tests/soft_rw/__pycache__/test_soft_rw_protocol.cpython-313-pytest-9.1.1.pyc",
+   "tests/soft_rw/__pycache__/test_soft_rw_storage.cpython-313-pytest-9.1.1.pyc",
+   "tests/soft_rw/__pycache__/test_soft_rw_sync.cpython-313-pytest-9.1.1.pyc",
+   "tests/soft_rw/__pycache__/test_soft_rw_sync.cpython-313.pyc"
+  ],
+  "graders": {
+   "defects-section": {
+    "passed": true,
+    "why": "matched"
+   },
+   "ka-evicted-hold-reentry": {
+    "passed": false,
+    "why": "The message reports a different defect (a paused committer reusing a deleted generation number) and two minor observations. None of them say that the hold stays in place after the heartbeat detects eviction, or that a later acquire on the same instance counts as re-entry without consulting the log. "
+   },
+   "kb-overwrite-no-fstat": {
+    "passed": false,
+    "why": "The message reports only a generation-reuse defect and two minor observations. It never mentions that the holder-record refresh (`overwrite`) reopens the record by name without checking what it opened, so it says nothing about hard links, files renamed over the name, or a FIFO blocking it.\n\nVERDICT:"
+   },
+   "kc-stale-read-then-sample": {
+    "passed": false,
+    "why": "The message reports a different defect (a paused committer reusing a deleted generation number). It does not report that the staleness check reads the holder record before sampling the clock, so a stalled contender judges a live holder stale and evicts it. The minor observations and \"what else I che"
+   }
+  },
+  "_m": {
+   "cost": 1.0498366000000001,
+   "events": [
+    3820
+   ],
+   "lead": {
+    "Bash": 10,
+    "Read": 3,
+    "Write": 2
+   },
+   "sub": {},
+   "agents": [],
+   "scripts": {
+    "static_delta": 2
+   }
+  }
+ },
+ {
+  "case": "find-bugs-fl738",
+  "run": 1,
+  "num_turns": 16,
+  "total_cost_usd": 0.9684696,
+  "is_error": false,
+  "truncated": false,
+  "final": "I found one defect: under a pause that peers can cause, two writers can hold the lock at the same time.\n\n**Scope:** head `ed3fdd0` (`fix/soft-rw-generation-log`) compared with merge-base `20929f7` (main), committed files only. I read all the changed source: `_protocol.py`, `_storage.py`, `_sync.py`, `_async.py`, `_lease.py`, and the coverage-pragma task. I skimmed the docs and tests rather than reviewing them line by line. One read searched the change; another read could find more.\n\n## Defects\n\n1. **A stale commit can reuse a deleted generation name and be granted** (`src/filelock/_soft_rw/_protocol.py:239-257`, reached from `Participant._commit` at `:373`).\n   - **Trigger:** a participant in `advance()` reads the latest generation N, then gets paused before it links `gen/<N+1>` (GC pause, suspended VM, scheduler). Meanwhile peers commit 65 or more generations. Cleanup of old generations has already deleted `gen/<N+1>` by then, so the \"no-replace\" hard link to that name succeeds.\n   - **Consequence:** the late participant is granted from an out-of-date snapshot. A writer can be granted while another writer holds the lock, or a reader under a live writer. The overlap lasts until the late holder's first heartbeat (30 s by default), which then reports `evicted`. Its `generation` (N+1) is below the real latest generation, so a resource that checks the fencing token would reject it. One that doesn't check sees two writers.\n   - **Origin:** new; the base has no generation log.\n   - **Evidence (executed):** `.scratch/soft-rw-generation-log/search-1/compacted_generation_reuse.py` pauses instance A inside `GenerationLog.commit` just before the link. That pause stands in for the process being descheduled. While A is paused, a second instance on the same path runs 40 read cycles, then takes the write lock. Output:\n     ```\n     B holds write at generation 81\n     A acquire result: 1\n     both hold write: True\n     ```\n     The deleted `gen/\u20261` file exists again afterwards. There is no base run to compare, because the base code doesn't have this path.\n   - **Possible fix:** refuse a commit if the generation it was built on has already been deleted. For example, after the link, check that `gen/<N>` still exists, or that nothing newer than N+1 exists.\n\n## Minor observations\n- **Memory growth:** `Ledger._seen` (`_protocol.py:154`) drops a peer's token only when that peer is evicted or its leftover files are cleaned up. Tokens of peers that leave normally stay for the life of the lock instance, so memory grows without limit. This only matters with a lot of peer turnover, which I didn't measure.\n- **False eviction report (inferred, not probed):** an evicting peer deletes the evicted member's holder file just after that member has re-entered. The member's next heartbeat then wrongly reports `evicted` and stops refreshing, while the latest snapshot still names it. The timing window is narrow.\n\n## Checks run\n- **Type check:** ran the ty checker at both commits. The only errors were the same unresolved imports in `docs/conf.py` at both, so the change adds no new diagnostics.\n- **Tests:** at the head, `tests/soft_rw` passed (212 passed, 1 skipped). No existing test covers the scenario in the defect above.\n\n## Questions for the author\nNone.\n\nThe findings are saved in `.scratch/soft-rw-generation-log/findings.md`.",
+  "created": [
+   ".scratch/soft-rw-generation-log/findings.md",
+   ".scratch/soft-rw-generation-log/search-1/compacted_generation_reuse.log",
+   ".scratch/soft-rw-generation-log/search-1/compacted_generation_reuse.py",
+   ".scratch/soft-rw-generation-log/search-1/static_delta.txt",
+   "src/filelock/__pycache__/__init__.cpython-313.pyc",
+   "src/filelock/__pycache__/_api.cpython-313.pyc",
+   "src/filelock/__pycache__/_async.cpython-313.pyc",
+   "src/filelock/__pycache__/_async_read_write.cpython-313.pyc",
+   "src/filelock/__pycache__/_descriptor.cpython-313.pyc",
+   "src/filelock/__pycache__/_error.cpython-313.pyc",
+   "src/filelock/__pycache__/_identity.cpython-313.pyc",
+   "src/filelock/__pycache__/_lease.cpython-313.pyc",
+   "src/filelock/__pycache__/_marker.cpython-313.pyc",
+   "src/filelock/__pycache__/_read_write.cpython-313.pyc",
+   "src/filelock/__pycache__/_soft.cpython-313.pyc",
+   "src/filelock/__pycache__/_soft_protocol.cpython-313.pyc",
+   "src/filelock/__pycache__/_strict.cpython-313.pyc",
+   "src/filelock/__pycache__/_unix.cpython-313.pyc",
+   "src/filelock/__pycache__/_util.cpython-313.pyc",
+   "src/filelock/__pycache__/_windows.cpython-313.pyc",
+   "src/filelock/__pycache__/asyncio.cpython-313.pyc",
+   "src/filelock/__pycache__/version.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/__init__.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_async.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_protocol.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_storage.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_sync.cpython-313.pyc",
+   "tasks/__pycache__/capabilities.cpython-313.pyc",
+   "tests/__pycache__/capability_marks.cpython-313.pyc",
+   "tests/__pycache__/conftest.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/process_helpers.cpython-313.pyc",
+   "tests/soft_rw/__pycache__/test_soft_rw_async.cpython-313-pytest-9.1.1.pyc",
+   "tests/soft_rw/__pycache__/test_soft_rw_protocol.cpython-313-pytest-9.1.1.pyc",
+   "tests/soft_rw/__pycache__/test_soft_rw_storage.cpython-313-pytest-9.1.1.pyc",
+   "tests/soft_rw/__pycache__/test_soft_rw_sync.cpython-313-pytest-9.1.1.pyc",
+   "tests/soft_rw/__pycache__/test_soft_rw_sync.cpython-313.pyc"
+  ],
+  "graders": {
+   "defects-section": {
+    "passed": true,
+    "why": "matched"
+   },
+   "ka-evicted-hold-reentry": {
+    "passed": false,
+    "why": "The message does not report the heartbeat-eviction re-entry behavior. Its only eviction-related item says a re-entered member's next heartbeat falsely reports `evicted`, which is a different issue. It never says the hold stays in place after eviction so that a later acquire on the same instance coun"
+   },
+   "kb-overwrite-no-fstat": {
+    "passed": false,
+    "why": "The message doesn't mention that the holder-record refresh (`overwrite`) reopens the record by name without an `fstat` or regular-file check. It never says that a hard link or a renamed-over file would receive the record, or that a FIFO would block it. The report covers a generation-reuse defect, me"
+   },
+   "kc-stale-read-then-sample": {
+    "passed": false,
+    "why": "The message reports a generation-reuse defect and two minor observations. It never mentions the staleness check reading the holder record before sampling the clock, or a contender that stalls between the two and evicts a live holder.\n\nVERDICT: FAIL"
+   }
+  },
+  "_m": {
+   "cost": 0.9684696,
+   "events": [
+    3351
+   ],
+   "lead": {
+    "Bash": 10,
+    "Read": 3,
+    "Write": 2
+   },
+   "sub": {},
+   "agents": [],
+   "scripts": {
+    "static_delta": 2
+   }
+  }
+ },
+ {
+  "case": "find-bugs-fl738",
+  "run": 2,
+  "num_turns": 13,
+  "total_cost_usd": 0.9078394,
+  "is_error": false,
+  "truncated": false,
+  "final": "I found one defect: in a rare race, a lock instance that has been used before can be granted the write lock while another process holds it. I searched the change once; another read could still find more.\n\nCompared: `ed3fdd0` (fix/soft-rw-generation-log) against `20929f7` (main, which is also the merge-base). Only committed revisions; the working tree was clean.\n\n## Defects\n\n1. **A lock instance that has committed before can grant a write lock another process already holds** (`src/filelock/_soft_rw/_protocol.py:222-229`).\n   - **What goes wrong:** each instance remembers the last generation it saw (`GenerationLog._latest`). When none of the generations in a fresh listing of `gen/` can be read, `_start` falls back to that remembered snapshot instead of returning `None`. That means the relist and the refusal at `:191-197` never run.\n   - **Trigger:** all three of these must hold:\n     - the instance has acquired and released before;\n     - the listed generations are gone when it reads them, because peers compacted past them between the listing and the reads, or an NFS listing was served stale;\n     - peers are more than about 128 generations past the remembered snapshot.\n   - **Consequence:**\n     - `latest()` returns the old snapshot, and `advance()` links `gen/<old+1>`, a name the peers deleted long ago, so the link succeeds.\n     - The writer is granted while the peers' current head names a different writer.\n     - The two writers overlap until the bogus holder's next heartbeat (up to 30 s by default), which reports it as `evicted`.\n     - A resource that checks the fencing token would reject the bogus holder, because its generation is lower.\n   - **Contract broken:** the `latest()` docstring says such a listing \"is refused\". That is true only for a log that has never committed.\n   - **Origin:** new. The generation log does not exist on main.\n   - **Evidence (executed):** a scripted interleaving through `GenerationLog` and `OsFiles` on a local filesystem, not through the public lock API. Script: `.scratch/soft-rw-generation-log/search-1/stale_start.py`. Output:\n     ```\n     remember=False: observer latest=400 ... commit gen 401 writer=A -> True; peer head=401 writer=A\n     remember=True:  observer latest=1 writer=None; commit gen 2 writer=A -> True; peer head=401 writer=B\n     ```\n     The first line is a fresh log: it relists and finds the true head. The second is a log that committed before: it accepts generation 1, so writer A is granted while the peers' head still names writer B.\n   - **Suggested fix:** use the remembered snapshot only when at least one listed generation was actually read. Otherwise let the relist-and-refuse path decide.\n\n## Minor observations\n- **The liveness ledger keeps growing.** `Ledger` (`_protocol.py:154-167`) drops a token only when this instance evicts or sweeps it. Peers that leave normally stay in it forever, so a long-lived instance on a lock with heavy turnover grows without limit. I did not measure at what churn this matters.\n- **Each read of the log probes 64 missing files.** Every `latest()` call does this (`_protocol.py:202-208`). `advance()` calls it up to 4 times per poll, and each heartbeat calls it once more. On NFS that is roughly 65\u2013260 failed lookups per poll. The real cost depends on how the client caches failed lookups, which I didn't test.\n\n## Questions for the author\n- `generation` is documented as a fencing token: the resource rejects anything lower than the highest it has accepted. Readers are granted at different generations, so that rule would reject a valid reader whose number is lower than a concurrent reader's. Should the docs limit fencing to writers, or should concurrent readers share one generation?\n\n## What was checked, and the gaps\n- **Type check:** `ty check src tests` at both revisions found no new diagnostics; both exited 0.\n- **Weakened checks:** every removed test assertion targets the replaced `.state`/`.write`/`.readers` protocol. The added `skipif` marks only gate tests by platform.\n- **Tests:** `tests/soft_rw` at the branch head gave 212 passed, 1 skipped.\n- **Not done:**\n  - no coverage report, so no coverage-gap check;\n  - `_sync.py` concurrency and fork paths were read but not probed;\n  - the docs were checked only through the changelog.\n\nThe findings are saved in `.scratch/soft-rw-generation-log/findings.md`.",
+  "created": [
+   ".scratch/soft-rw-generation-log/findings.md",
+   ".scratch/soft-rw-generation-log/search-1/stale_start.log",
+   ".scratch/soft-rw-generation-log/search-1/stale_start.py",
+   ".scratch/soft-rw-generation-log/search-1/static-ty.txt",
+   "src/filelock/__pycache__/__init__.cpython-313.pyc",
+   "src/filelock/__pycache__/_api.cpython-313.pyc",
+   "src/filelock/__pycache__/_async.cpython-313.pyc",
+   "src/filelock/__pycache__/_async_read_write.cpython-313.pyc",
+   "src/filelock/__pycache__/_descriptor.cpython-313.pyc",
+   "src/filelock/__pycache__/_error.cpython-313.pyc",
+   "src/filelock/__pycache__/_identity.cpython-313.pyc",
+   "src/filelock/__pycache__/_lease.cpython-313.pyc",
+   "src/filelock/__pycache__/_marker.cpython-313.pyc",
+   "src/filelock/__pycache__/_read_write.cpython-313.pyc",
+   "src/filelock/__pycache__/_soft.cpython-313.pyc",
+   "src/filelock/__pycache__/_soft_protocol.cpython-313.pyc",
+   "src/filelock/__pycache__/_strict.cpython-313.pyc",
+   "src/filelock/__pycache__/_unix.cpython-313.pyc",
+   "src/filelock/__pycache__/_util.cpython-313.pyc",
+   "src/filelock/__pycache__/_windows.cpython-313.pyc",
+   "src/filelock/__pycache__/asyncio.cpython-313.pyc",
+   "src/filelock/__pycache__/version.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/__init__.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_async.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_protocol.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_storage.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_sync.cpython-313.pyc",
+   "tasks/__pycache__/capabilities.cpython-313.pyc",
+   "tests/__pycache__/capability_marks.cpython-313.pyc",
+   "tests/__pycache__/conftest.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/process_helpers.cpython-313.pyc",
+   "tests/soft_rw/__pycache__/test_soft_rw_async.cpython-313-pytest-9.1.1.pyc",
+   "tests/soft_rw/__pycache__/test_soft_rw_protocol.cpython-313-pytest-9.1.1.pyc",
+   "tests/soft_rw/__pycache__/test_soft_rw_storage.cpython-313-pytest-9.1.1.pyc",
+   "tests/soft_rw/__pycache__/test_soft_rw_sync.cpython-313-pytest-9.1.1.pyc",
+   "tests/soft_rw/__pycache__/test_soft_rw_sync.cpython-313.pyc"
+  ],
+  "graders": {
+   "defects-section": {
+    "passed": true,
+    "why": "matched"
+   },
+   "ka-evicted-hold-reentry": {
+    "passed": false,
+    "why": "The message does not report that the hold stays in place after the heartbeat detects eviction. It says a bogus holder is reported as `evicted` at its next heartbeat, but that is about a different defect (a stale snapshot). It says nothing about a later acquire on the same instance being treated as r"
+   },
+   "kb-overwrite-no-fstat": {
+    "passed": false,
+    "why": "The message reports a different defect (a stale snapshot fallback in `_start`) and several minor observations, but nothing about the holder-record refresh (`overwrite`) reopening the record by name without an `fstat` or regular-file check. It does not mention hard links, a renamed file, or a FIFO bl"
+   },
+   "kc-stale-read-then-sample": {
+    "passed": false,
+    "why": "The message does not report this. Its one defect concerns `_start` falling back to a remembered generation snapshot, which is a different race. It never says the staleness check reads the holder record before sampling the clock, or that a stalled contender would judge a live holder stale and evict i"
+   }
+  },
+  "_m": {
+   "cost": 0.9078394,
+   "events": [
+    4363
+   ],
+   "lead": {
+    "Bash": 7,
+    "Read": 3,
+    "Write": 2
+   },
+   "sub": {},
+   "agents": [],
+   "scripts": {
+    "static_delta": 1
+   }
+  }
+ }
+]

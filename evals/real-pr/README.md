@@ -70,6 +70,23 @@ base, or a failure in new code under the stated fault. It does not mean a
 maintainer fixed it. The 17 graders were written after reading the runs, so
 they score agreement between runs, not recall against an independent list.
 
+## Later runs
+
+- `arm-solo-SKILL.md` (one finder and a verifying lead): 8.3 of 14 on fastapi
+  for $2.85 a run and 6.0 of 17 on filelock for $3.75 (`results/ev-oss-solo`,
+  `results/ev-fl-solo`): about what merged plain reads find for the same money.
+- `find-bugs-fl738/`: tox-dev/filelock PR 738, base `20929f7`, head `ed3fdd0`,
+  with one grader for each of the 3 defects later fixes attribute to it. A
+  summary of those defects was in the author's context before the fault finder
+  was written. Skill text from commit 95c22ae on `find-bugs-depth`:
+
+| Arm | Runs | Defects delivered | Later-fixed defects found | Cost for each run |
+|---|---|---|---|---|
+| one read | 3 | 1, 1, 1 (the same one) | 0 | $0.98 |
+| thorough, five finders | 2 | 4, 4 | 0; the FIFO half of one, filed as minor in run 0 | $8.06 |
+
+`remaining.py` estimated 57% and 90% in the two thorough runs.
+
 ## What the two PRs support
 
 - One `main` run reports a fraction of what repeated runs report.

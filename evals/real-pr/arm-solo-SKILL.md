@@ -1,0 +1,75 @@
+---
+name: find-bugs
+description: Finds the defects in a change (a PR, a branch, or the working tree) that a maintainer would fix, with evidence from inspected source or executed probes. Use when the user asks to find bugs, review a diff for defects, or check a change before it merges or before a human reviews it; pr-review-guide and check-acceptance call it for their search for bugs. Not for a reported symptom or failing test (fix-bug), explaining how code works (explain), planning a change (plan-change), or writing the human reviewer's guide (pr-review-guide).
+argument-hint: "<PR URL or number, branch, or 'the working tree'; anything the finder should know>"
+---
+
+For helper loading, follow [package references](../REFERENCES.md). Write in
+the shared [technical English](../TECHNICAL-ENGLISH.md), with every claim
+bounded by its [evidence](../EVIDENCE.md).
+
+# Find bugs
+
+Return defects a maintainer would fix, with their trigger, consequence, and supporting evidence. Keep speculative possibilities out of the finding list unless source or observations support a plausible in-scope trigger and material impact. A probe establishes an observation; the contract and the consequence decide whether it is a defect.
+
+## 1. Pin the scope
+
+Record the repository root, head SHA and comparison base for a PR, or head and merge-base for a branch. State relevant dependency and deployment conditions. Reuse the caller's pins and agreed requirements. A caller can supply a **feature scope** in place of a diff: a head plus a commit set or traced files and symbols, with an optional base; read that scope as the changed source. Without a base, probes observe the head only, and every finding's origin is **no base pinned**. Ask only when missing scope or intent changes the result.
+
+For a working-tree review, state whether the comparison includes staged, unstaged, and untracked files, and leave the investigation location out of it. Retain the selected diff and [capture the inspected files](../EVIDENCE.md#capture-a-local-snapshot); a commit link does not support dirty bytes. Recheck affected findings if the source changes during investigation; report the snapshot actually reviewed.
+
+Read changed source within the selected scope and trace consequential callers and consumers. Record generated, binary, unavailable, or excluded material and how it limits the review. Follow concurrency and lifecycle boundaries when the change involves shared state, cancellation, streaming, cleanup, or similar risks. Use a separate perspective through [native delegation](../WORKERS.md) when useful.
+
+Done when the compared revisions, the included working-tree state, and excluded material are recorded, and the changed source in scope has been read.
+
+## 2. Generate and investigate candidates
+
+Search through a **finder**, and keep the checking for yourself. Through [native delegation](../WORKERS.md), start one finder and wait for its result before step 3. Give it this assignment and nothing from your own reading:
+
+> You are the finder for one change. Repository: `<path>`. Base: `<sha>`. Head: `<sha>`. Conditions: `<dependency and environment notes from step 1>`. Work in `<investigation location>/finder-<n>/` and leave the checkout unchanged. Follow steps 2 and 3 of `<package>/skills/find-bugs/SKILL.md` for this change, without its finder paragraph: search alone and start no workers. Return every candidate you could not contradict: location, trigger, base result, head result, the contract it breaks, and the saved probe with its command, or *inferred* with the missing probe. List the leads you dropped, one line each with the counterevidence. Do not rank or write a report.
+
+While the finder runs, run the static deltas below yourself. Verify each returned candidate in step 3. Where no delegation tool is available, search once yourself.
+
+Read every changed line with one question: under what input, version, timing, or caller does it misbehave? Tools add leads; the reading finds the rest. Choose tools using [CODE-TOOLS.md](../CODE-TOOLS.md) and the local tool record that `python3 <package>/skills/tool_setup_path.py --show <project>` prints. Tool results are leads, not defects. Reuse results only when their revisions, inputs, environment, and scope match. Selected tools should answer a useful question; missing optional setup does not stop source investigation.
+
+Useful leads include:
+
+- **Coverage gaps:** project coverage results at the inspected source. For two committed revisions, [`untested_added_lines.py`](scripts/untested_added_lines.py) compares added source lines with coverage.py or Istanbul/Vitest JSON. It distinguishes executed, missing, excluded, and unclassified data; statement-start coverage does not establish branch or input coverage. Run with `--base <base> --head <head> --repo <checkout> --cov <report>`. The caller verifies report provenance. For dirty or untracked source, use matching project coverage and the retained snapshot; the commit comparison helper does not cover it. Coverage does not establish that a test would catch a regression: for a changed condition the tests claim to cover, invert it in a scratch worktree, run the focused tests, and restore; a suite that stays green names a missing test case.
+- **Weakened checks:** [`weakened_checks.py`](scripts/weakened_checks.py) lists, between two commits, added suppressions such as `@ts-ignore`, `eslint-disable`, `# noqa`, and `# type: ignore`, skipped or focused tests, removed tests and assertions, unimplemented stubs, and edited coverage or threshold configuration. Run with `--base <base> --head <head> --repo <checkout>`. Each line is a lead: read why the check was weakened and what it no longer catches.
+- **Dependency compatibility:** use the project's supported-version tests, constraints, or resolver in a fresh environment when changed ranges or new dependency API calls raise a question. Honor the selected Python/runtime, environment markers, extras, and full constraints. Verify installed versions and run a focused operation. A failed install leaves an evidence gap. Preserve existing environments and logs.
+- **Second consumers:** inspect existing callers of a function newly called or copied by the change. Compare outputs, cleanup, and signals those callers use with what the new consumer handles.
+- **Static deltas:** when the environment has the project's type checker or linter, run it at base and head over the package and over the code that uses it, its tests and documented examples, and compare the diagnostics. A package can check clean while a consumer of its changed types no longer does. A diagnostic only at head is a candidate. Retain actionable findings and deduplicate overlapping diagnostics. A diagnostic is evidence of what the tool reported; it does not by itself demonstrate the predicted runtime consequence.
+- **History and review context:** use blame, focused history searches, and issue/PR tools to resolve a named uncertainty. Keep history tied to the inspected revision. Retrieve relevant comment pages or state the partial scope; a later fix is a lead, not evidence of behavior at the selected head.
+- **Caller hypotheses:** investigate supplied line, condition, and predicted-result hypotheses. Search additional paths when the available results do not answer the question.
+
+For each material suspicion, state the line, triggering conditions, predicted observable result, and the requirement or contract it would violate. Read controlling guards, relevant consumers, and counterevidence before investing in a probe. Stop a tool investigation when it answers the named question or leaves an explicit gap.
+
+Done when the finder has returned or is recorded as *not run* with its reason, the static deltas ran or have a recorded reason, and each material suspicion states its line, trigger, predicted result, and violated contract, or is dropped with its counterevidence.
+
+## 3. Probe and retain evidence
+
+Run each probe the finder saved once yourself, at base and head, before you report its result as executed. Use the cheapest adequate check through the relevant public boundary: a focused existing test, small script, or request through the changed path. Ordinary authorized local checks can proceed. Ask before material unapproved cost, side effects, or scope expansion; continue independent investigation while waiting. Application fixes and publication require their own task scope.
+
+Verify that the probe loads the intended checkout and dependencies. Run the base in a disposable worktree at the base commit, and keep probe tests and instrumentation in that worktree or the investigation location, so the reviewed checkout stays byte-for-byte as the user left it. Compare base and head under equivalent relevant inputs and environments; record differences and their limits. If the base cannot run, label its result as a prediction. A model or instrumented run establishes only what it exercises. Instrumentation can expose a real defect; determine whether it observes the failure or introduces a condition outside supported use.
+
+For standalone work, keep useful scripts, inputs, commands, output, and environment details at the investigation location: the directory that `python3 <package>/skills/investigation_dir.py <topic> <project>` creates and prints, which keeps `.scratch/` out of commits. With a caller's report directory, save probe scripts, fixtures, logs, and environment records under `runs/bugs/`; tool results can go under `runs/tools/`. Redact secrets in every command, output, environment record, and captured artifact you show or save; quote only the lines that carry the signal. Use fresh disposable environments or worktrees when needed, within the caller's tool scope. Preserve the caller's report and leave presentation and publication to it.
+
+For an executed finding returned to a caller, save the probe script before running it so the saved file is the one that ran. A short wrapper can invoke an existing test. Retain the result and exact command, not only the script. Classify each investigated hypothesis as supported, contradicted with counterevidence, or unresolved with the missing check. Record useful drops compactly in notes rather than making the reader inspect every abandoned lead.
+
+Done when each hypothesis is supported by a saved probe, contradicted with counterevidence, or unresolved with its missing check.
+
+## 4. Check, rank, and deliver
+
+For each candidate, check reachability, the applicable contract, actual or predicted consequence, and origin. Drop an unchanged pre-existing defect from the change's defect list unless broader review was requested. That drop needs a base: without one, keep every defect in the feature scope, labeled **no base pinned**. Label a defect in the feature scope **from an unrelated commit** only when evidence, a bisect or the caller's commit set against blame, names an introducing commit outside that commit set, and name the commit; blame alone is a lead. Keep a pre-existing defect when the change makes its result worse or exposes it through a new path, labeled **made worse**. A similar pattern elsewhere does not exonerate a new defect.
+
+Compare intent with agreed requirements and applicable contracts. A test or documentation line can explain intended behavior; it does not alone establish that the behavior satisfies the requirement. Reuse settled intent. Settle a compatibility contract from the project's own conventions before asking: its release line, changelog, deprecation practice, public naming, and documented API. Open intent does not demote a verified break: when a probe shows a break a consumer would see and only intent is open, report it as a defect whose action is *you decide*, with the intent question beside it. Ask the author without a defect only when a fact needed to show the break is missing. An untested configuration or hypothetical unreachable path alone does not warrant a question or defect. Bound a negative probe to the configuration it exercised, and retain other configurations only when evidence supports a material concern.
+
+Keep actionable lint/type errors and valid instrumented observations. Drop a hypothesis when a controlling line or observation contradicts it; an assumption about deployment, threads, or timing is not counterevidence. State consequential unresolved assumptions and a check that would settle them. Compare the final claims with their sources before delivery.
+
+Rank by impact, reach and likelihood, recoverability, and confidence. Explain the affected consumer's next action. Silent errors, loud failures, and rare configurations have no fixed priority independent of their consequence.
+
+Deliver `## Defects`, with a numbered item per finding: pinned location, trigger, consequence, origin, evidence status, and consumer impact. Use **executed** for the stated observation with its command/output; use **inferred** for a source-supported prediction and the missing probe. If no defect is found, say so within the inspected scope and name what was checked and the remaining gaps. When a probe executed a pre-existing defect that step 4 dropped and its impact is material, list it under `## Outside the change` with the same fields; it is not a defect of the change. Include `## Questions for the author` for material unresolved questions, or state that none remain. A confirmed consequence whose materiality depends on a scale or configuration the review could not verify goes under `## Minor observations`, one line each, naming that condition. A confirmed failure any caller of the changed path can trigger is a defect, ranked by its consequence; an absent in-repo caller does not make it minor. A hypothesis contradicted by counterevidence stays in the notes. Keep routine drops and detailed tool logs in the investigation notes.
+
+When [pr-review-guide](../pr-review-guide/SKILL.md) or [check-acceptance](../check-acceptance/SKILL.md) calls this skill, provide the fields its [bug cards](../REPORT-PARTS.md#bug-cards) need: origin as new, made worse, from an unrelated commit with the introducing commit's SHA, or no base pinned; separate base/head results; and `predicted:` for each unobserved result. For an executed finding, include the exact command, decisive output excerpt, and script path relative to the report such as `runs/bugs/duplicate-event.py`. For an inferred finding, include separate base/head predictions and a runnable settling check. The caller owns integration.
+
+Done when findings have actionable triggers and consequences, evidence matches the stated confidence and source, and material limits are visible. Finding no defect is a scoped result, not proof that the change is correct.

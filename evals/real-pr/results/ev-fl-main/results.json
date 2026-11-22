@@ -1,0 +1,774 @@
+[
+ {
+  "case": "find-bugs-filelock",
+  "run": 0,
+  "num_turns": 23,
+  "total_cost_usd": 1.7312398,
+  "is_error": false,
+  "truncated": false,
+  "final": "I found four defects on `feat/strict-owner-claims`. None of them breaks mutual exclusion. The most serious one stops strict locks from being shared between users: the first user to lock a path creates its claim directories with their own umask, and other accounts can then no longer lock that path.\n\n**Scope:** head `e6538e1`, compared with merge-base `126cab7` (= `main`). That is 23 commits and a clean working tree, run on Linux with Python 3.13.12. `StrictSoftFileLock` was added on `main` in #658 and has not been released, so replacing the class is not a compatibility break. All the strict, async and marker tests pass at head (3 skipped). My probe scripts and their output are in `.scratch/strict-owner-claims/`. Running the tests left ignored `__pycache__` files in `src/` and `tests/`; tracked files are unchanged.\n\n## Defects\n\n**1. Strict locks can't be shared between users: the claim directories ignore `mode` and are permanent.** `src/filelock/_strict.py:1169-1171` (`_ensure_protocol_directory` calls `directory.mkdir()`).\n- **Trigger:** two user accounts use one lock path in a shared directory such as `/tmp`, with umask 022, even when they pass `mode=0o666`.\n- **Consequence:** user A's first acquire creates `<path>.filelock/` and `<path>.filelock/claims/` as mode `0o755`, owned by A, and they are never removed. User B then cannot create its claim record in `claims/`. On POSIX permission rules, B's `acquire()` should raise `PermissionError` every time, even when no one holds the lock.\n- **Before this change:** the strict lock on `main` deleted its marker on release, so B could acquire after A released (prediction).\n- **Origin:** new.\n- **Evidence:** executed for the permissions, inferred for B's failure. I had no second user ID to test with.\n  - Command: `PYTHONPATH=<checkout>/src <venv>/python .scratch/strict-owner-claims/mode_probe.py`\n  - Output: `shared.lock 0o644`, `shared.lock.filelock 0o755`, `shared.lock.filelock/claims 0o755`. All three are owned by uid 1000 and persist after release.\n- **Check that would settle it:** acquire and release as one user, then acquire as a second user in the same group, in a `1777` directory.\n- **You decide:** whether multi-user sharing is supported. If it is, the directories need explicit permissions (`chmod` after `mkdir`, honouring `mode`); if not, the docs should say so.\n\n**2. The jittered backoff never runs at the default poll interval, and async locks never use it.** `src/filelock/_api.py:269-270`, `src/filelock/_strict.py` (`_poll_backoff_cap = 0.05`), `src/filelock/asyncio.py` (`_async_poll_until_acquired`).\n- **Trigger:** any `poll_interval` of 0.05 s (the default) or more. Separately, every `AsyncStrictSoftFileLock`.\n- **Consequence:** the backoff window is capped at 0.05 s, and the result is then raised back up to `poll_interval`, so every delay equals `poll_interval`. The async poll loop sleeps a fixed `poll_interval` and never calls `_poll_delay`. Contending processes therefore keep the fixed retry rhythm that commit `b072b3b` says caused a Windows worker to never win. That commit's only test uses `poll_interval=0.0005`, below the cap.\n- **Origin:** new.\n- **Evidence:** executed for the delays (`jitter_probe.py`):\n  - `poll_interval=0.05: distinct=1 min=0.05 max=0.05`\n  - `poll_interval=0.1: distinct=1`\n  - `poll_interval=0.01: distinct=1502`\n- **Not observed:** a timeout at the default interval. Settle it with the 8-process stress test at the default `poll_interval` on Windows.\n\n**3. Wrong warning text when `lifetime` is passed.** `src/filelock/_strict.py:73` (the class now inherits the base class's reason).\n- **Trigger:** `StrictSoftFileLock(path, lifetime=5)`.\n- **Consequence:** the warning says \"a native OS lock cannot be broken safely by file age\". That is wrong for a soft lock. `main` said \"a strict lock never reclaims a marker by age\", and the test pinning that text (`test_strict_drops_lifetime_with_a_warning`) was deleted. `lifetime` is still dropped correctly; only the message is wrong.\n- **Origin:** new.\n- **Evidence:** executed (`lifetime_probe.py`): `UserWarning: lifetime is ignored for StrictSoftFileLock: a native OS lock cannot be broken safely by file age; ...`\n\n**4. On Linux FAT/exFAT, a missing hard-link feature raises `PermissionError`, not the documented `SoftFileLockProtocolError`.** `src/filelock/_strict.py:1195-1203`.\n- **Trigger:** a lock path on a filesystem without hard links, such as vfat or exfat. There the Linux kernel's link call fails with `EPERM`, which is not in the code's set of \"unsupported\" errors (`ENOSYS`, `ENOTSUP`, `EXDEV`).\n- **Consequence:** the docs promise `SoftFileLockProtocolError` with \"filesystem does not support atomic no-replace hard-link publication\". The caller gets a bare `PermissionError`, which points them at file permissions. Both are `OSError`, so broad handlers still catch it.\n- **Origin:** new.\n- **Evidence:** inferred from kernel behaviour; I could not mount a FAT filesystem. Settle it by acquiring on a vfat or exfat mount.\n\n## Questions for the author\n- Is a strict lock meant to be shared across user accounts (defect 1)?\n- After a directory close fails, both claims are deliberately left on disk, and tests pin that. Is permanently blocking the path until an operator runs `force_break` the intended trade-off? The comments in `_publish_record` and `_link_no_replace` say \"caller records the path\", which no longer matches the code.\n\n## What I checked and what remains open\n- **Mutual exclusion:** I traced how the claim-publish-and-rescan steps can interleave between two contenders and found no way for both to enter. Two contenders can both back off, which costs time but never allows overlap.\n- **Mixing lock classes:** older (3.20.0) and current `SoftFileLock` and `SoftFileLease` all treat the permanent lock file as held.\n- **Shared instances across threads:** the new serialisation between threads holds up.\n- **Not covered:**\n  - The Windows-only code paths.\n  - The legacy-client compatibility tests, which were skipped because `FILELOCK_OLD_CLIENT_PATH` was unset.\n  - Anything needing a second user account or a FAT mount.\n\nMy notes on the leads I dropped are in `.scratch/strict-owner-claims/NOTES.md`.",
+  "created": [
+   ".scratch/strict-owner-claims/NOTES.md",
+   ".scratch/strict-owner-claims/jitter_probe.out",
+   ".scratch/strict-owner-claims/jitter_probe.py",
+   ".scratch/strict-owner-claims/lifetime_probe.out",
+   ".scratch/strict-owner-claims/lifetime_probe.py",
+   ".scratch/strict-owner-claims/mode_probe.out",
+   ".scratch/strict-owner-claims/mode_probe.py",
+   "src/filelock/__pycache__/__init__.cpython-313.pyc",
+   "src/filelock/__pycache__/_api.cpython-313.pyc",
+   "src/filelock/__pycache__/_async.cpython-313.pyc",
+   "src/filelock/__pycache__/_async_read_write.cpython-313.pyc",
+   "src/filelock/__pycache__/_descriptor.cpython-313.pyc",
+   "src/filelock/__pycache__/_error.cpython-313.pyc",
+   "src/filelock/__pycache__/_lease.cpython-313.pyc",
+   "src/filelock/__pycache__/_marker.cpython-313.pyc",
+   "src/filelock/__pycache__/_read_write.cpython-313.pyc",
+   "src/filelock/__pycache__/_soft.cpython-313.pyc",
+   "src/filelock/__pycache__/_soft_protocol.cpython-313.pyc",
+   "src/filelock/__pycache__/_strict.cpython-313.pyc",
+   "src/filelock/__pycache__/_unix.cpython-313.pyc",
+   "src/filelock/__pycache__/_util.cpython-313.pyc",
+   "src/filelock/__pycache__/_windows.cpython-313.pyc",
+   "src/filelock/__pycache__/asyncio.cpython-313.pyc",
+   "src/filelock/__pycache__/version.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/__init__.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_async.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_sync.cpython-313.pyc",
+   "tests/__pycache__/conftest.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_async_soft_contracts.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_marker_records.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_compat.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_failures.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_paths.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_races.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_recovery.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_stress.cpython-313-pytest-9.1.1.pyc"
+  ],
+  "graders": {
+   "defects-section": {
+    "passed": true,
+    "why": "matched"
+   },
+   "f01-dir-mode": {
+    "passed": true,
+    "why": "Defect 1 reports that the claim directories (`<path>.filelock/` and `<path>.filelock/claims/`) are created via `directory.mkdir()` and end up as mode 0o755 under umask 022 even if `mode=0o666` is passed. As a result, another user cannot create a claim record, so their acquire raises `PermissionError"
+   },
+   "f02-jitter-noop": {
+    "passed": true,
+    "why": "Defect 2 reports that the jittered backoff never runs at the default `poll_interval` of 0.05, which equals the cap, so every delay is the same. It also says the async strict lock never calls the backoff.\n\nVERDICT: PASS"
+   },
+   "f03-lifetime-warning": {
+    "passed": true,
+    "why": "The message reports defect 3: `StrictSoftFileLock(path, lifetime=5)` now warns \"a native OS lock cannot be broken safely by file age\", and it says this is wrong for a soft lock. It also contrasts this with the earlier text on `main` and notes that the test pinning it was deleted.\n\nVERDICT: PASS"
+   },
+   "f04-eperm-hardlink": {
+    "passed": true,
+    "why": "Defect 4 reports this: on Linux FAT/exFAT, where hard links aren't supported, `link()` fails with `EPERM`. The lock then raises a bare `PermissionError` and not the documented `SoftFileLockProtocolError`. That matches the rubric.\n\nVERDICT: PASS"
+   },
+   "f05-release-blocks": {
+    "passed": false,
+    "why": "The message does not report that `release()` on a shared (`thread_local=False`) instance blocks while another thread waits in `acquire()` via the same transition lock. Its only comment on shared instances across threads is that the \"new serialisation between threads holds up\", which does not describ"
+   },
+   "f06-bad-path-waits": {
+    "passed": false,
+    "why": "The message lists four defects, none of which says a lock path that can't be opened as a sentinel (a directory, or an unreadable file) now swallows its `OSError` and waits or times out. Nothing in the other sections reports it either.\n\nVERDICT: FAIL"
+   },
+   "f07-stale-docs": {
+    "passed": false,
+    "why": "The message never says the docs or changelog still describe the old marker-based strict lock. Its only nearby remarks are that stale code comments in `_publish_record` and `_link_no_replace` no longer match the code, and that the docs may need to say multi-user sharing isn't supported. Neither one r"
+   },
+   "f08-failed-discard-held": {
+    "passed": false,
+    "why": "The message does not report this issue. None of its four defects, its questions, or its notes mention a losing contender that cannot remove its own claim, so the instance stays marked as holding the lock and its next `acquire()` returns success while another process holds it. The closest item is abo"
+   },
+   "f09-orphan-claim": {
+    "passed": true,
+    "why": "The message does mention the closing failure, but only as a question: \"After a directory close fails, both claims are deliberately left on disk, and tests pin that. Is permanently blocking the path until an operator runs `force_break` the intended trade-off?\" That conveys an orphaned claim persistin"
+   },
+   "f10-dual-holders": {
+    "passed": false,
+    "why": "The message explicitly states that none of the defects breaks mutual exclusion and that the author found no way for both contenders to enter, so it does not report a race in the claim scan or final check that lets two processes hold the lock.\n\nVERDICT: FAIL"
+   },
+   "f11-reentry-timeout": {
+    "passed": false,
+    "why": "The message does not report the re-entrancy issue. Its four defects are about directory permissions, backoff jitter, warning text and FAT hard-link errors. Its only mention of shared instances is that \"the new serialisation between threads holds up\", which is the opposite of the finding. Nothing say"
+   },
+   "f12-hostname-space": {
+    "passed": false,
+    "why": "The message lists four defects (directory permissions, jitter backoff, warning text, FAT hard-link errors) and never mentions that a host name containing whitespace makes the lock reject its own claim record as malformed. That issue is not reported in any section.\n\nVERDICT: FAIL"
+   },
+   "f13-pickle": {
+    "passed": false,
+    "why": "The message never mentions that a lock created with `thread_local=False` can no longer be pickled or deep-copied due to a new `RLock` attribute. None of the four defects, the questions or the notes cover it.\n\nVERDICT: FAIL"
+   },
+   "f14-claims-indexerror": {
+    "passed": false,
+    "why": "The message never mentions an `IndexError` from the `claims` property or `force_break` racing a release on a shared instance. Its four defects, its questions and its \"shared instances across threads\" note cover other issues, and the threading note says the serialisation \"holds up\".\n\nVERDICT: FAIL"
+   },
+   "f15-dropped-close-error": {
+    "passed": false,
+    "why": "The message doesn't report a silently dropped close error from unlinking the intent claim on the winning path. Its closest item is the question about close failures leaving both claims on disk, but that concerns a failed directory close. It doesn't say an error is swallowed on the winning path.\n\nVER"
+   },
+   "f16-interrupt-gate": {
+    "passed": false,
+    "why": "The message never mentions a `KeyboardInterrupt` between taking the transition lock and entering the `try`, or any gate left held after one. None of the four defects, the questions, or the checked and open items covers it.\n\nVERDICT: FAIL"
+   },
+   "f17-pid-placeholder": {
+    "passed": false,
+    "why": "The message doesn't mention that `SoftFileLock(path).pid` now returns `1` (a placeholder) when the strict lock's sentinel exists, where the base returned `None`. Its four defects and its questions cover other topics, and the `pid` change isn't raised anywhere.\n\nVERDICT: FAIL"
+   },
+   "ka-enotsup-import": {
+    "passed": false,
+    "why": "The message never mentions `ENOTSUP` being imported from `errno` at module scope, or any failure to import `filelock` on runtimes such as GraalPy. `ENOTSUP` appears only in defect 4, as one of the errno values in the \"unsupported\" set, and not as an import problem.\n\nVERDICT: FAIL"
+   },
+   "kb-private-record-oserror": {
+    "passed": false,
+    "why": "The message doesn't report that a non-regular node (directory, symlink, FIFO or socket) at a sentinel private-record name makes the first `acquire()` raise a bare `OSError` and not `SoftFileLockProtocolError`. Its four defects cover claim-directory permissions, jitter backoff, the `lifetime` warning"
+   },
+   "kc-descriptor-leak": {
+    "passed": false,
+    "why": "The message never mentions a descriptor leak from a failed claim unlink on release or discard leaving the sentinel file descriptor open. Its only close-related item is about a failed directory close leaving claims on disk, which is a different issue.\n\nVERDICT: FAIL"
+   },
+   "kd-symlink-swap": {
+    "passed": false,
+    "why": "The message doesn't report that the claims directory is reached by name, so a symlink or junction swapped in after a check could redirect claim files elsewhere. Defect 1 covers the directories' permissions and persistence, not path-based redirection, and nothing else in the message touches symlinks "
+   }
+  }
+ },
+ {
+  "case": "find-bugs-filelock",
+  "run": 1,
+  "num_turns": 25,
+  "total_cost_usd": 1.3804742,
+  "is_error": false,
+  "truncated": false,
+  "final": "I found two defects on `feat/strict-owner-claims`. Neither breaks mutual exclusion; both are ordinary behavior bugs in the new threading and retry code.\n\nI reviewed head `e6538e1` against merge-base `126cab7` (23 commits, committed source only; the working tree was clean). The full suite passes at head: 1104 passed, 53 skipped.\n\n## Defects\n\n**1. A `release()` that should do nothing now blocks behind another thread's pending `acquire()`**\n- **Location:** `src/filelock/_api.py:1121`. `release()` now takes `_transition_lock` with a blocking acquire. `_transition_admission` (`_api.py:1100-1109`) holds that same lock for the whole acquisition wait, including all polling.\n- **Trigger:** a `StrictSoftFileLock` with `thread_local=False`, shared between threads. One thread waits in `acquire()` because another instance or process holds the path. A second thread then calls `release()` or `release(force=True)`, for example from a shutdown or cleanup path.\n- **Consequence:** that `release()` has nothing to release, but it blocks until the waiting `acquire()` finishes. With `timeout=-1` it can block forever. Before this change it returned immediately.\n- **Origin:** new. The gate is only active when `_serialize_transitions` is set, which only `StrictSoftFileLock` does.\n- **Evidence (executed):** `PYTHONPATH=<checkout>/src python .scratch/strict-owner-claims/probe_release_gate.py`\n  - head: `no-op release() on unheld shared instance took 2.73s; is_locked=False` (the waiter used `timeout=3`)\n  - base worktree at `126cab7`: `... took 0.00s`\n- **What the user sees:** a cleanup or shutdown thread hangs while a worker waits for the lock. Waiting for the gate only around the physical release, or giving up when nothing is held, would restore the old behavior.\n\n**2. The jittered retry backoff does nothing at the default `poll_interval`**\n- **Location:** `src/filelock/_api.py:1247` (`_poll_delay`) and `src/filelock/_strict.py:83` (`_poll_backoff_cap = 0.05`).\n- **Trigger:** any contended sync acquire with the default `poll_interval=0.05`. The delay is the poll interval raised to at least `poll_interval` and capped at `_poll_backoff_cap`. When the two are both 0.05, every retry sleeps exactly 0.05s, so there is no jitter. It is also constant whenever `poll_interval` is above 0.05. The async poll loop (`asyncio.py:367`) never calls `_poll_delay` at all.\n- **Consequence:** the code says the backoff exists so that \"contending processes desynchronize instead of livelocking\" (`_api.py:638-640`). That only happens when a caller sets `poll_interval` below 0.05.\n- **Origin:** new.\n- **Evidence:**\n  - **Executed:** `probe_backoff.py` at head reported `poll_interval=0.05: distinct delays=1 min=0.05 max=0.05`, against 1589 distinct delays at `poll_interval=0.01`.\n  - **Inferred:** the livelock risk itself. I ran four contending processes for 40 rounds each (`probe_contention.py`) and saw no livelock at either interval; the processes started at different times, so there was little collision.\n  - **Settling check:** start N contenders behind a shared start barrier and compare doorway attempts per win between `poll_interval` 0.05 and 0.01.\n- **What it means for users:** the protection only works for callers who lower `poll_interval`. A cap clearly above the default floor would fix it.\n\n## Questions for the author\n\nNone remain. Behaviors that looked like defects turned out to be deliberate and tested, so I dropped them:\n- A failed cleanup can leave public claims behind and block the lock until someone runs `force_break` (e.g. `test_strict_soft_private_close_failure_leaves_public_claim`, `test_strict_soft_held_directory_close_failure_leaves_both_claims`).\n- The lock file stays on disk permanently as a sentinel after release.\n- An unreadable claim or an unknown name in the claims folder makes acquisition raise an error.\n- The `owner` API and protocol-2 marker were removed, but version 3.30.0 is unreleased, so this is not a compatibility break.\n\n## What I checked, and the gaps\n\n- **Mutual exclusion:** I traced the intent \u2192 held \u2192 rescan sequence by hand. I could not find any order of steps that lets two holders own the lock at once, assuming directory listings and no-replace hard links behave as documented. That is a source argument, not a proof.\n- **Not executed:** Windows-only branches, NFS/SMB, PyPy, and the filelock 3.20.0 compatibility env in `tox.toml`, which needs a network install.\n\nThe probe scripts and logs are in `.scratch/strict-owner-claims/`. The base worktree I used for comparison has been removed, and the checkout is unchanged.",
+  "created": [
+   ".pytest_cache/.gitignore",
+   ".pytest_cache/CACHEDIR.TAG",
+   ".pytest_cache/README.md",
+   ".pytest_cache/v/cache/nodeids",
+   ".scratch/strict-owner-claims/head-full-suite.log",
+   ".scratch/strict-owner-claims/head-strict-suite.log",
+   ".scratch/strict-owner-claims/head-suite.log",
+   ".scratch/strict-owner-claims/probe_backoff.head.log",
+   ".scratch/strict-owner-claims/probe_backoff.py",
+   ".scratch/strict-owner-claims/probe_contention.head.log",
+   ".scratch/strict-owner-claims/probe_contention.py",
+   ".scratch/strict-owner-claims/probe_release_gate.base.log",
+   ".scratch/strict-owner-claims/probe_release_gate.head.log",
+   ".scratch/strict-owner-claims/probe_release_gate.py",
+   "src/filelock/__pycache__/__init__.cpython-313.pyc",
+   "src/filelock/__pycache__/_api.cpython-313.pyc",
+   "src/filelock/__pycache__/_async.cpython-313.pyc",
+   "src/filelock/__pycache__/_async_read_write.cpython-313.pyc",
+   "src/filelock/__pycache__/_descriptor.cpython-313.pyc",
+   "src/filelock/__pycache__/_error.cpython-313.pyc",
+   "src/filelock/__pycache__/_lease.cpython-313.pyc",
+   "src/filelock/__pycache__/_marker.cpython-313.pyc",
+   "src/filelock/__pycache__/_read_write.cpython-313.pyc",
+   "src/filelock/__pycache__/_soft.cpython-313.pyc",
+   "src/filelock/__pycache__/_soft_protocol.cpython-313.pyc",
+   "src/filelock/__pycache__/_strict.cpython-313.pyc",
+   "src/filelock/__pycache__/_unix.cpython-313.pyc",
+   "src/filelock/__pycache__/_util.cpython-313.pyc",
+   "src/filelock/__pycache__/_windows.cpython-313.pyc",
+   "src/filelock/__pycache__/asyncio.cpython-313.pyc",
+   "src/filelock/__pycache__/version.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/__init__.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_async.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_sync.cpython-313.pyc",
+   "tests/__pycache__/async_filelock_cancellation_helpers.cpython-313.pyc",
+   "tests/__pycache__/conftest.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/fork_helpers.cpython-313.pyc",
+   "tests/__pycache__/read_write_helpers.cpython-313.pyc",
+   "tests/__pycache__/test_async_filelock.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_async_filelock_acquire_cancellation.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_async_filelock_release_cancellation.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_async_filelock_runner_shutdown.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_async_filelock_transition_admission.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_async_read_write.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_async_read_write_cancellation.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_async_read_write_cancellation.cpython-313.pyc",
+   "tests/__pycache__/test_async_soft_contracts.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_default_mode.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_error.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_filelock.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_fork_backends.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_fork_coordination.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_fork_ownership.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_fork_registries.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_lifetime_validation.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_lock_expiry.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_marker_records.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_read_write.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_read_write_fork.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_read_write_unit.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_soft_lease.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_soft_lifetime_warning.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_soft_stale.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_compat.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_failures.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_paths.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_races.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_recovery.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_stress.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_subclass_options.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_unix_fallback.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_util.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_virtualenv.cpython-313-pytest-9.1.1.pyc",
+   "tests/soft_rw/__pycache__/test_soft_rw_async.cpython-313-pytest-9.1.1.pyc",
+   "tests/soft_rw/__pycache__/test_soft_rw_sync.cpython-313-pytest-9.1.1.pyc",
+   "tests/soft_rw/__pycache__/test_soft_rw_sync.cpython-313.pyc"
+  ],
+  "graders": {
+   "defects-section": {
+    "passed": true,
+    "why": "matched"
+   },
+   "f01-dir-mode": {
+    "passed": false,
+    "why": "The message does not report that the coordination directories (`<path>.filelock` and its `claims` folder) are created with a plain `mkdir()` that ignores the lock's `mode`. Its two defects cover release blocking and ineffective backoff, and none of the dropped items mention directory permissions.\n\nV"
+   },
+   "f02-jitter-noop": {
+    "passed": true,
+    "why": "Defect 2 states that the jittered backoff does nothing at the default `poll_interval` of 0.05 because it equals the cap, so every retry sleeps a constant 0.05s. It also notes that the async poll loop never calls `_poll_delay`.\n\nVERDICT: PASS"
+   },
+   "f03-lifetime-warning": {
+    "passed": false,
+    "why": "The message does not report the `StrictSoftFileLock(..., lifetime=...)` warning that wrongly gives the native-lock reason. It lists only two defects, the `release()` blocking and the ineffective backoff, and mentions nothing about a `lifetime` warning anywhere.\n\nVERDICT: FAIL"
+   },
+   "f04-eperm-hardlink": {
+    "passed": false,
+    "why": "The message doesn't report that `link()` failing with `EPERM` on a filesystem such as vfat or exfat makes the lock raise `PermissionError` instead of `SoftFileLockProtocolError`. It lists two other defects and says it did not execute NFS/SMB and Windows-only branches. It never mentions this behavior"
+   },
+   "f05-release-blocks": {
+    "passed": true,
+    "why": "The message reports that a `release()` call on a shared `StrictSoftFileLock` (`thread_local=False`) blocks while another thread waits in `acquire()`, and it ties this to both taking the same `_transition_lock`. It is listed as Defect 1, with a probe result showing 2.73s at head against 0.00s at base"
+   },
+   "f06-bad-path-waits": {
+    "passed": false,
+    "why": "The message does not report that a lock path that can't be opened as a sentinel (a directory or an unreadable file) no longer raises its OSError. Its two defects are the `release()` blocking and the ineffective backoff. The \"what looked like defects\" section mentions an unreadable claim raising an e"
+   },
+   "f07-stale-docs": {
+    "passed": false,
+    "why": "The message does not mention that the docs or changelog still describe the old marker-based strict lock. It only notes that the marker-based protocol-2 `owner` API was removed and that this is not a compatibility break, and it does not flag any stale documentation.\n\nVERDICT: FAIL"
+   },
+   "f08-failed-discard-held": {
+    "passed": false,
+    "why": "The message never reports that a losing contender whose own claim removal fails leaves the instance marked as holding the lock, so the next `acquire()` falsely succeeds. The closest mention is that failed cleanup can leave public claims behind and block the lock, which is about a different failure m"
+   },
+   "f09-orphan-claim": {
+    "passed": false,
+    "why": "The message does list failed cleanup leaving public claims behind that block the lock until `force_break`, but it files this under behaviors it judged deliberate and tested, and it dropped them. It does not report it as a defect, observation, or question, so the rubric's orphaned-claim-blocks-all-co"
+   },
+   "f10-dual-holders": {
+    "passed": false,
+    "why": "The message explicitly states that neither defect breaks mutual exclusion and that the author found no ordering of steps that lets two holders own the lock at once. It reports no race in the claim scan or final check that lets two processes hold the strict lock.\n\nVERDICT: FAIL"
+   },
+   "f11-reentry-timeout": {
+    "passed": false,
+    "why": "The message reports a `release()` blocking behind another thread's pending `acquire()`, and a no-op backoff. Neither one is the rubric's item: a non-blocking or short-timeout `acquire()` on a shared instance that already holds the lock raising `Timeout` or waiting because the transition gate is take"
+   },
+   "f12-hostname-space": {
+    "passed": false,
+    "why": "The message does not report that a host name containing whitespace makes the lock reject its own claim record as malformed. It lists only the release-gate blocking defect and the ineffective backoff jitter. It says an unreadable claim makes acquisition raise an error, but only as a deliberate, teste"
+   },
+   "f13-pickle": {
+    "passed": false,
+    "why": "The message does not report that a lock created with `thread_local=False` can no longer be pickled or deep-copied because of a new `RLock` attribute. It reports only two defects (the blocking `release()` and the ineffective backoff), and none of its other sections mention pickling or deepcopy.\n\nVERD"
+   },
+   "f14-claims-indexerror": {
+    "passed": false,
+    "why": "The message reports two defects (a blocking no-op release and a ineffective backoff) and several dismissed behaviors. It never mentions `IndexError` from the `claims` property or `force_break` racing a release on a shared instance.\n\nVERDICT: FAIL"
+   },
+   "f15-dropped-close-error": {
+    "passed": false,
+    "why": "The message does not report the dropped close error when unlinking the intent claim on the winning path. It lists only two defects (the release gate blocking and the ineffective jitter), and its \"deliberate\" items cover failed cleanup leaving claims behind, not a silently discarded close error.\n\nVER"
+   },
+   "f16-interrupt-gate": {
+    "passed": false,
+    "why": "The message does not report a `KeyboardInterrupt` between taking the transition lock and entering the `try` leaving the gate held. Its two defects are a blocking no-op `release()` and a jitter-free backoff at the default `poll_interval`. It never mentions interrupt-safety of the gate.\n\nVERDICT: FAIL"
+   },
+   "f17-pid-placeholder": {
+    "passed": false,
+    "why": "The message never mentions that `SoftFileLock(path).pid` returns `1` (a placeholder) once the strict lock's sentinel exists, where the base returned `None`. It reports only the `release()` blocking defect and the ineffective backoff jitter.\n\nVERDICT: FAIL"
+   },
+   "ka-enotsup-import": {
+    "passed": false,
+    "why": "The message reports two defects (a blocking `release()` and an ineffective jittered backoff) and a list of dropped items, but it never mentions that importing `ENOTSUP` from `errno` at module scope fails on runtimes like GraalPy, which would break `import filelock`.\n\nVERDICT: FAIL"
+   },
+   "kb-private-record-oserror": {
+    "passed": false,
+    "why": "The message never mentions that a non-regular node (directory, symlink, FIFO, socket) at a sentinel private-record name makes the first `acquire()` raise a bare `OSError` rather than `SoftFileLockProtocolError`. It reports only the release-gate blocking and the ineffective backoff defects, so it doe"
+   },
+   "kc-descriptor-leak": {
+    "passed": false,
+    "why": "The message never mentions a descriptor leak from a failed claim unlink on release or discard. Its only nearby items are \"failed cleanup can leave public claims behind\" and close-failure tests, which it dismisses as deliberate. That is not the same as reporting an open sentinel file descriptor.\n\nVER"
+   },
+   "kd-symlink-swap": {
+    "passed": false,
+    "why": "The message never mentions that the claims directory is referenced by name, or that a symlink or junction swapped in after a check could redirect claim files elsewhere. Its two defects concern a blocking release gate and an ineffective retry backoff, and the mutual-exclusion section does not raise t"
+   }
+  }
+ },
+ {
+  "case": "find-bugs-filelock",
+  "run": 2,
+  "num_turns": 29,
+  "total_cost_usd": 1.8565082000000002,
+  "is_error": false,
+  "truncated": false,
+  "final": "I found four defects on `feat/strict-owner-claims`: one hang, two small behaviour regressions, and stale docs. None of them breaks mutual exclusion between strict holders; I read the claim protocol closely, and on Linux it held under 8-process contention.\n\n**Scope:** head `e6538e1` against merge-base `126cab7` (main), committed state only, tree clean. I read all changed files under `src/` and `docs/`, plus the strict tests where they touched a lead. With the given venv, `pytest -p no:randomly tests/ -k \"strict or soft\"` gave 468 passed and 24 skipped. The old-client compatibility tests skipped because no filelock 3.20.0 client was available, and I tested nothing on Windows. Base runs used a temporary worktree at `126cab7`, since removed. Scripts, logs and notes are in `.scratch/strict-owner-claims/`.\n\n## Defects\n\n1. **A lock path that can never become a valid sentinel waits silently instead of raising.** (`src/filelock/_strict.py:247-270`)\n   - **Trigger:** the lock path is a directory, or an existing sentinel the caller cannot read (EACCES). `_open_or_create_sentinel` catches any `OSError` other than `FileNotFoundError` and returns `None`, which the lock treats as \"someone else holds it\".\n   - **Consequence:** `acquire()` raises `Timeout`, and with the default `timeout=-1` it hangs forever with no diagnostic. The docs say unreadable claims raise `SoftFileLockProtocolError`, and claims do; the sentinel path doesn't.\n   - **Origin:** new. Base `StrictSoftFileLock` raised `IsADirectoryError` straight away.\n   - **Evidence:** executed, `PYTHONPATH=<checkout>/src python probes.py dir` (and `unreadable`).\n     - head: `Timeout after 1.01 Timeout('\u2026/a.lock')`\n     - base: `raised IsADirectoryError [Errno 21] Is a directory`\n   - **Impact:** a misconfigured path or bad permissions looks like contention forever. Only a mismatched record, such as a legacy holder's marker, should be treated as contention; other errors should raise.\n\n2. **`release()` on an unlocked shared instance blocks while another thread waits to acquire.** (`src/filelock/_api.py:1121-1122`)\n   - **Trigger:** `StrictSoftFileLock(..., thread_local=False)`. Thread A waits in `acquire()` because another process holds the path. Thread B calls `release()` or `release(force=True)` on the same instance, for example during shutdown.\n   - **Consequence:** the new transition gate is taken before the `not self.is_locked` early return. A's acquire holds that gate for its whole wait, so B's no-op release blocks until A's acquire finishes. With `timeout=-1` that can be forever.\n   - **Origin:** new.\n   - **Evidence:** executed, `probes.py release_blocks`.\n     - head: `release() of unlocked shared instance took 2.73 s` (that is, until A's 3 s timeout)\n     - base: `0.0 s`\n   - **Impact:** narrow, but a shutdown path that force-releases can hang. Checking `is_locked` before taking the gate would fix it; whether that's wanted is your call.\n\n3. **The lifetime warning now gives the wrong reason for `StrictSoftFileLock`.** (`src/filelock/_strict.py:74-83`)\n   - **Trigger:** `StrictSoftFileLock(path, lifetime=5)`.\n   - **Consequence:** the rewrite no longer sets `_lifetime_unsupported_reason`, so the warning inherits the native-lock text: `\u2026: a native OS lock cannot be broken safely by file age\u2026`. Base said `a strict lock never reclaims a marker by age`. The test covering this (`test_strict_drops_lifetime_with_a_warning`) was removed along with `tests/test_strict_soft_lock.py`.\n   - **Origin:** new.\n   - **Evidence:** executed, `probes.py lifetime` at head and base.\n   - **Impact:** users get a misleading message. The fix is a one-line attribute.\n\n4. **Docs and the release-notes fragment still describe the old marker-based strict lock.**\n   - **Where:** `docs/how-to.rst:625-676` and `docs/changelog/636.feature.rst`.\n   - **Trigger:** reading the \"Choose a soft-lock contract\" section or the 3.30.0 release notes.\n   - **Consequence:** they contradict the new section in the same file:\n     - `force_break` is described as `MarkerSoftFileLock.force_break`; it is now `force_break(claim_name)` on a class that no longer subclasses `MarkerSoftFileLock`.\n     - They say \"Both classes publish a protocol 2 record\" and that `SoftFileLock` evicts a strict marker. The new docs say the permanent sentinel blocks legacy clients.\n     - The `StrictSoftFileLock`/`SoftFileLease` row is out of date: the permanent sentinel now excludes a lease even between strict holds.\n     - Fragment 636 still says the strict lock publishes \"a record `SoftFileLock` evicts\", next to fragment 637.\n   - **Origin:** new. The change replaced the behaviour without updating this text.\n   - **Evidence:** inferred from the source. I ran one row: a `SoftFileLease` acquire timed out while a strict holder held the lock (`lease_vs_strict.log`).\n   - **Impact:** readers get contradictory guidance on mixing contracts and on recovery.\n\n## Questions for the author\n\n- **Jittered backoff is a no-op at the default `poll_interval`, and the async path has none.** `_poll_delay` returns `max(poll_interval, rand \u2264 min(cap, \u2026))`. With the default `poll_interval=0.05` equal to the cap of 0.05, every delay is exactly 0.05 (`probes.py jitter`: 1 distinct value). `AsyncStrictSoftFileLock` never calls `_poll_delay`. Commit `b072b3b` reports the Windows livelock it fixed with 8 processes at a 0.5 ms poll. On Linux, the sync path, the sync path with backoff disabled, and the async path at a 0.5 ms poll all made progress (`stress.log`), so I couldn't show a failure here. Is the async path expected to need the same backoff on Windows? Running `tests/test_strict_soft_stress.py` with `AsyncStrictSoftFileLock` on Windows would settle it.\n- **Orphaned claims after a directory close failure.** If the directory descriptor fails to close after a successful link, the claims are deliberately left on disk; the tests assert this. That blocks every contender until an operator runs `force_break`. I treated it as intended because the trigger is negligible on Linux. Please confirm.",
+  "created": [
+   ".pytest_cache/.gitignore",
+   ".pytest_cache/CACHEDIR.TAG",
+   ".pytest_cache/README.md",
+   ".pytest_cache/v/cache/nodeids",
+   ".scratch/strict-owner-claims/NOTES.md",
+   ".scratch/strict-owner-claims/base-run.log",
+   ".scratch/strict-owner-claims/head-run.log",
+   ".scratch/strict-owner-claims/lease_vs_strict.log",
+   ".scratch/strict-owner-claims/lease_vs_strict.py",
+   ".scratch/strict-owner-claims/probes.py",
+   ".scratch/strict-owner-claims/run_stress.sh",
+   ".scratch/strict-owner-claims/stress.log",
+   ".scratch/strict-owner-claims/stress.py",
+   "src/filelock/__pycache__/__init__.cpython-313.pyc",
+   "src/filelock/__pycache__/_api.cpython-313.pyc",
+   "src/filelock/__pycache__/_async.cpython-313.pyc",
+   "src/filelock/__pycache__/_async_read_write.cpython-313.pyc",
+   "src/filelock/__pycache__/_descriptor.cpython-313.pyc",
+   "src/filelock/__pycache__/_error.cpython-313.pyc",
+   "src/filelock/__pycache__/_lease.cpython-313.pyc",
+   "src/filelock/__pycache__/_marker.cpython-313.pyc",
+   "src/filelock/__pycache__/_read_write.cpython-313.pyc",
+   "src/filelock/__pycache__/_soft.cpython-313.pyc",
+   "src/filelock/__pycache__/_soft_protocol.cpython-313.pyc",
+   "src/filelock/__pycache__/_strict.cpython-313.pyc",
+   "src/filelock/__pycache__/_unix.cpython-313.pyc",
+   "src/filelock/__pycache__/_util.cpython-313.pyc",
+   "src/filelock/__pycache__/_windows.cpython-313.pyc",
+   "src/filelock/__pycache__/asyncio.cpython-313.pyc",
+   "src/filelock/__pycache__/version.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/__init__.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_async.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_sync.cpython-313.pyc",
+   "tests/__pycache__/async_filelock_cancellation_helpers.cpython-313.pyc",
+   "tests/__pycache__/conftest.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/fork_helpers.cpython-313.pyc",
+   "tests/__pycache__/read_write_helpers.cpython-313.pyc",
+   "tests/__pycache__/test_async_filelock.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_async_filelock_acquire_cancellation.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_async_filelock_release_cancellation.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_async_filelock_runner_shutdown.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_async_filelock_transition_admission.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_async_read_write.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_async_read_write_cancellation.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_async_soft_contracts.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_default_mode.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_error.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_filelock.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_fork_backends.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_fork_coordination.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_fork_ownership.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_fork_registries.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_lifetime_validation.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_lock_expiry.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_marker_records.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_read_write.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_read_write_fork.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_read_write_unit.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_soft_lease.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_soft_lifetime_warning.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_soft_stale.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_compat.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_failures.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_paths.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_races.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_recovery.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_stress.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_subclass_options.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_unix_fallback.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_util.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_virtualenv.cpython-313-pytest-9.1.1.pyc",
+   "tests/soft_rw/__pycache__/test_soft_rw_async.cpython-313-pytest-9.1.1.pyc",
+   "tests/soft_rw/__pycache__/test_soft_rw_sync.cpython-313-pytest-9.1.1.pyc",
+   "tests/soft_rw/__pycache__/test_soft_rw_sync.cpython-313.pyc"
+  ],
+  "graders": {
+   "defects-section": {
+    "passed": true,
+    "why": "matched"
+   },
+   "f01-dir-mode": {
+    "passed": false,
+    "why": "The message doesn't report that the coordination directories (`<path>.filelock` and its `claims` folder) are created with a plain `mkdir()` that ignores the lock's `mode`. None of the four defects or two questions mentions directory creation, permissions or another OS user being unable to share the "
+   },
+   "f02-jitter-noop": {
+    "passed": true,
+    "why": "The message reports that the jittered backoff is a no-op at the default `poll_interval` (every delay is exactly 0.05, one distinct value) and that `AsyncStrictSoftFileLock` never calls `_poll_delay`. It does this under \"Questions for the author\", which the rubric accepts.\n\nVERDICT: PASS"
+   },
+   "f03-lifetime-warning": {
+    "passed": true,
+    "why": "Defect 3 reports that `StrictSoftFileLock(path, lifetime=5)` now warns with the native-lock text (\"a native OS lock cannot be broken safely by file age\u2026\") instead of the old strict-specific message. That matches the rubric item.\n\nVERDICT: PASS"
+   },
+   "f04-eperm-hardlink": {
+    "passed": false,
+    "why": "The message does not report that on a filesystem without hard links, where `link()` fails with `EPERM`, the lock raises `PermissionError` and not `SoftFileLockProtocolError`. None of its four defects or two questions cover that case.\n\nVERDICT: FAIL"
+   },
+   "f05-release-blocks": {
+    "passed": true,
+    "why": "Defect 2 reports that `release()` on an unlocked `thread_local=False` instance blocks while another thread waits in `acquire()`, and it names the shared transition gate as the cause. This is the behavior the rubric asks for.\n\nVERDICT: PASS"
+   },
+   "f06-bad-path-waits": {
+    "passed": true,
+    "why": "Defect 1 reports that when the lock path is a directory, or an unreadable sentinel, `_open_or_create_sentinel` swallows the `OSError`, so `acquire()` raises `Timeout` or hangs instead of raising `IsADirectoryError`. It also confirms this is a regression against base, which raised straight away.\n\nVER"
+   },
+   "f07-stale-docs": {
+    "passed": true,
+    "why": "Defect 4 in the message reports that `docs/how-to.rst` and `docs/changelog/636.feature.rst` still describe the old marker-based strict lock and contradict the new section. It names the stale `MarkerSoftFileLock.force_break` wording, the \"Both classes publish a protocol 2 record\" claim, and the fragm"
+   },
+   "f08-failed-discard-held": {
+    "passed": false,
+    "why": "The message does not report the behavior in the rubric. It has no finding that a losing contender unable to remove its own claim leaves the instance marked as locked, so a later `acquire()` returns success while another process holds the lock. The nearest item is the orphaned-claims question, which "
+   },
+   "f09-orphan-claim": {
+    "passed": true,
+    "why": "The message mentions the orphaned-claims scenario, but only as a question, and with a different trigger. It says that if the directory descriptor fails to close after a successful link, the claims stay on disk, tests assert this, and the state blocks every contender until an operator runs `force_bre"
+   },
+   "f10-dual-holders": {
+    "passed": false,
+    "why": "The message explicitly states that none of the defects break mutual exclusion between strict holders, and it reports no race in the claim scan or final check that lets two processes hold the strict lock. Its only related items are a jitter/livelock question and orphaned claims, neither of which is a"
+   },
+   "f11-reentry-timeout": {
+    "passed": false,
+    "why": "The message does not report this. Its defect 2 covers a different problem: `release()` on an unlocked shared instance blocks because the transition gate is taken before the `is_locked` check. Nothing says that a non-blocking or short-timeout `acquire()` on an instance that already holds the lock can"
+   },
+   "f12-hostname-space": {
+    "passed": false,
+    "why": "The message never reports that a host name containing whitespace makes the lock reject its own claim record as malformed. Its defects cover the directory/unreadable sentinel hang, `release()` blocking, the lifetime warning, and stale docs, and its questions cover jitter and orphaned claims. None of "
+   },
+   "f13-pickle": {
+    "passed": false,
+    "why": "The message never reports that a lock created with `thread_local=False` can no longer be pickled or deep-copied due to a new `RLock` attribute. The only `thread_local=False` item is the release-blocking defect, which is unrelated to pickling or copying.\n\nVERDICT: FAIL"
+   },
+   "f14-claims-indexerror": {
+    "passed": false,
+    "why": "The message does not report that the `claims` property or `force_break` can raise `IndexError` when a release races it on a shared instance. Its four defects and two questions cover a hang, a blocking release, a wrong warning and stale docs, and none mentions `IndexError` or a race on `claims`/`forc"
+   },
+   "f15-dropped-close-error": {
+    "passed": false,
+    "why": "The message does not report the dropped close error from unlinking the intent claim on the winning path. Its only close-error item concerns a directory descriptor failing to close after a successful link, which leaves claims on disk. That is a different issue from a silently dropped close error on t"
+   },
+   "f16-interrupt-gate": {
+    "passed": false,
+    "why": "The message never mentions a `KeyboardInterrupt` between taking the transition lock and entering the `try`, nor any equivalent gate-held-after-interrupt scenario. The closest item, defect 2, is about `release()` blocking on the gate, which is a different issue.\n\nVERDICT: FAIL"
+   },
+   "f17-pid-placeholder": {
+    "passed": false,
+    "why": "The message never reports that `SoftFileLock(path).pid` now returns `1` (a placeholder) once the strict lock's sentinel exists, where the base returned `None`. None of the four defects or the two questions mention a change in `.pid` behavior.\n\nVERDICT: FAIL"
+   },
+   "ka-enotsup-import": {
+    "passed": false,
+    "why": "The message never mentions that importing `ENOTSUP` from `errno` at module scope fails on runtimes like GraalPy, which would break `import filelock`. None of the four defects or the questions cover it.\n\nVERDICT: FAIL"
+   },
+   "kb-private-record-oserror": {
+    "passed": false,
+    "why": "The message reports the directory and unreadable-sentinel cases as a hang or `Timeout`, not a bare `OSError`. It also says the base raised `IsADirectoryError` and that head did not. Nothing in it says the first `acquire()` raises a bare `OSError` instead of `SoftFileLockProtocolError` for a non-regu"
+   },
+   "kc-descriptor-leak": {
+    "passed": false,
+    "why": "The message does not report a descriptor leak from a failed claim unlink on release or discard. Its four defects, two questions and the closing notes cover other issues. The only nearby item is the orphaned claims after a directory close failure, which concerns a different failure and leaves claims "
+   },
+   "kd-symlink-swap": {
+    "passed": false,
+    "why": "The message does not report that the claims directory is reached by name, so a symlink or junction swapped in after a check could redirect claim files elsewhere. Its four defects (silent hang, blocking release, wrong warning, stale docs) and two questions cover other topics. The closest item, the or"
+   }
+  }
+ },
+ {
+  "case": "find-bugs-filelock",
+  "run": 3,
+  "num_turns": 30,
+  "total_cost_usd": 1.7607634000000003,
+  "is_error": false,
+  "truncated": false,
+  "final": "I found two defects in the new claim doorway. The first breaks mutual exclusion: a second holder can get in while another process owns the lock.\n\n**Scope:** branch `feat/strict-owner-claims` at `e6538e1`, compared with merge-base `126cab7` (main). I reviewed the committed diff only; the working tree was clean. The main subject was `src/filelock/_strict.py`, almost entirely rewritten (818 lines). I also read the changes to `_api.py`, `asyncio.py`, `_soft.py`, `_error.py` and the docs. Probes ran in the given venv with `PYTHONPATH=src`, and each printed `filelock.__file__` to confirm it loaded this checkout. Before probing, the strict, async-contract and marker test files passed at head (116 passed, 3 skipped).\n\n## Defects\n\n**1. When a losing contender can't delete its own claim, the lock reports itself held, so its next acquire \"succeeds\" while another process holds the lock**\n- **Where:** `src/filelock/_strict.py:211-216` (`_discard_doorway` calls `_mark_descriptor_owned` when claim removal fails). `_reconcile_failed_acquire` then commits the acquire, and `_rollback_failed_acquire` (`_strict.py:181-188`) skips the rollback because `is_locked` is true.\n- **Trigger:** a contender loses the doorway (another owner's claim, or a claim with a smaller token, is visible). Removing its own intent or held claim then raises. Plausible causes:\n  - a Windows sharing violation that outlasts the ~1 s retry budget;\n  - EACCES, EROFS or EIO on POSIX;\n  - a `KeyboardInterrupt` arriving during cleanup, since `_unlink_owner_path_result` catches `BaseException`.\n- **Consequence:** `acquire()` raises, but the instance is left with `is_locked=True` and `lock_counter=1`, and the sentinel descriptor stays marked as owned. A retry of `acquire()`, or another thread's `with lock:` on a shared (`thread_local=False`) instance, returns at once without running the doorway. That caller enters the critical section while the real owner's held claim is still published. This contradicts the class's fail-closed contract and the meaning of `is_locked`.\n- **Origin:** new. The path came in with `1b43bc2`, which is on this branch. Main's `StrictSoftFileLock` has no doorway; its marker backend marks the descriptor released when acquisition fails (source reading, not run at base).\n- **Evidence:** executed, using fault injection. The probe forces one `PermissionError` on the intent unlink and publishes a peer's held claim at the right moment. Script: `.scratch/strict-owner-claims/probe_failed_discard_overlap.py`\n  ```\n  first acquire raised: PermissionError [Errno 13] simulated transient sharing violation: 'intent-v1-\u2026.claim'\n  after failed acquire: is_locked = True lock_counter = 1\n  claims on disk: ['held-v1-ffff\u2026.claim', 'intent-v1-\u2026.claim']\n  second thread on the shared instance: {'entered': True}\n  peer's held claim still published: True\n  ```\n- **Consumer impact:** two holders run at once, silently. No existing test covers this: the release-failure tests only cover a caller that really held the lock. A fix should keep the unremovable claim paths for a later cleanup without reporting the instance as locked.\n\n**2. A `close()` error after a claim is published leaves an orphaned claim that blocks every contender, this process included**\n- **Where:** `src/filelock/_strict.py:123-135`. The intent is linked, then `_publish_record` raises a finalization error before `owner_claim_paths` records the intent, so `_discard_doorway` removes nothing. Lines 154-156 do the same thing for the held claim: they reset `owner_claim_paths = ()` before raising `link_cleanup_error`. That contradicts the comment at `:654`, which says \"caller records the held path before raising\".\n- **Trigger:** `os.close` fails (for example with EIO) on the private record, or on the directory descriptor after the link succeeded. This is rare on local filesystems.\n- **Consequence:** the process knows exactly which claim it created but drops the reference. `is_locked` is false and the orphaned intent (or intent plus held) stays on disk. Every later acquire, on the same instance or a fresh one, times out until an operator runs `force_break`.\n- **Origin:** new.\n- **Evidence:** executed. Script: `.scratch/strict-owner-claims/probe_orphan_claim.py`\n  ```\n  acquire raised: [Errno 5] private close failed\n  is_locked: False owner_claim_paths: ()\n  claims: [('intent', True)]\n  same instance -> Timeout (blocked by own orphaned claim)\n  fresh instance -> Timeout (blocked by own orphaned claim)\n  ```\n- **Consumer impact:** the lock path is dead until someone recovers it manually. Two tests assert this exact on-disk state: `test_strict_soft_private_close_failure_leaves_public_claim` and `test_strict_soft_held_directory_close_failure_leaves_both_claims`. The behaviour may therefore be intentional, so this one is **you decide**; see question 1.\n\n## Questions for the author\n1. Is leaving a self-published claim untracked after a close failure (defect 2) deliberate fail-closed behaviour? Recording the path before raising would let `_discard_doorway` remove it.\n2. `_poll_delay` (`_api.py:1238-1247`) never jitters at the default `poll_interval=0.05`, because that equals `_poll_backoff_cap`. The delay is always exactly 0.05, and always `poll_interval` for any larger value (`probe_jitter.py`). I couldn't show any harm: 8 processes \u00d7 10 acquisitions at the default took 0.38 s with no timeouts and no overlap. Is jitter meant to apply at the default settings? The async path has no backoff at all.\n\n## Checked without a finding\n- **Doorway safety:** I reasoned through the intent\u2192held\u2192rescan order under normal directory-listing behaviour and found no way for two winners to coexist. The 8-process stress probe saw no overlap. It is not a proof for NFS/SMB, which the docs already exclude.\n- **Transition gate in `_api.py`:** the only side effect I found is that `release()` on an *unheld* shared instance waits for another thread's in-progress acquire. That only matters for misuse.\n- **Other changes:** the fork reset, the async `claim_root` handling, the sentinel skip in `SoftFileLock`, and lifetime staying unsupported all look correct.\n\n**Gaps:** I did not run on Windows or PyPy, or against the 3.20.0 legacy-client compatibility test. I did not collect coverage. Both failure triggers were injected with mocks, not taken from real filesystem faults. Probes, their output and my notes are in `.scratch/strict-owner-claims/`.",
+  "created": [
+   ".pytest_cache/.gitignore",
+   ".pytest_cache/CACHEDIR.TAG",
+   ".pytest_cache/README.md",
+   ".pytest_cache/v/cache/nodeids",
+   ".scratch/strict-owner-claims/NOTES.md",
+   ".scratch/strict-owner-claims/probe_contention.py",
+   ".scratch/strict-owner-claims/probe_failed_discard_overlap.out",
+   ".scratch/strict-owner-claims/probe_failed_discard_overlap.py",
+   ".scratch/strict-owner-claims/probe_jitter.py",
+   ".scratch/strict-owner-claims/probe_orphan_claim.out",
+   ".scratch/strict-owner-claims/probe_orphan_claim.py",
+   "src/filelock/__pycache__/__init__.cpython-313.pyc",
+   "src/filelock/__pycache__/_api.cpython-313.pyc",
+   "src/filelock/__pycache__/_async.cpython-313.pyc",
+   "src/filelock/__pycache__/_async_read_write.cpython-313.pyc",
+   "src/filelock/__pycache__/_descriptor.cpython-313.pyc",
+   "src/filelock/__pycache__/_error.cpython-313.pyc",
+   "src/filelock/__pycache__/_lease.cpython-313.pyc",
+   "src/filelock/__pycache__/_marker.cpython-313.pyc",
+   "src/filelock/__pycache__/_read_write.cpython-313.pyc",
+   "src/filelock/__pycache__/_soft.cpython-313.pyc",
+   "src/filelock/__pycache__/_soft_protocol.cpython-313.pyc",
+   "src/filelock/__pycache__/_strict.cpython-313.pyc",
+   "src/filelock/__pycache__/_unix.cpython-313.pyc",
+   "src/filelock/__pycache__/_util.cpython-313.pyc",
+   "src/filelock/__pycache__/_windows.cpython-313.pyc",
+   "src/filelock/__pycache__/asyncio.cpython-313.pyc",
+   "src/filelock/__pycache__/version.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/__init__.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_async.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_sync.cpython-313.pyc",
+   "tests/__pycache__/conftest.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_async_soft_contracts.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_marker_records.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_compat.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_failures.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_paths.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_races.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_recovery.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_stress.cpython-313-pytest-9.1.1.pyc"
+  ],
+  "graders": {
+   "defects-section": {
+    "passed": true,
+    "why": "matched"
+   },
+   "f01-dir-mode": {
+    "passed": false,
+    "why": "The message never reports that the coordination directories (`<path>.filelock` and its `claims` folder) are created with a plain `mkdir()` that ignores the lock's `mode`. It reports two other defects and some questions, and none of them touch directory creation or cross-user sharing.\n\nVERDICT: FAIL"
+   },
+   "f02-jitter-noop": {
+    "passed": true,
+    "why": "The message reports in question 2 that `_poll_delay` never jitters at the default `poll_interval=0.05` because that equals `_poll_backoff_cap`, and it also says the async path has no backoff at all. Both points match the rubric.\n\nVERDICT: PASS"
+   },
+   "f03-lifetime-warning": {
+    "passed": false,
+    "why": "The message does not report that `StrictSoftFileLock(..., lifetime=...)` warns with the native-lock reason. Its only mention of lifetime is \"lifetime staying unsupported all look correct\", which is the opposite of flagging that warning.\n\nVERDICT: FAIL"
+   },
+   "f04-eperm-hardlink": {
+    "passed": false,
+    "why": "The message does not report that on a filesystem without hard links, where `link()` fails with `EPERM` (such as vfat or exfat), the lock raises `PermissionError` and not the documented `SoftFileLockProtocolError`. Its two defects are about failed claim cleanup and close errors, and the questions and"
+   },
+   "f05-release-blocks": {
+    "passed": false,
+    "why": "The message does not report that `release()` on a shared instance blocks while another thread waits in `acquire()` because both take the same transition lock. Its only note on the transition gate is that `release()` on an *unheld* shared instance waits for another thread's in-progress acquire, which"
+   },
+   "f06-bad-path-waits": {
+    "passed": false,
+    "why": "The message does not report that a lock path that can't be opened as a sentinel (a directory, or an unreadable file) no longer raises its `OSError`. Its two defects concern failed claim discard and orphaned claims after a close error. The questions and the \"checked without a finding\" section don't m"
+   },
+   "f07-stale-docs": {
+    "passed": false,
+    "why": "The message never mentions that the docs or changelog still describe the old marker-based strict lock or contradict the new text. It only says it read the docs, and its \"Checked without a finding\" section doesn't cover them.\n\nVERDICT: FAIL"
+   },
+   "f08-failed-discard-held": {
+    "passed": true,
+    "why": "Defect 1 reports exactly the required behavior. When a losing contender can't remove its own claim, the instance is left with `is_locked=True` and `lock_counter=1`. A retry of `acquire()` then returns immediately while the real owner's claim is still published.\n\nVERDICT: PASS"
+   },
+   "f09-orphan-claim": {
+    "passed": true,
+    "why": "Defect 2 in the message reports that a `close()` error after the claim is linked leaves an orphaned claim. `owner_claim_paths` is reset or never recorded, so `_discard_doorway` removes nothing, and the claim stays on disk. Every later acquire, on the same or a fresh instance, times out until someone"
+   },
+   "f10-dual-holders": {
+    "passed": false,
+    "why": "Defect 1 reports that a contender whose claim removal fails ends up with `is_locked=True`, and that a second thread then enters the critical section while a peer's held claim is still published. The report does produce a mutual-exclusion violation, but it requires an injected `PermissionError`, whic"
+   },
+   "f11-reentry-timeout": {
+    "passed": false,
+    "why": "The message does not report that a non-blocking or short-timeout `acquire()` on an already-locked shared instance can now raise `Timeout` or wait because of the transition gate. In its \"Checked without a finding\" section it mentions the `_api.py` transition gate, but it names only `release()` on an "
+   },
+   "f12-hostname-space": {
+    "passed": false,
+    "why": "The message does not mention a host name containing whitespace causing the lock to reject its own claim record as malformed. Neither of its two defects, its questions, nor its \"checked without a finding\" section covers this.\n\nVERDICT: FAIL"
+   },
+   "f13-pickle": {
+    "passed": false,
+    "why": "The message does not report that a lock created with `thread_local=False` can no longer be pickled or deep-copied due to a new `RLock` attribute. It mentions `thread_local=False` shared instances only in the context of other defects, and nothing about pickling or deepcopy.\n\nVERDICT: FAIL"
+   },
+   "f14-claims-indexerror": {
+    "passed": false,
+    "why": "The message does not report an `IndexError` from the `claims` property or `force_break` racing a release on a shared instance. Its two defects concern a failed claim discard and a close error leaving an orphaned claim. Neither is the `IndexError` race, and none of the other sections mention it.\n\nVER"
+   },
+   "f15-dropped-close-error": {
+    "passed": false,
+    "why": "The message does not report that a close error from unlinking the intent claim on the winning path is silently dropped. Defect 1 covers an unlink failure on a losing contender's discard path. Defect 2 covers close errors during claim publication. Neither describes a dropped close error on the winnin"
+   },
+   "f16-interrupt-gate": {
+    "passed": false,
+    "why": "The message does not mention a `KeyboardInterrupt` between taking the transition lock and entering the `try`. Its only `KeyboardInterrupt` reference is in defect 1, where one arrives during claim cleanup. It also says the `_api.py` transition gate has only a minor misuse side effect, which is not th"
+   },
+   "f17-pid-placeholder": {
+    "passed": false,
+    "why": "The message never reports that `SoftFileLock(path).pid` now returns `1` (a placeholder) once the strict lock's sentinel exists, where the base returned `None`. Its \"Other changes\" section only says the sentinel skip in `SoftFileLock` looks correct, and none of its defects or questions mention `pid`."
+   },
+   "ka-enotsup-import": {
+    "passed": false,
+    "why": "The message never mentions `ENOTSUP`, the `errno` import, GraalPy, or an `import filelock` failure. Its two defects and its questions are about other issues, so the rubric's finding is not reported.\n\nVERDICT: FAIL"
+   },
+   "kb-private-record-oserror": {
+    "passed": false,
+    "why": "The message does not report that a non-regular node (directory, symlink, FIFO or socket) at a sentinel private-record name makes the first `acquire()` raise a bare `OSError` instead of `SoftFileLockProtocolError`. Its two defects cover failed claim discard and a close error leaving an orphaned claim"
+   },
+   "kc-descriptor-leak": {
+    "passed": false,
+    "why": "The message describes a failed claim unlink in `_discard_doorway` leaving the instance marked locked, with the descriptor \"stays marked as owned.\" That is about the lock state being wrongly reported, not about the sentinel file descriptor remaining open as a leak. It never states that the descriptor"
+   },
+   "kd-symlink-swap": {
+    "passed": false,
+    "why": "The message never reports that the claims directory is reached by name, so a symlink or junction swapped in after a check could redirect claim files elsewhere. Its two defects concern failed claim cleanup and orphaned claims. The \"Checked without a finding\" section covers doorway safety under normal"
+   }
+  }
+ },
+ {
+  "case": "find-bugs-filelock",
+  "run": 4,
+  "num_turns": 19,
+  "total_cost_usd": 1.1342568,
+  "is_error": false,
+  "truncated": false,
+  "final": "I found one defect: two contenders can both hold a `StrictSoftFileLock` at the same time. I triggered it by pausing one thread at a point where the OS could preempt it. An 8-process stress run without pauses saw no overlap, so the timing window is narrow.\n\n**Scope:** branch `feat/strict-owner-claims` at `e6538e1d99f7` compared with merge-base `126cab74567d` on `main`. The working tree was clean and nothing outside the branch's commits was included. I read all changed source: `_strict.py`, `_api.py`, `_error.py`, `_soft.py`, `_soft_protocol.py`, `asyncio.py`, `__init__.py`, `tox.toml` and `pyproject.toml`. I skimmed the docs diff for the documented promise and read the tests only through the removed and weakened-check listing.\n\n## Defects\n\n### 1. Two strict-lock contenders can both acquire the lock\n**Where:** `src/filelock/_strict.py:158-162`, together with `_attempt_claim_read` at `_strict.py:321-322`.\n\n**Trigger:** two contenders, A and B, pass the intent check at about the same time, and B has the smaller token. A links its \"held\" claim and starts its final rescan. That rescan lists the directory first, and B's intent claim is in the list. Before A reads that claim's file, B:\n- links its own held claim,\n- finishes its own rescan and wins,\n- removes its intent claim, as `_strict.py:165` does.\n\nA's read of the intent claim then gets ENOENT. `_attempt_claim_read` returns `(None, None)`, so the claim is silently dropped. A's tie-break then sees only its own token and A enters too. B's new held claim is not in A's listing because the listing was taken before B linked it.\n\n**What happens:** both instances return from `acquire()` with `is_locked == True`, and two held claims stay on disk. That breaks mutual exclusion, which is the class's documented purpose: `docs/concepts.rst` says it \"avoids overlapping a paused holder\". Callers get no error, so two processes can write the protected resource at once.\n\n**Origin:** new. On `main`, `StrictSoftFileLock` is a `MarkerSoftFileLock` subclass, and this claim doorway does not exist there.\n\n**Evidence:** executed, with instrumentation. The probe only pauses threads with events and forces the token order. It changes no file or protocol step, and it uses two lock instances in one process; the protocol itself is purely file-based.\n- Script: `.scratch/strict-owner-claims/vanishing_intent_overlap.py`\n- Command: `PYTHONPATH=src <oss2 venv>/bin/python .scratch/strict-owner-claims/vanishing_intent_overlap.py`\n- Output:\n  ```\n  A: final scan listed B's intent; pausing before reading it\n  B scan#3: ['held-v1-000000', 'held-v1-ffffff', 'intent-v1-0000', 'intent-v1-ffff']\n  A scan#3: ['held-v1-ffffff', 'intent-v1-ffff']\n  A holds: True B holds: True\n  claims on disk: ['held-v1-000000', 'held-v1-ffffff']\n  ```\n- Likelihood: `.scratch/strict-owner-claims/stress_overlap.py` ran 8 processes for 30 s on a 32-core machine without instrumentation. It recorded 255,267 acquisitions and 0 overlaps.\n  - The race needs A to be descheduled between listing the directory and reading one record. That is plausible on loaded hosts, but rare.\n  - I did not probe a second variant, where `readdir` itself misses both of B's changes while A is iterating.\n\n**Next step for the maintainer:** a claim that vanishes during the final scan should not count as \"absent\" in the tie-break. Possible fixes:\n- compute the token order from the listed names, including ones that vanished before they were read, or\n- rescan until two directory listings agree.\n\nA regression test can reuse the probe's event ordering.\n\n## Outside the change\nNo pre-existing defect was executed.\n\n## Questions for the author\nNone remain. The persistent sentinel that locks out legacy clients is documented as intended. The API change, where `StrictSoftFileLock` is no longer a `MarkerSoftFileLock` and `force_break` now needs a `claim_name`, does not affect users: the base class is unreleased, since the latest release is 3.29.7 and the class says `versionadded 3.30.0`.\n\n## Checked and dropped\n- **Async path:** it has no `_transition_admission`, but it already serializes through its own `_transition_gate`.\n- **Backoff:** `_poll_delay` cannot overflow, keeps `poll_interval` as its minimum, and returns 0 when `poll_interval` is 0.\n- **Shared unheld instance:** `release()` waits on the gate while another thread is polling. That only happens when a caller misuses the lock, so it is not material.\n- **Removed tests:** they covered the old marker-based behaviour.\n- **Existing tests:** `tests/test_strict_soft*.py` all pass at head, run with `-p no:randomly`.\n\n**Gaps:**\n- I did not run Windows, NFS/SMB, PyPy or the `filelock==3.20.0` compatibility env; the last needs a network install.\n- No coverage report was used.\n- No tool record exists for this project.\n\nProbe scripts, logs and notes are in `.scratch/strict-owner-claims/`, which is outside commits.",
+  "created": [
+   ".pytest_cache/.gitignore",
+   ".pytest_cache/CACHEDIR.TAG",
+   ".pytest_cache/README.md",
+   ".pytest_cache/v/cache/nodeids",
+   ".scratch/strict-owner-claims/NOTES.md",
+   ".scratch/strict-owner-claims/stress_overlap.log",
+   ".scratch/strict-owner-claims/stress_overlap.py",
+   ".scratch/strict-owner-claims/vanishing_intent_overlap.log",
+   ".scratch/strict-owner-claims/vanishing_intent_overlap.py",
+   "src/filelock/__pycache__/__init__.cpython-313.pyc",
+   "src/filelock/__pycache__/_api.cpython-313.pyc",
+   "src/filelock/__pycache__/_async.cpython-313.pyc",
+   "src/filelock/__pycache__/_async_read_write.cpython-313.pyc",
+   "src/filelock/__pycache__/_descriptor.cpython-313.pyc",
+   "src/filelock/__pycache__/_error.cpython-313.pyc",
+   "src/filelock/__pycache__/_lease.cpython-313.pyc",
+   "src/filelock/__pycache__/_marker.cpython-313.pyc",
+   "src/filelock/__pycache__/_read_write.cpython-313.pyc",
+   "src/filelock/__pycache__/_soft.cpython-313.pyc",
+   "src/filelock/__pycache__/_soft_protocol.cpython-313.pyc",
+   "src/filelock/__pycache__/_strict.cpython-313.pyc",
+   "src/filelock/__pycache__/_unix.cpython-313.pyc",
+   "src/filelock/__pycache__/_util.cpython-313.pyc",
+   "src/filelock/__pycache__/_windows.cpython-313.pyc",
+   "src/filelock/__pycache__/asyncio.cpython-313.pyc",
+   "src/filelock/__pycache__/version.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/__init__.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_async.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_sync.cpython-313.pyc",
+   "tests/__pycache__/conftest.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_compat.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_failures.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_paths.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_races.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_recovery.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_stress.cpython-313-pytest-9.1.1.pyc"
+  ],
+  "graders": {
+   "defects-section": {
+    "passed": true,
+    "why": "matched"
+   },
+   "f01-dir-mode": {
+    "passed": false,
+    "why": "The message reports only the race condition in the final rescan, and the other items it lists were checked and dropped. It never says that the `.filelock` and `claims` directories are created with a plain `mkdir()` that ignores the lock's `mode`, so another OS user cannot acquire or share the lock.\n"
+   },
+   "f02-jitter-noop": {
+    "passed": false,
+    "why": "The message does not report that the jittered backoff has no effect at the default `poll_interval`, or that the async strict lock never uses the backoff. Its Backoff note only says `_poll_delay` cannot overflow and keeps `poll_interval` as its minimum. The async note concerns `_transition_gate`, not"
+   },
+   "f03-lifetime-warning": {
+    "passed": false,
+    "why": "The message reports a mutual-exclusion defect but does not mention `StrictSoftFileLock(..., lifetime=...)` warning with the native-lock reason (\"a native OS lock cannot be broken safely by file age\"). That issue appears nowhere, including in the \"Checked and dropped\" or \"Outside the change\" sections"
+   },
+   "f04-eperm-hardlink": {
+    "passed": false,
+    "why": "The message does not report that on a filesystem where `link()` fails with `EPERM` (such as vfat or exfat), the lock raises `PermissionError` rather than the documented `SoftFileLockProtocolError`. It reports only a race condition that lets two contenders hold the lock at once, and its \"Checked and "
+   },
+   "f05-release-blocks": {
+    "passed": true,
+    "why": "The message reports a mutual-exclusion defect and several dropped items. Under \"Checked and dropped\" it says that on a shared unheld instance `release()` waits on the gate while another thread is polling. It dismisses this as caller misuse and \"not material\". That is not the rubric's finding. The ru"
+   },
+   "f06-bad-path-waits": {
+    "passed": false,
+    "why": "The message reports only one defect (two strict-lock contenders both acquiring the lock) and never mentions a lock path that can't be opened as a sentinel (a directory or unreadable file) no longer raising its `OSError`. Nothing in the defects, questions, checked-and-dropped or outside-the-change se"
+   },
+   "f07-stale-docs": {
+    "passed": false,
+    "why": "The message mentions docs only to cite `docs/concepts.rst` as supporting the documented promise, and says it only skimmed the docs diff. It never reports that the docs or changelog still describe the old marker-based strict lock or contradict the new text.\n\nVERDICT: FAIL"
+   },
+   "f08-failed-discard-held": {
+    "passed": false,
+    "why": "The message reports a mutual-exclusion overlap caused by a vanished intent claim during the final scan. It does not report that a losing contender who cannot remove its own claim stays marked as holding the lock, so its next `acquire()` falsely succeeds while another process holds it. Nothing in the"
+   },
+   "f09-orphan-claim": {
+    "passed": false,
+    "why": "The message reports an overlap race (two contenders both acquiring the lock) from a vanished intent claim. It does not report that an error while closing or finalizing a claim record after linking leaves an orphaned claim that nothing removes and that blocks every contender. The \"Checked and dropped"
+   },
+   "f10-dual-holders": {
+    "passed": true,
+    "why": "The message reports that two contenders can both hold the strict lock, with two held claims left on disk. The race is in the final rescan: an intent claim vanishes between the directory listing and the read, so the tie-break treats it as absent. It was shown with instrumented pausing and no injected"
+   },
+   "f11-reentry-timeout": {
+    "passed": false,
+    "why": "The message reports a mutual-exclusion defect in the strict lock's final rescan. It does not mention that a non-blocking or short-timeout `acquire()` on a shared instance already holding the lock can now raise `Timeout` or wait because of a new transition gate. The closest item says `release()` wait"
+   },
+   "f12-hostname-space": {
+    "passed": false,
+    "why": "The message reports a mutual-exclusion race but never mentions that a host name containing whitespace makes the lock reject its own claim record as malformed. That defect does not appear in any section, including the dropped items and the questions.\n\nVERDICT: FAIL"
+   },
+   "f13-pickle": {
+    "passed": false,
+    "why": "The message reports a mutual-exclusion defect in `StrictSoftFileLock`, but it never mentions that a lock created with `thread_local=False` can no longer be pickled or deep-copied because of a new `RLock` attribute. It also doesn't mention that in any other section, so the rubric item isn't met.\n\nVER"
+   },
+   "f14-claims-indexerror": {
+    "passed": false,
+    "why": "The message reports a defect where two contenders can both hold the lock. It says nothing about `IndexError` from the `claims` property or `force_break` racing a release on a shared instance. The \"Checked and dropped\" section mentions a shared unheld instance, but only for `release()` waiting on the"
+   },
+   "f15-dropped-close-error": {
+    "passed": false,
+    "why": "The message describes a race where a vanishing intent claim is silently dropped by `_attempt_claim_read` returning `(None, None)`, but that is on the losing path (A reading B's intent). It never reports that the close error from unlinking the intent claim on the winning path (`_strict.py:165`) is si"
+   },
+   "f16-interrupt-gate": {
+    "passed": false,
+    "why": "The message reports a mutual-exclusion defect from a vanishing intent claim during the final scan. It never mentions a `KeyboardInterrupt` between taking the transition lock and entering the `try`, and it says nothing about the gate being left held. Its only gate-related item is the \"Shared unheld i"
+   },
+   "f17-pid-placeholder": {
+    "passed": false,
+    "why": "The message never reports that `SoftFileLock(path).pid` now returns `1` (a placeholder) once the strict lock's sentinel exists, where the base returned `None`. It reports only the mutual-exclusion race and several dropped items, and none of them mention `pid`.\n\nVERDICT: FAIL"
+   },
+   "ka-enotsup-import": {
+    "passed": false,
+    "why": "The message reports a mutual-exclusion race in `StrictSoftFileLock` and lists several checked-and-dropped items and coverage gaps. It never mentions that importing `ENOTSUP` from `errno` at module scope fails on runtimes like GraalPy, which would break `import filelock`.\n\nVERDICT: FAIL"
+   },
+   "kb-private-record-oserror": {
+    "passed": false,
+    "why": "The message reports one defect: a race that lets two contenders hold the lock at once. It never mentions a non-regular node (directory, symlink, FIFO or socket) at a sentinel private-record name making the first `acquire()` raise a bare `OSError` instead of `SoftFileLockProtocolError`, so the rubric"
+   },
+   "kc-descriptor-leak": {
+    "passed": false,
+    "why": "The message does not mention a failed claim unlink on release or discard leaving the sentinel file descriptor open. Its one defect is a mutual-exclusion race, and nothing in the message refers to a descriptor leak.\n\nVERDICT: FAIL"
+   },
+   "kd-symlink-swap": {
+    "passed": false,
+    "why": "The message reports a race that breaks mutual exclusion. It does not report that the claims directory is reached by name, so a symlink or junction swapped in after a check would redirect claim files elsewhere. Nothing in the defects, outside-the-change notes, questions or dropped items mentions syml"
+   }
+  }
+ }
+]

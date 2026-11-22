@@ -1,0 +1,745 @@
+[
+ {
+  "case": "find-bugs-filelock",
+  "run": 0,
+  "num_turns": 7,
+  "total_cost_usd": 7.9509859999999986,
+  "is_error": false,
+  "truncated": true,
+  "final": "I found six defects in `feat/strict-owner-claims`, all new on this branch. The worst one: once one OS user has taken a `StrictSoftFileLock` in a shared directory like `/tmp`, a second user can no longer acquire it.\n\n**Scope:**\n- **Compared:** head `e6538e1` (`feat/strict-owner-claims`) against merge-base `126cab7` (= `main`). The working tree was clean and is unchanged.\n- **Tested on:** Linux only. Windows-only paths (delete-pending retries, `O_BINARY`, the `winerror` handling) were read but not run.\n- **Not run:** I could not test with a real second OS user; the cross-user case is simulated by removing write permission.\n- **Searches:** four separate reads searched the change (three general, one focused on shared state), plus my own read and static checks. Another read could still find more.\n- **Static checks:** mypy at head adds only a Windows-only attribute error in a test (`CREATE_NEW_PROCESS_GROUP`). The extra ty errors come from ty not finding the test dependencies, not from the change.\n- **Probes:** every probe below was re-run by me at base and head. Paths are relative to `.scratch/strict-owner-claims/`. The command is `PYTHONPATH=<checkout>/src <venv python> <probe>`. I removed the temporary base checkouts afterwards, so a base re-run needs `git worktree add <dir> 126cab7` with `version.py` copied in.\n\n## Defects\n\n1. **A second user can't acquire a strict lock in a shared directory.** (`src/filelock/_strict.py:94-95`, `_ensure_protocol_directory` at `:773`)\n   - **Trigger:** user A takes a lock in `/tmp` with umask 022, even with `mode=0o666`. `<path>.filelock/` and `claims/` are created by `mkdir()` under the umask and ignore `mode`, so they come out 0o755 and owned by A. They are never removed.\n   - **Consequence:** user B's `acquire()` raises `PermissionError [Errno 13] \u2026 '.intent-v1-\u2026.claim.private-v1-\u2026.tmp'`. Under umask 077 the claim files would also be unreadable to B, which would then get `SoftFileLockProtocolError` (inferred, not run).\n   - **Origin:** new; base has only the lock file and B acquires.\n   - **Evidence:** executed, `finder-1/probes/crossuser_emulated.py`. Base prints `user B acquired`; head prints the `PermissionError` above. Second-user access is simulated by setting A's directories to 0o555.\n   - **Consumer impact:** multi-user tools coordinating through a shared directory break after the first user's run, until someone deletes or chmods the directories by hand.\n\n2. **A non-blocking re-entry into a lock the instance already holds can raise `Timeout`.** (`src/filelock/_api.py:1054-1109`, `_transition_admission`)\n   - **Trigger:** a shared instance (`thread_local=False`, which is the default for `AsyncStrictSoftFileLock`) is held. One thread calls `acquire(blocking=False)` or `timeout=0` while another thread is acquiring or releasing the same instance.\n   - **Mechanism:** the new gate is taken even for a re-entry that only bumps the counter, and with `blocking=False` it raises at once if the gate is busy.\n   - **Origin:** new; base re-entry always succeeds.\n   - **Evidence:** executed, `finder-state/probes/p1_nonblocking_reentrant.py`:\n     - Base: `0/20000` Timeouts.\n     - Head: `20000/20000` under a tight acquire/release loop in a second thread.\n     - The failure rate depends on contention: my own sampled run (`verify/gate_hold.py`) saw `0/500`.\n   - **Consumer impact:** code that holds a lock and re-checks it non-blocking gets a spurious `Timeout` and may skip work it actually owns.\n\n3. **`release()` on an unheld shared lock blocks behind another thread's `acquire`.** (`src/filelock/_api.py:1121-1124`)\n   - **Trigger:** thread A waits in `acquire()` on a shared instance while another owner holds the file. Thread B calls `release()`.\n   - **Mechanism:** `release` takes the gate before its `is_locked` early return, and A holds the gate for its whole wait.\n   - **Consequence:**\n     - Executed: head took `1.82s` (the rest of A's 2 s timeout); base took `0.00s`.\n     - Inferred: with `timeout=-1` it blocks until A acquires, possibly forever.\n   - **Origin:** new.\n   - **Evidence:** executed, `finder-1/probes/release_blocks.py`. All four reads found this independently.\n   - **Consumer impact:** `try: acquire(timeout=\u2026) / finally: release()` and shutdown paths calling `release(force=True)` can stall.\n\n4. **An unreadable lock file now shows up as a silent `Timeout`.** (`src/filelock/_strict.py:252-253`, `except OSError: return None`)\n   - **Trigger:** the sentinel exists but this process cannot read it, for example because another user created it under umask 077.\n   - **Consequence:**\n     - Executed: base raises `PermissionError` after `0.00s`; head raises `Timeout` after `1.01s`.\n     - Inferred: with `timeout=-1` it hangs with no explanation.\n   - **Origin:** new.\n   - **Evidence:** executed, `finder-2/probe_unreadable_sentinel.py` (simulated with `chmod 000`).\n   - **Action \u2014 you decide:** the how-to says unreadable claims raise `SoftFileLockProtocolError`. It's unclear whether an unreadable sentinel is meant to count as ordinary contention. Either way, the user loses the diagnostic base gave.\n\n5. **A host whose name contains whitespace can never acquire.** (`src/filelock/_strict.py:395-397` writes the record, `:361-371` rejects it)\n   - **Trigger:** `socket.gethostname()` returns something like `\"build host\"` or `\"host\\tA\"`; Linux allows this.\n   - **Consequence:** every attempt rejects the process's own intent with `SoftFileLockProtocolError \u2026 malformed claim record`. Cleanup works: no claims are left behind.\n   - **Origin:** new; base acquired.\n   - **Evidence:** executed, `finder-2/probe_hostname.py` (mocks `gethostname`).\n   - **Consumer impact:** total failure on those hosts, though such hosts are rare.\n\n6. **The `lifetime` warning gives the wrong reason.** (`src/filelock/_strict.py:74`, which now inherits the `BaseFileLock` text)\n   - **Consequence:**\n     - Head: \"a native OS lock cannot be broken safely by file age\", which is false for a soft lock.\n     - Base: \"a strict lock never reclaims a marker by age\".\n   - **Origin:** new.\n   - **Evidence:** executed, `finder-2/probe_lifetime_warning.py`. This one is wording only.\n\n## Minor observations\n\n- **The jitter does nothing at the default poll interval:** `_poll_delay` always returns exactly `poll_interval` when it is \u2265 0.05, which includes the default (`mine/poll_delay.out`: 1 distinct delay at 0.05). The desynchronization in commit b072b3b therefore only applies to callers polling faster than 50 ms. No livelock was observed on Linux.\n- **`AsyncStrictSoftFileLock` never uses the backoff:** the async poll loop sleeps a fixed `poll_interval` (`finder-1/probes/async_backoff.py`: one distinct value at head). Whether this matters depends on the Windows lockstep scenario, which I could not run.\n- **`claims` and `force_break` can raise `IndexError`:** `_claim_directory` (`_strict.py:227-228`) checks `owner_claim_paths` and then indexes it, without the gate. A concurrent release on a shared instance raises the error only with a forced thread switch (`finder-state/probes/p2b_claims_race_forced.py`); natural runs showed 0 errors in 200,000 reads.\n- **A cleanup error is silently dropped (inferred, not run):** `_strict.py:165` discards the close error returned by `_unlink_owner_path(intent_path)` on the winning path. Everywhere else such errors are raised.\n\n## Outside the change\n\nNone.\n\n## Questions for the author\n\n- For defect 4: should a sentinel this process cannot read fail closed with `SoftFileLockProtocolError` (as claims do), or wait like ordinary contention?\n- For defect 1: is cross-user use of a shared directory supported for strict mode? If so, should the `.filelock/` and `claims/` directories get explicit permissions derived from `mode`?\n\nInvestigation notes and dropped leads are in `.scratch/strict-owner-claims/`. The dropped leads include a two-owner race in the claim handoff (none found in tracing or stress runs) and a legacy `SoftFileLock` evicting the sentinel (it can't).",
+  "created": [
+   ".mypy_cache/.gitignore",
+   ".mypy_cache/3.13/cache.0.db",
+   ".mypy_cache/3.13/cache.1.db",
+   ".mypy_cache/3.13/cache.10.db",
+   ".mypy_cache/3.13/cache.11.db",
+   ".mypy_cache/3.13/cache.12.db",
+   ".mypy_cache/3.13/cache.13.db",
+   ".mypy_cache/3.13/cache.14.db",
+   ".mypy_cache/3.13/cache.15.db",
+   ".mypy_cache/3.13/cache.2.db",
+   ".mypy_cache/3.13/cache.3.db",
+   ".mypy_cache/3.13/cache.4.db",
+   ".mypy_cache/3.13/cache.5.db",
+   ".mypy_cache/3.13/cache.6.db",
+   ".mypy_cache/3.13/cache.7.db",
+   ".mypy_cache/3.13/cache.8.db",
+   ".mypy_cache/3.13/cache.9.db",
+   ".mypy_cache/CACHEDIR.TAG",
+   ".mypy_cache/missing_stubs",
+   ".scratch/strict-owner-claims/finder-1/probes/async_backoff.log",
+   ".scratch/strict-owner-claims/finder-1/probes/async_backoff.py",
+   ".scratch/strict-owner-claims/finder-1/probes/backoff_default.log",
+   ".scratch/strict-owner-claims/finder-1/probes/backoff_default.py",
+   ".scratch/strict-owner-claims/finder-1/probes/crossuser_emulated.log",
+   ".scratch/strict-owner-claims/finder-1/probes/crossuser_emulated.py",
+   ".scratch/strict-owner-claims/finder-1/probes/mode_dirs.log",
+   ".scratch/strict-owner-claims/finder-1/probes/mode_dirs.py",
+   ".scratch/strict-owner-claims/finder-1/probes/mp_stress.py",
+   ".scratch/strict-owner-claims/finder-1/probes/mp_stress_head.log",
+   ".scratch/strict-owner-claims/finder-1/probes/mypy_base.txt",
+   ".scratch/strict-owner-claims/finder-1/probes/mypy_find-bugs-filelock-0.txt",
+   ".scratch/strict-owner-claims/finder-1/probes/release_blocks.log",
+   ".scratch/strict-owner-claims/finder-1/probes/release_blocks.py",
+   ".scratch/strict-owner-claims/finder-1/probes/static.log",
+   ".scratch/strict-owner-claims/finder-1/probes/thread_mix.log",
+   ".scratch/strict-owner-claims/finder-1/probes/thread_mix.py",
+   ".scratch/strict-owner-claims/finder-1/probes/ty_base.txt",
+   ".scratch/strict-owner-claims/finder-1/probes/ty_find-bugs-filelock-0.txt",
+   ".scratch/strict-owner-claims/finder-2/mypy_base.txt",
+   ".scratch/strict-owner-claims/finder-2/mypy_head.txt",
+   ".scratch/strict-owner-claims/finder-2/probe_dirmode.py",
+   ".scratch/strict-owner-claims/finder-2/probe_dirmode_other.py",
+   ".scratch/strict-owner-claims/finder-2/probe_hostname.py",
+   ".scratch/strict-owner-claims/finder-2/probe_jitter.py",
+   ".scratch/strict-owner-claims/finder-2/probe_lifetime_warning.py",
+   ".scratch/strict-owner-claims/finder-2/probe_release_blocks.py",
+   ".scratch/strict-owner-claims/finder-2/probe_stress.py",
+   ".scratch/strict-owner-claims/finder-2/probe_unreadable_sentinel.py",
+   ".scratch/strict-owner-claims/finder-3/probe_async_backoff.base.log",
+   ".scratch/strict-owner-claims/finder-3/probe_async_backoff.head.log",
+   ".scratch/strict-owner-claims/finder-3/probe_async_backoff.py",
+   ".scratch/strict-owner-claims/finder-3/probe_backoff.base.log",
+   ".scratch/strict-owner-claims/finder-3/probe_backoff.head.log",
+   ".scratch/strict-owner-claims/finder-3/probe_backoff.py",
+   ".scratch/strict-owner-claims/finder-3/probe_lifetime_warning.base.log",
+   ".scratch/strict-owner-claims/finder-3/probe_lifetime_warning.head.log",
+   ".scratch/strict-owner-claims/finder-3/probe_lifetime_warning.py",
+   ".scratch/strict-owner-claims/finder-3/probe_mode.base.log",
+   ".scratch/strict-owner-claims/finder-3/probe_mode.head.log",
+   ".scratch/strict-owner-claims/finder-3/probe_mode.py",
+   ".scratch/strict-owner-claims/finder-3/probe_release_blocks.base.log",
+   ".scratch/strict-owner-claims/finder-3/probe_release_blocks.head.log",
+   ".scratch/strict-owner-claims/finder-3/probe_release_blocks.py",
+   ".scratch/strict-owner-claims/finder-3/probe_shared_dir_users.base.log",
+   ".scratch/strict-owner-claims/finder-3/probe_shared_dir_users.head.log",
+   ".scratch/strict-owner-claims/finder-3/probe_shared_dir_users.py",
+   ".scratch/strict-owner-claims/finder-state/probes/p1_nonblocking_reentrant.py",
+   ".scratch/strict-owner-claims/finder-state/probes/p1b_nonblocking_reentrant_variants.py",
+   ".scratch/strict-owner-claims/finder-state/probes/p1c_gate_state.py",
+   ".scratch/strict-owner-claims/finder-state/probes/p1d_first_failure.py",
+   ".scratch/strict-owner-claims/finder-state/probes/p2_claims_race.py",
+   ".scratch/strict-owner-claims/finder-state/probes/p2b_claims_race_forced.py",
+   ".scratch/strict-owner-claims/finder-state/probes/p3_release_blocks.py",
+   ".scratch/strict-owner-claims/finder-state/probes/run1.log",
+   ".scratch/strict-owner-claims/finder-state/probes/run_p1b.log",
+   ".scratch/strict-owner-claims/finder-state/probes/run_p2_200k.log",
+   ".scratch/strict-owner-claims/mine/poll_delay.out",
+   ".scratch/strict-owner-claims/mine/poll_delay.py",
+   ".scratch/strict-owner-claims/static/mypy-base.txt",
+   ".scratch/strict-owner-claims/static/mypy-head.txt",
+   ".scratch/strict-owner-claims/static/ty-base.txt",
+   ".scratch/strict-owner-claims/static/ty-head.txt",
+   ".scratch/strict-owner-claims/static/weakened.txt",
+   ".scratch/strict-owner-claims/verify/gate_hold.log",
+   ".scratch/strict-owner-claims/verify/gate_hold.py",
+   ".scratch/strict-owner-claims/verify/rerun.log",
+   "src/filelock/__pycache__/__init__.cpython-313.pyc",
+   "src/filelock/__pycache__/_api.cpython-313.pyc",
+   "src/filelock/__pycache__/_async.cpython-313.pyc",
+   "src/filelock/__pycache__/_async_read_write.cpython-313.pyc",
+   "src/filelock/__pycache__/_descriptor.cpython-313.pyc",
+   "src/filelock/__pycache__/_error.cpython-313.pyc",
+   "src/filelock/__pycache__/_lease.cpython-313.pyc",
+   "src/filelock/__pycache__/_marker.cpython-313.pyc",
+   "src/filelock/__pycache__/_read_write.cpython-313.pyc",
+   "src/filelock/__pycache__/_soft.cpython-313.pyc",
+   "src/filelock/__pycache__/_soft_protocol.cpython-313.pyc",
+   "src/filelock/__pycache__/_strict.cpython-313.pyc",
+   "src/filelock/__pycache__/_unix.cpython-313.pyc",
+   "src/filelock/__pycache__/_util.cpython-313.pyc",
+   "src/filelock/__pycache__/_windows.cpython-313.pyc",
+   "src/filelock/__pycache__/asyncio.cpython-313.pyc",
+   "src/filelock/__pycache__/version.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/__init__.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_async.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_sync.cpython-313.pyc",
+   "tests/__pycache__/conftest.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_async_soft_contracts.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_compat.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_failures.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_paths.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_races.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_recovery.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_stress.cpython-313-pytest-9.1.1.pyc"
+  ],
+  "graders": {
+   "defects-section": {
+    "passed": true,
+    "why": "matched"
+   },
+   "f01-dir-mode": {
+    "passed": true,
+    "why": "Defect 1 reports that `<path>.filelock/` and `claims/` are created by `mkdir()` under the umask and ignore `mode`, so they come out 0o755 and owned by the first user, and a second user's `acquire()` fails with PermissionError. This matches the rubric's point about plain `mkdir()` ignoring the lock's"
+   },
+   "f02-jitter-noop": {
+    "passed": true,
+    "why": "The message reports in its minor observations that the jitter does nothing at the default poll interval (`_poll_delay` returns exactly `poll_interval` at 0.05 or above, and the default is 0.05). It also reports that `AsyncStrictSoftFileLock` never uses the backoff. Either one meets the rubric.\n\nVERD"
+   },
+   "f03-lifetime-warning": {
+    "passed": true,
+    "why": "The message reports defect 6: the `lifetime` warning on `StrictSoftFileLock` now gives the native-lock reason (\"a native OS lock cannot be broken safely by file age\"), which is false for a soft lock, and it contrasts this with the base wording.\n\nVERDICT: PASS"
+   },
+   "f04-eperm-hardlink": {
+    "passed": false,
+    "why": "The message never mentions that on filesystems like vfat or exfat, where `link()` fails with `EPERM`, the lock raises `PermissionError` and not `SoftFileLockProtocolError`. Defect 1 does mention a `PermissionError`, but that is a cross-user directory permission problem, not the no-hard-link filesyst"
+   },
+   "f05-release-blocks": {
+    "passed": true,
+    "why": "Defect 3 reports that `release()` on an unheld shared lock blocks behind another thread's `acquire()`. It gives the mechanism: `release` takes the gate (the transition lock) before its `is_locked` early return, and the acquiring thread holds the gate for its whole wait. It also gives measured timing"
+   },
+   "f06-bad-path-waits": {
+    "passed": true,
+    "why": "Defect 4 reports that an unreadable sentinel (the lock file exists but this process can't read it) now yields a `Timeout` after 1.01s, where base raised `PermissionError`. It states the `except OSError: return None` swallows the open error, so the caller waits or times out. This matches the rubric's"
+   },
+   "f07-stale-docs": {
+    "passed": false,
+    "why": "The message never mentions that docs or a changelog still describe the old marker-based strict lock and contradict the new text. Defect 6 covers a stale warning string in code, and no item covers documentation or the changelog.\n\nVERDICT: FAIL"
+   },
+   "f08-failed-discard-held": {
+    "passed": false,
+    "why": "The message never reports that a losing contender whose claim removal fails leaves the instance marked as holding the lock, so its next `acquire()` returns success while another process holds the lock. The closest item is the dropped cleanup-error note at `_strict.py:165`, and that is about a winnin"
+   },
+   "f09-orphan-claim": {
+    "passed": false,
+    "why": "The message never reports the orphaned-claim defect: an error while closing or finalizing a claim record after it was linked leaves an orphan that blocks every contender. The nearest item is the dropped cleanup error at `_strict.py:165`. That one is a discarded close error on the winning path, and t"
+   },
+   "f10-dual-holders": {
+    "passed": false,
+    "why": "The message does not report that two processes can both hold the strict lock through a race in the claim scan or final check. It explicitly says the two-owner race in the claim handoff was a dropped lead, with none found in tracing or stress runs. The other items (the cross-user failure, gate conten"
+   },
+   "f11-reentry-timeout": {
+    "passed": true,
+    "why": "Defect 2 reports that a non-blocking re-entry into a lock the instance already holds can raise `Timeout` because the new gate is taken even for a re-entry. It names the `acquire(blocking=False)` and `timeout=0` cases and gives a base-versus-head probe (0/20000 vs 20000/20000). That matches the rubri"
+   },
+   "f12-hostname-space": {
+    "passed": true,
+    "why": "Defect 5 reports exactly the rubric's issue: a hostname containing whitespace (e.g. \"build host\") makes the lock reject its own claim record as a malformed claim record, so every attempt fails and it can never acquire.\n\nVERDICT: PASS"
+   },
+   "f13-pickle": {
+    "passed": false,
+    "why": "The message does not report that a lock created with `thread_local=False` can no longer be pickled or deep-copied because of a new `RLock` attribute. It discusses shared instances (`thread_local=False`) in defects 2 and 3, but only for gate contention and blocking. Pickling and deep-copying are neve"
+   },
+   "f14-claims-indexerror": {
+    "passed": true,
+    "why": "The message does report it: under \"Minor observations\" it says `claims` and `force_break` can raise `IndexError` because `_claim_directory` checks `owner_claim_paths` and then indexes it without the gate. It says a concurrent release on a shared instance triggers the error when a thread switch is fo"
+   },
+   "f15-dropped-close-error": {
+    "passed": true,
+    "why": "The message includes under \"Minor observations\" that `_strict.py:165` discards the close error returned by `_unlink_owner_path(intent_path)` on the winning path, noting that elsewhere such errors are raised. This is the silently dropped close error the rubric asks for.\n\nVERDICT: PASS"
+   },
+   "f16-interrupt-gate": {
+    "passed": false,
+    "why": "The message never mentions a `KeyboardInterrupt` between taking the transition lock and entering the `try`, nor any equivalent case where the gate stays held after an interrupt. None of the six defects, minor observations or questions covers it.\n\nVERDICT: FAIL"
+   },
+   "f17-pid-placeholder": {
+    "passed": false,
+    "why": "The message does not report that `SoftFileLock(path).pid` now returns `1` (a placeholder) once the strict lock's sentinel exists, where the base returned `None`. None of the six defects, the minor observations, or the questions mention `pid` behavior on `SoftFileLock`. The only related item is the d"
+   },
+   "ka-enotsup-import": {
+    "passed": false,
+    "why": "The message never mentions an `ENOTSUP` import from `errno` failing on runtimes like GraalPy, or that it would break `import filelock`. None of the six defects, the minor observations or the questions cover it.\n\nVERDICT: FAIL"
+   },
+   "kb-private-record-oserror": {
+    "passed": false,
+    "why": "The message never mentions that a non-regular node (directory, symlink, FIFO or socket) at a sentinel private-record name makes the first `acquire()` raise a bare `OSError` instead of `SoftFileLockProtocolError`. The closest items are the unreadable-sentinel `Timeout` and the cross-user `PermissionE"
+   },
+   "kc-descriptor-leak": {
+    "passed": false,
+    "why": "The message doesn't mention a file descriptor leak from a failed claim unlink on release or discard. The closest item is the dropped cleanup error at `_strict.py:165`, which concerns a discarded close error on the winning path. It says nothing about the sentinel descriptor staying open.\n\nVERDICT: FA"
+   },
+   "kd-symlink-swap": {
+    "passed": false,
+    "why": "The message never reports that the claims directory is reached by name, so a swapped symlink or junction could redirect claim files elsewhere. Defect 1 covers directory permissions and the minor observations cover other races, but none mention a symlink or junction swap after a check.\n\nVERDICT: FAIL"
+   }
+  }
+ },
+ {
+  "case": "find-bugs-filelock",
+  "run": 1,
+  "num_turns": 8,
+  "total_cost_usd": 8.346871400000003,
+  "is_error": false,
+  "truncated": true,
+  "final": "I found six defects in `feat/strict-owner-claims`: four confirmed by running a probe at base and head, and two predicted from the source. The worst is that a misconfigured lock path now hangs forever instead of raising an error. I found no way for two owners to hold the lock at once.\n\n**Scope:** head `e6538e1`, compared with merge-base `126cab7` (`main`), committed changes only; the working tree was clean. All runs used Python 3.13.12 on Linux, with no installs and no network. Five separate reads searched the change: four independent finders, one of them focused on shared state, plus my own. I reran every probe used as evidence below myself at both revisions. Probes and logs are in `.scratch/strict-owner-claims/runs/bugs/`, and notes on dropped leads are in `NOTES.md`. The base worktrees are removed and the checkout is unchanged.\n\n## Defects\n\n1. **A bad lock path waits forever instead of raising an error.**\n   - **Location:** `src/filelock/_strict.py:247-270`. `_open_or_create_sentinel` turns every `OSError` from opening the sentinel into `None`, which the caller treats as \"someone else holds it\". This covers \"is a directory\", \"not a regular file\" and `PermissionError`.\n   - **Trigger:** the lock path is a directory, `\"\"` or `\".\"`. Or the sentinel exists but this user can't read it, for example after another account created it under umask 077. The sentinel is never removed, so this persists.\n   - **Consequence:** `acquire()` raises `Timeout`, or with the default `timeout=-1` hangs forever, and never shows the real error. `\"\"` and `\".\"` also leave a stray `<cwd>.filelock/claims` folder in the parent directory.\n   - **Evidence (executed):**\n     - The project's own `test_bad_lock_file` and `test_ro_file`, run against the strict lock (`f3_p3_bad_paths_pytest.py`): base `5 passed`, head `3 failed` with `Timeout('')`, `Timeout('.')` and `Timeout` from `test_ro_file`.\n     - `f3_p2_bad_path.py`: base `IsADirectoryError 0.00s`, head `Timeout 0.50s`.\n     - `f3_p11_unreadable_sentinel.py`: base `acquired`, head `Timeout 1.01s` with nobody holding the lock.\n   - **Origin:** new.\n   - **Impact:** anyone who misconfigures the path gets a silent hang to debug.\n   - **Decision for you:** treating a *foreign but readable* file as contention looks intended (fail-closed). Treating I/O errors on the sentinel as contention does not.\n\n2. **On a shared instance, `release()` blocks behind another thread's whole acquire wait.**\n   - **Location:** `src/filelock/_api.py:1119-1141`. `release()` takes `_transition_lock` before its `is_locked` check, and `_transition_admission` (`_api.py:1085-1109`) holds that same lock through every poll sleep.\n   - **Trigger:** a `StrictSoftFileLock(thread_local=False)`, or a singleton. Thread A waits in `acquire()` because another owner holds the path; thread B calls `release()` on the same instance, which is not held.\n   - **Consequence:** the release, which should do nothing, blocks until A gives up or acquires. With `timeout=-1` that can be forever (predicted, not run). A cleanup or shutdown thread hangs.\n   - **Evidence (executed):** `p1_release_blocks.py`: base `release() ... took 0.000s`, head `took 1.809s`. Three finders reproduced this independently.\n   - **Origin:** new.\n\n3. **Re-entering a lock the shared instance already holds now fails or starves.**\n   - **Location:** `_api.py` `_transition_admission`. It polls `RLock.acquire(blocking=False)` and sleeps `poll_interval` between tries, so it is not fair. With `blocking=False` it raises `Timeout` on the first miss.\n   - **Trigger:** the shared instance is already held, and another thread is acquiring or releasing it at the same moment.\n   - **Consequence:** a re-entrant `acquire()` that always succeeded at base now raises `Timeout` even though `is_locked` is `True`.\n   - **Evidence (executed):**\n     - `f3_p5_nonblocking_reentrant.py`: base `ok: 99018 spurious Timeouts: 0`, head `ok: 0 spurious Timeouts: 800859`.\n     - `f3_p7_blocking_starvation.py` with `timeout=1`: base 5/5 `ok after 0.000s`, head 5/5 `Timeout after 1.00s`. The other thread loops acquire/release tightly here, so real code will see this less often.\n   - **Origin:** new. Same gate as defect 2; a fix probably checks `is_locked` and the counter before taking the gate.\n\n4. **The anti-livelock backoff never applies with default settings, and the async lock has none.**\n   - **Location:** `_api.py` `_poll_delay` together with `_strict.py:83` (`_poll_backoff_cap = 0.05`). The async poll loop (`asyncio.py:372-373`) never calls `_poll_delay`.\n   - **Trigger:** contended waiters using the default `poll_interval=0.05`, or anything at or above 0.05. The jitter range then collapses to exactly `poll_interval`. The async lock gets no jitter at any interval.\n   - **Consequence:** the jitter the code comments promise never happens. Both contenders backing off at once is reachable:\n     - higher-token A links its held claim;\n     - lower-token B sees it and backs off;\n     - A's rescan still sees B's intent and also backs off.\n\n     Polling in lockstep can repeat this. I did not observe a livelock.\n   - **Evidence:** the delay values are executed (`f3_p1_backoff.py`): head at 0.05 gives `distinct delays 1`, at 0.01 `6857`. The livelock is inferred; the check that would settle it is a multi-process contention run comparing acquisitions per second at 0.05 and 0.01.\n   - **Origin:** new.\n\n5. **The how-to page still describes the old strict lock and contradicts the new section.**\n   - **Location:** `docs/how-to.rst:628` points at `MarkerSoftFileLock.force_break`, and `:659-675` say \"protocol 2 record\", \"legacy contender evicts\" and \"lease waits out a strict holder\". The new text at `:498-505` says otherwise.\n   - **Consequence:** following the recovery advice fails. Calling `force_break()` with no argument raises `TypeError ... missing 'claim_name'`, and the class is no longer a `MarkerSoftFileLock`. A `SoftFileLease` on a path that strict mode has ever used times out permanently.\n   - **Evidence (executed):** `f1_p7_doc_contract_table.py`: base `lease after strict release: acquired`, `zero-arg force_break: ok`. Head `Timeout`, `TypeError`, `isinstance MarkerSoftFileLock: False`.\n   - **Origin:** made worse. The docs were accurate at base; this change made them wrong.\n\n6. **The claim directories ignore `mode`, so other users can't share the lock (inferred).**\n   - **Location:** `_strict.py:773-783`. `_ensure_protocol_directory` uses a bare `mkdir()`.\n   - **Trigger:** user A creates the lock first with `mode=0o666` in a shared sticky directory; user B then tries to acquire.\n   - **Observed:** at head, `r.lock.filelock/` and `claims/` are created `0o755`, owned by A, and stay after release. At base only `r.lock` exists.\n   - **Predicted:** B gets `PermissionError` creating its private record, permanently.\n   - **Settling check:** acquire as a second UID; no second user was available here.\n   - **Origin:** new.\n   - **Note:** with the default `mode=-1`, `mkdir` follows default ACLs the same way the base did, so ACL-managed folders likely work.\n\n## Minor observations\n\n- **Wrong `lifetime` warning text:** `StrictSoftFileLock(lifetime=...)` now gives the native-lock reason (\"a native OS lock cannot be broken safely by file age\"). The `_lifetime_unsupported_reason` override and its test were dropped. Executed.\n- **Hostnames with whitespace:** a host whose `gethostname()` contains whitespace can never acquire. The writer publishes a record its own reader rejects (`malformed claim record`). Executed with a mocked hostname; it only matters if a real OS reports such a name.\n- **Filesystems without hard links:** `link()` returning `EPERM` (Linux vfat) raises a plain `PermissionError`, not the documented `SoftFileLockProtocolError`, because `_raise_if_hard_links_unsupported` doesn't map `EPERM`. Modeled with a mocked `os.link`; only matters on such filesystems.\n- **Interrupt window in the new gate:** a `KeyboardInterrupt` landing between the `_transition_lock.acquire()` that succeeds and the `try` leaves the gate held, and that instance is locked out for other threads. Seen only with a trace hook; the window is tiny.\n- **Static check:** the only new type-checker diagnostic at head is `CREATE_NEW_PROCESS_GROUP` in `tests/test_strict_soft_stress.py`, a Windows-only attribute reported on Linux.\n\n## Questions for the author\n\n- **Claims left behind after a close failure:** if `os.close` fails after a claim is published (`_strict.py:133`, `:153-156`), acquire raises and leaves `held`/`intent` claims that nothing owns. The path then stays locked until someone runs `force_break` (executed: `is_locked: False claims: ['held', 'intent'] owner_paths: ()`). Two tests assert this outcome, but the helper comments say \"caller records the held path before raising\". Is leaving orphaned claims the intended fail-closed behaviour?\n\n## Checked and ruled out\n\n- **Two owners at once:** traced by hand and in the stress suites; no overlap found.\n- **Removed `owner`/`pid` and zero-argument `force_break`:** the old strict lock was never released, so nothing published breaks.\n- **Async path skipping the new gate:** it has its own gate.\n- **Legacy `SoftFileLock` evicting the sentinel:** it is excluded.\n\nFinding nothing more is bounded to these reads. Not tested: Windows, NFS/SMB, real multi-user setups and multi-process livelock.",
+  "created": [
+   ".scratch/strict-owner-claims/NOTES.md",
+   ".scratch/strict-owner-claims/finder-1/mypy-..txt",
+   ".scratch/strict-owner-claims/finder-1/mypy-base.txt",
+   ".scratch/strict-owner-claims/finder-1/mypy.out",
+   ".scratch/strict-owner-claims/finder-1/probes/p1.out",
+   ".scratch/strict-owner-claims/finder-1/probes/p1_dirclose_orphan.py",
+   ".scratch/strict-owner-claims/finder-1/probes/p2.out",
+   ".scratch/strict-owner-claims/finder-1/probes/p2_release_blocks.py",
+   ".scratch/strict-owner-claims/finder-1/probes/p3_lifetime_msg.py",
+   ".scratch/strict-owner-claims/finder-1/probes/p3_p4_p6.out",
+   ".scratch/strict-owner-claims/finder-1/probes/p4_dir_mode.py",
+   ".scratch/strict-owner-claims/finder-1/probes/p6_hostname_space.py",
+   ".scratch/strict-owner-claims/finder-1/probes/p7.out",
+   ".scratch/strict-owner-claims/finder-1/probes/p7_doc_contract_table.py",
+   ".scratch/strict-owner-claims/finder-1/probes/p8.out",
+   ".scratch/strict-owner-claims/finder-1/probes/p8_backoff_dead_at_default.py",
+   ".scratch/strict-owner-claims/finder-2/probes/after_strict_release.py",
+   ".scratch/strict-owner-claims/finder-2/probes/lease_vs_strict.py",
+   ".scratch/strict-owner-claims/finder-2/probes/legacy_soft_vs_sentinel.py",
+   ".scratch/strict-owner-claims/finder-2/probes/lifetime_reason.py",
+   ".scratch/strict-owner-claims/finder-2/probes/link_eperm.py",
+   ".scratch/strict-owner-claims/finder-2/probes/poll_delay.py",
+   ".scratch/strict-owner-claims/finder-2/probes/release_blocks.py",
+   ".scratch/strict-owner-claims/finder-2/probes/results.txt",
+   ".scratch/strict-owner-claims/finder-2/probes/results2.txt",
+   ".scratch/strict-owner-claims/finder-2/probes/results3.txt",
+   ".scratch/strict-owner-claims/finder-2/probes/results4.txt",
+   ".scratch/strict-owner-claims/finder-2/probes/results5.txt",
+   ".scratch/strict-owner-claims/finder-2/probes/run.sh",
+   ".scratch/strict-owner-claims/finder-2/probes/shared_mode.py",
+   ".scratch/strict-owner-claims/finder-3/mypy-base.txt",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-base/.gitignore",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-base/3.13/cache.0.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-base/3.13/cache.1.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-base/3.13/cache.10.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-base/3.13/cache.11.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-base/3.13/cache.12.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-base/3.13/cache.13.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-base/3.13/cache.14.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-base/3.13/cache.15.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-base/3.13/cache.2.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-base/3.13/cache.3.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-base/3.13/cache.4.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-base/3.13/cache.5.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-base/3.13/cache.6.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-base/3.13/cache.7.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-base/3.13/cache.8.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-base/3.13/cache.9.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-base/CACHEDIR.TAG",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-head/.gitignore",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-head/3.13/cache.0.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-head/3.13/cache.1.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-head/3.13/cache.10.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-head/3.13/cache.11.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-head/3.13/cache.12.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-head/3.13/cache.13.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-head/3.13/cache.14.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-head/3.13/cache.15.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-head/3.13/cache.2.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-head/3.13/cache.3.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-head/3.13/cache.4.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-head/3.13/cache.5.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-head/3.13/cache.6.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-head/3.13/cache.7.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-head/3.13/cache.8.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-head/3.13/cache.9.db",
+   ".scratch/strict-owner-claims/finder-3/mypy-cache-head/CACHEDIR.TAG",
+   ".scratch/strict-owner-claims/finder-3/mypy-head.txt",
+   ".scratch/strict-owner-claims/finder-3/probes/RUN.md",
+   ".scratch/strict-owner-claims/finder-3/probes/__pycache__/p3_bad_paths_pytest.cpython-313-pytest-9.1.1.pyc",
+   ".scratch/strict-owner-claims/finder-3/probes/p10_other_soft_classes.py",
+   ".scratch/strict-owner-claims/finder-3/probes/p11_unreadable_sentinel.py",
+   ".scratch/strict-owner-claims/finder-3/probes/p1_backoff.py",
+   ".scratch/strict-owner-claims/finder-3/probes/p2_bad_path.py",
+   ".scratch/strict-owner-claims/finder-3/probes/p3_bad_paths_pytest.py",
+   ".scratch/strict-owner-claims/finder-3/probes/p4_dir_side_effects.py",
+   ".scratch/strict-owner-claims/finder-3/probes/p5_nonblocking_reentrant.py",
+   ".scratch/strict-owner-claims/finder-3/probes/p6_nonblocking_no_churn.py",
+   ".scratch/strict-owner-claims/finder-3/probes/p7_blocking_starvation.py",
+   ".scratch/strict-owner-claims/finder-3/probes/p8_release_blocks.py",
+   ".scratch/strict-owner-claims/finder-3/probes/p9_lifetime_warning.py",
+   ".scratch/strict-owner-claims/finder-3/ty-base.txt",
+   ".scratch/strict-owner-claims/finder-3/ty-head.txt",
+   ".scratch/strict-owner-claims/finder-3/weakened.txt",
+   ".scratch/strict-owner-claims/finder-4/p11_base.log",
+   ".scratch/strict-owner-claims/finder-4/p11_gate_leak.py",
+   ".scratch/strict-owner-claims/finder-4/p11_head.log",
+   ".scratch/strict-owner-claims/finder-4/p1_base.log",
+   ".scratch/strict-owner-claims/finder-4/p1_head.log",
+   ".scratch/strict-owner-claims/finder-4/p1_release_blocks.py",
+   ".scratch/strict-owner-claims/finder-4/p2_base_inst.log",
+   ".scratch/strict-owner-claims/finder-4/p2_base_shared.log",
+   ".scratch/strict-owner-claims/finder-4/p2_base_tl.log",
+   ".scratch/strict-owner-claims/finder-4/p2_head_inst.log",
+   ".scratch/strict-owner-claims/finder-4/p2_head_shared.log",
+   ".scratch/strict-owner-claims/finder-4/p2_head_tl.log",
+   ".scratch/strict-owner-claims/finder-4/p2_thread_stress.py",
+   ".scratch/strict-owner-claims/finder-4/p4_async_stress.py",
+   ".scratch/strict-owner-claims/finder-4/p4_base_cancel.log",
+   ".scratch/strict-owner-claims/finder-4/p4_base_inst.log",
+   ".scratch/strict-owner-claims/finder-4/p4_base_loops.log",
+   ".scratch/strict-owner-claims/finder-4/p4_base_shared.log",
+   ".scratch/strict-owner-claims/finder-4/p4_head_cancel.log",
+   ".scratch/strict-owner-claims/finder-4/p4_head_inst.log",
+   ".scratch/strict-owner-claims/finder-4/p4_head_loops.log",
+   ".scratch/strict-owner-claims/finder-4/p4_head_shared.log",
+   ".scratch/strict-owner-claims/runs/bugs/__pycache__/f3_p3_bad_paths_pytest.cpython-313-pytest-9.1.1.pyc",
+   ".scratch/strict-owner-claims/runs/bugs/f1_p1_dirclose_orphan-base.log",
+   ".scratch/strict-owner-claims/runs/bugs/f1_p1_dirclose_orphan-head.log",
+   ".scratch/strict-owner-claims/runs/bugs/f1_p1_dirclose_orphan.py",
+   ".scratch/strict-owner-claims/runs/bugs/f1_p6_hostname_space-base.log",
+   ".scratch/strict-owner-claims/runs/bugs/f1_p6_hostname_space-head.log",
+   ".scratch/strict-owner-claims/runs/bugs/f1_p6_hostname_space.py",
+   ".scratch/strict-owner-claims/runs/bugs/f1_p7_doc_contract_table-base.log",
+   ".scratch/strict-owner-claims/runs/bugs/f1_p7_doc_contract_table-head.log",
+   ".scratch/strict-owner-claims/runs/bugs/f1_p7_doc_contract_table.py",
+   ".scratch/strict-owner-claims/runs/bugs/f2_after_strict_release-base.log",
+   ".scratch/strict-owner-claims/runs/bugs/f2_after_strict_release-head.log",
+   ".scratch/strict-owner-claims/runs/bugs/f2_after_strict_release.py",
+   ".scratch/strict-owner-claims/runs/bugs/f2_lease_vs_strict-base.log",
+   ".scratch/strict-owner-claims/runs/bugs/f2_lease_vs_strict-head.log",
+   ".scratch/strict-owner-claims/runs/bugs/f2_lease_vs_strict.py",
+   ".scratch/strict-owner-claims/runs/bugs/f2_link_eperm-base.log",
+   ".scratch/strict-owner-claims/runs/bugs/f2_link_eperm-head.log",
+   ".scratch/strict-owner-claims/runs/bugs/f2_link_eperm.py",
+   ".scratch/strict-owner-claims/runs/bugs/f2_shared_mode-base.log",
+   ".scratch/strict-owner-claims/runs/bugs/f2_shared_mode-head.log",
+   ".scratch/strict-owner-claims/runs/bugs/f2_shared_mode.py",
+   ".scratch/strict-owner-claims/runs/bugs/f3_p11_unreadable_sentinel-base.log",
+   ".scratch/strict-owner-claims/runs/bugs/f3_p11_unreadable_sentinel-head.log",
+   ".scratch/strict-owner-claims/runs/bugs/f3_p11_unreadable_sentinel.py",
+   ".scratch/strict-owner-claims/runs/bugs/f3_p1_backoff-base.log",
+   ".scratch/strict-owner-claims/runs/bugs/f3_p1_backoff-head.log",
+   ".scratch/strict-owner-claims/runs/bugs/f3_p1_backoff.py",
+   ".scratch/strict-owner-claims/runs/bugs/f3_p2_bad_path-base.log",
+   ".scratch/strict-owner-claims/runs/bugs/f3_p2_bad_path-head.log",
+   ".scratch/strict-owner-claims/runs/bugs/f3_p2_bad_path.py",
+   ".scratch/strict-owner-claims/runs/bugs/f3_p3-base.log",
+   ".scratch/strict-owner-claims/runs/bugs/f3_p3-head.log",
+   ".scratch/strict-owner-claims/runs/bugs/f3_p3_bad_paths_pytest.py",
+   ".scratch/strict-owner-claims/runs/bugs/f3_p4_dir_side_effects-base.log",
+   ".scratch/strict-owner-claims/runs/bugs/f3_p4_dir_side_effects-head.log",
+   ".scratch/strict-owner-claims/runs/bugs/f3_p4_dir_side_effects.py",
+   ".scratch/strict-owner-claims/runs/bugs/f3_p5_nonblocking_reentrant-base.log",
+   ".scratch/strict-owner-claims/runs/bugs/f3_p5_nonblocking_reentrant-head.log",
+   ".scratch/strict-owner-claims/runs/bugs/f3_p5_nonblocking_reentrant.py",
+   ".scratch/strict-owner-claims/runs/bugs/f3_p7_blocking_starvation-base.log",
+   ".scratch/strict-owner-claims/runs/bugs/f3_p7_blocking_starvation-head.log",
+   ".scratch/strict-owner-claims/runs/bugs/f3_p7_blocking_starvation.py",
+   ".scratch/strict-owner-claims/runs/bugs/f3_p9_lifetime_warning-base.log",
+   ".scratch/strict-owner-claims/runs/bugs/f3_p9_lifetime_warning-head.log",
+   ".scratch/strict-owner-claims/runs/bugs/f3_p9_lifetime_warning.py",
+   ".scratch/strict-owner-claims/runs/bugs/p1-base.log",
+   ".scratch/strict-owner-claims/runs/bugs/p1-head.log",
+   ".scratch/strict-owner-claims/runs/bugs/p1_release_blocks.py",
+   ".scratch/strict-owner-claims/runs/tools/mypy-base.txt",
+   ".scratch/strict-owner-claims/runs/tools/mypy-head.txt",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-base/.gitignore",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-base/3.13/cache.0.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-base/3.13/cache.1.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-base/3.13/cache.10.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-base/3.13/cache.11.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-base/3.13/cache.12.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-base/3.13/cache.13.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-base/3.13/cache.14.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-base/3.13/cache.15.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-base/3.13/cache.2.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-base/3.13/cache.3.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-base/3.13/cache.4.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-base/3.13/cache.5.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-base/3.13/cache.6.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-base/3.13/cache.7.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-base/3.13/cache.8.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-base/3.13/cache.9.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-base/CACHEDIR.TAG",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-base/missing_stubs",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-head/.gitignore",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-head/3.13/cache.0.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-head/3.13/cache.1.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-head/3.13/cache.10.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-head/3.13/cache.11.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-head/3.13/cache.12.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-head/3.13/cache.13.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-head/3.13/cache.14.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-head/3.13/cache.15.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-head/3.13/cache.2.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-head/3.13/cache.3.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-head/3.13/cache.4.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-head/3.13/cache.5.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-head/3.13/cache.6.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-head/3.13/cache.7.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-head/3.13/cache.8.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-head/3.13/cache.9.db",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-head/CACHEDIR.TAG",
+   ".scratch/strict-owner-claims/runs/tools/mypycache-head/missing_stubs",
+   ".scratch/strict-owner-claims/runs/tools/ty-base.txt",
+   ".scratch/strict-owner-claims/runs/tools/ty-head.txt",
+   "src/filelock/__pycache__/__init__.cpython-313.pyc",
+   "src/filelock/__pycache__/_api.cpython-313.pyc",
+   "src/filelock/__pycache__/_async.cpython-313.pyc",
+   "src/filelock/__pycache__/_async_read_write.cpython-313.pyc",
+   "src/filelock/__pycache__/_descriptor.cpython-313.pyc",
+   "src/filelock/__pycache__/_error.cpython-313.pyc",
+   "src/filelock/__pycache__/_lease.cpython-313.pyc",
+   "src/filelock/__pycache__/_marker.cpython-313.pyc",
+   "src/filelock/__pycache__/_read_write.cpython-313.pyc",
+   "src/filelock/__pycache__/_soft.cpython-313.pyc",
+   "src/filelock/__pycache__/_soft_protocol.cpython-313.pyc",
+   "src/filelock/__pycache__/_strict.cpython-313.pyc",
+   "src/filelock/__pycache__/_unix.cpython-313.pyc",
+   "src/filelock/__pycache__/_util.cpython-313.pyc",
+   "src/filelock/__pycache__/_windows.cpython-313.pyc",
+   "src/filelock/__pycache__/asyncio.cpython-313.pyc",
+   "src/filelock/__pycache__/version.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/__init__.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_async.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_sync.cpython-313.pyc"
+  ],
+  "graders": {
+   "defects-section": {
+    "passed": true,
+    "why": "matched"
+   },
+   "f01-dir-mode": {
+    "passed": true,
+    "why": "Defect 6 reports that `_ensure_protocol_directory` (`_strict.py:773-783`) creates the claim directories with a bare `mkdir()`. It says the `.filelock/` and `claims/` directories come out `0o755` and owned by the first user, regardless of `mode=0o666`. It predicts that a second user gets a permanent "
+   },
+   "f02-jitter-noop": {
+    "passed": true,
+    "why": "Defect 4 states that the jittered backoff never applies at the default `poll_interval=0.05` (the jitter range collapses to exactly `poll_interval`, with executed evidence of 1 distinct delay). It also states that the async lock never calls `_poll_delay` and so has no backoff.\n\nVERDICT: PASS"
+   },
+   "f03-lifetime-warning": {
+    "passed": true,
+    "why": "The message reports under \"Minor observations\" that `StrictSoftFileLock(lifetime=...)` now gives the native-lock warning (\"a native OS lock cannot be broken safely by file age\"). It also says the `_lifetime_unsupported_reason` override and its test were dropped, and marks the finding as executed.\n\nV"
+   },
+   "f04-eperm-hardlink": {
+    "passed": true,
+    "why": "The message does report this: under \"Minor observations\" it says that on filesystems without hard links, `link()` returning `EPERM` (Linux vfat) raises a plain `PermissionError` and not the documented `SoftFileLockProtocolError`, because `_raise_if_hard_links_unsupported` doesn't map `EPERM`.\n\nVERDI"
+   },
+   "f05-release-blocks": {
+    "passed": true,
+    "why": "Defect 2 reports that on a shared (`thread_local=False`) instance, `release()` blocks while another thread waits in `acquire()`, because `release()` takes `_transition_lock` and `_transition_admission` holds that same lock through every poll sleep. The message also gives the base and head timings (0"
+   },
+   "f06-bad-path-waits": {
+    "passed": true,
+    "why": "Defect 1 reports that a lock path that can't be opened as a sentinel (a directory, `\"\"`, `\".\"`, or an unreadable file) no longer raises its `OSError`. The open error is swallowed and the caller gets `Timeout` or waits forever, and the base-versus-head runs back this up.\n\nVERDICT: PASS"
+   },
+   "f07-stale-docs": {
+    "passed": true,
+    "why": "Defect 5 reports that `docs/how-to.rst` still describes the old strict lock (the `MarkerSoftFileLock.force_break` pointer, \"protocol 2 record\", \"legacy contender evicts\") and contradicts the new section at `:498-505`, so the message does report the stale docs.\n\nVERDICT: PASS"
+   },
+   "f08-failed-discard-held": {
+    "passed": false,
+    "why": "The message does not report this. None of the defects, observations or questions say that a losing contender who can't remove its own claim leaves the instance marked as holding the lock, so a later `acquire()` falsely succeeds while another process holds it. The closest item is the orphaned-claims "
+   },
+   "f09-orphan-claim": {
+    "passed": true,
+    "why": "The message reports, under \"Questions for the author\", that if `os.close` fails after a claim is published, acquire raises and leaves `held`/`intent` claims that nothing owns. It says the path stays locked until someone runs `force_break`, and it backs this with an executed result. \"Blocks every con"
+   },
+   "f10-dual-holders": {
+    "passed": false,
+    "why": "The message explicitly states \"I found no way for two owners to hold the lock at once\" and lists \"Two owners at once\" as checked and ruled out. It does not report a race that lets two processes hold the strict lock.\n\nVERDICT: FAIL"
+   },
+   "f11-reentry-timeout": {
+    "passed": true,
+    "why": "Defect 3 reports that a re-entrant `acquire()` on a shared instance that is already held now raises `Timeout`, including with `blocking=False`, because the new transition gate is polled before the re-entrancy check. The evidence is `f3_p5_nonblocking_reentrant.py`, which goes from 0 spurious Timeout"
+   },
+   "f12-hostname-space": {
+    "passed": true,
+    "why": "The message reports, under \"Minor observations\", that a host whose `gethostname()` contains whitespace can never acquire because the writer publishes a claim record its own reader rejects as malformed. That matches the rubric.\n\nVERDICT: PASS"
+   },
+   "f13-pickle": {
+    "passed": false,
+    "why": "The message never reports that a lock created with `thread_local=False` can no longer be pickled or deep-copied due to a new `RLock` attribute. It mentions `thread_local=False` only in the context of release blocking (defect 2), and nothing about pickling or copying appears in any section.\n\nVERDICT:"
+   },
+   "f14-claims-indexerror": {
+    "passed": false,
+    "why": "The message never mentions `IndexError` or a race between the `claims` property or `force_break` and a release. Defect 2 covers `release()` blocking on a shared instance, but that is a different issue.\n\nVERDICT: FAIL"
+   },
+   "f15-dropped-close-error": {
+    "passed": false,
+    "why": "The message does mention close failures, but only in the \"Questions for the author\" item about `os.close` failing after a claim is published. That item is about orphaned claims left behind when acquire raises. It does not report that the close error from unlinking the intent claim on the winning pat"
+   },
+   "f16-interrupt-gate": {
+    "passed": true,
+    "why": "The message reports the interrupt window: under \"Minor observations\" it says a `KeyboardInterrupt` landing between the successful `_transition_lock.acquire()` and the `try` leaves the gate held and locks that instance out for other threads.\n\nVERDICT: PASS"
+   },
+   "f17-pid-placeholder": {
+    "passed": false,
+    "why": "The message does not report that `SoftFileLock(path).pid` now returns `1` (a placeholder) once the strict lock's sentinel exists, where the base returned `None`. Its only nearby mention is that the removed `owner`/`pid` attributes were ruled out. It never reports the placeholder `pid` behavior on th"
+   },
+   "ka-enotsup-import": {
+    "passed": false,
+    "why": "The message doesn't mention `ENOTSUP`, the `errno` import, GraalPy, or an `import filelock` failure at module scope. None of the six defects, minor observations or questions covers that problem.\n\nVERDICT: FAIL"
+   },
+   "kb-private-record-oserror": {
+    "passed": false,
+    "why": "The message does report that a directory lock path makes acquire fail, but it says the failure is a `Timeout` (or an indefinite hang), not a bare `OSError`. It never says the first `acquire()` raises a bare `OSError` instead of `SoftFileLockProtocolError` for a non-regular node at a sentinel private"
+   },
+   "kc-descriptor-leak": {
+    "passed": false,
+    "why": "The message does not report that a failed claim unlink on release or discard leaves the sentinel file descriptor open. The closest item is the question about `os.close` failing after a claim is published, which leaves orphaned claims. That concerns a failed close, not a failed unlink, and it describ"
+   },
+   "kd-symlink-swap": {
+    "passed": false,
+    "why": "The message never reports that the claims directory is resolved by name, so a symlink or junction swapped in after a check could redirect claim files elsewhere. Defect 6 covers only directory permissions and `mode`. The interrupt-window and other items don't cover symlink or junction races either.\n\n"
+   }
+  }
+ },
+ {
+  "case": "find-bugs-filelock",
+  "run": 2,
+  "num_turns": 5,
+  "total_cost_usd": 8.398003599999997,
+  "is_error": false,
+  "truncated": true,
+  "final": "I found eight defects in this branch. Two break mutual exclusion, the guarantee the lock exists to provide. I compared the branch head `e6538e1` with its merge-base on `main`, `126cab7`, at the committed state; the working tree was clean. Every probe below ran at both commits, and the checkout is unchanged.\n\n## Defects\n\n**1. Two processes can hold the lock at the same time** \u2014 `src/filelock/_strict.py:281-327`, used by the final check at `:158-164`\n- **Trigger:** this needs only unlucky scheduling, no fault. Process A has the smaller token.\n  1. B links its held claim and lists the claims directory, which still shows A's intent claim.\n  2. Before B reads those files, A links its held claim, passes its own final check and deletes its intent claim.\n  3. B's read of A's intent claim finds the file gone, so B skips it and never lists the directory again.\n  4. B's final check then sees no smaller token, and B enters too.\n- **Consequence:** both owners are inside the protected section at once, and no error is raised.\n- **Origin:** new; the claim protocol does not exist at base.\n- **Evidence:** executed. Two separate lock instances in threads stand in for two processes, and the probe only adds pauses between real filesystem steps.\n  - Command: `PYTHONPATH=<checkout>/src $PY .scratch/strict-owner-claims/finder-2/probes/p5_scan_toctou_overlap.py`\n  - Base: `scenario not applicable`.\n  - Head: `A is_locked: True | B is_locked: True`, in 3 of 3 runs.\n- **Same location, inferred:** `os.scandir` does not take a snapshot. A listing made while A swaps its intent claim for its held claim could miss both, but only with a very large claims directory. Not probed.\n- **Consumer impact:** must fix before merge. Treating \"vanished between listing and reading\" as a reason to rescan or back off would close this path.\n\n**2. After a failed acquire, the next `acquire()` succeeds while another process holds the lock** \u2014 `_strict.py:211-216`, together with `_api.py` `_reconcile_failed_acquire`\n- **Trigger:** the doorway loses to another process, and removing our own intent claim then fails once (for example EACCES or EIO, or an interrupt during the unlink).\n- **Consequence:** `_discard_doorway` marks the descriptor as owned, so `is_locked` stays `True` even though only an intent claim was published. The next `acquire()` or `with lock:` on that instance just increments the counter and returns while the other process's held claim exists.\n- **Origin:** new.\n- **Evidence:** executed, with injected faults.\n  - Command: `.../finder-2/probes/p4_failed_discard_reenters.py`\n  - Base: `Timeout ... (is_locked=False)`.\n  - Head: `is_locked after failed acquire: True`, then `second acquire SUCCEEDED while competitor held claim present: True counter 2`.\n  - The existing test `test_strict_soft_doorway_preserves_every_claim_cleanup_error` asserts `is_locked == True` in this state but never checks re-entry.\n- **Consumer impact:** rare trigger, but exclusion fails silently. Keeping cleanup retries for an intent-only leftover without reporting the lock as held would fix it.\n\n**3. Re-acquiring a shared strict lock that the instance already holds can raise `Timeout` or wait** \u2014 `_api.py:1093-1109`\n- **Trigger:** `StrictSoftFileLock(..., thread_local=False)` already held, with several threads calling `acquire(blocking=False)` or `acquire(timeout=small)`. The new gate is taken before the \"already held, just count\" shortcut. A busy gate fails at once when `blocking=False` and otherwise sleeps a full `poll_interval` per retry.\n- **Consequence:** an instance that holds the lock reports that it could not get it, or a simple counter increment takes several poll intervals.\n- **Origin:** new.\n- **Evidence:** executed, `.../finder-state/probe_nonblocking_reentrant.py` (8 threads \u00d7 2000 calls).\n  - Base: `ok 16000 timeouts 0`.\n  - Head: `ok 2000 timeouts 14000`.\n  - The finder's latency probe showed a worst re-acquire of 301 ms at head against 0.9 ms at base.\n- **Consumer impact:** spurious `Timeout` in multithreaded code sharing one instance.\n\n**4. `release()` on an unheld shared instance blocks while another thread waits in `acquire()`** \u2014 `_api.py:1121-1122`\n- **Trigger:** thread A waits in `acquire()` on a `thread_local=False` strict lock because another owner holds the path. Thread B calls `release()`, which should do nothing.\n- **Consequence:** B blocks until A finishes waiting. With `timeout=-1` that can be forever. If B is the code that would free the other owner, the two threads deadlock (inferred, not probed). The async `release()` checks `is_locked` before taking its gate, so the sync and async versions now disagree.\n- **Origin:** new.\n- **Evidence:** executed by three finders and re-run by me (`.../finder-state/probe_release_blocks.py`). Base `returned after 0.00s`; head `returned after 2.73s`.\n\n**5. A second OS user cannot acquire once the first user has used the path** \u2014 `_strict.py:773-783`, `_ensure_protocol_directory`\n- **Trigger:** under umask 022, `<path>.filelock/` and `claims/` are created with a bare `mkdir()` and kept forever. They end up 0o755 and owned by the first user, whatever `mode` says.\n- **Consequence:** another user gets `PermissionError` writing its intent claim, even after the first user has released. At base the marker file is removed on release, so each user could create their own.\n- **Origin:** new.\n- **Evidence:** the directory modes are executed (`.scratch/strict-owner-claims/main/mode_dirs.py`: `w.lock.filelock 0o755`, `claims 0o755`). The second user's failure was emulated by setting `claims/` to 0o555, which gave `PermissionError [Errno 13]`. A real second user was not available.\n- **To settle:** run the probe's second acquire under another UID.\n\n**6. Non-thread-local `FileLock` and `SoftFileLock` instances can no longer be pickled or deep-copied** \u2014 `_api.py:727`\n- **Trigger:** `pickle.dumps` or `copy.deepcopy` of any sync lock created with `thread_local=False`, for example one passed to a worker process started with spawn. The new `RLock` is created for every lock class, not only the strict one that uses it.\n- **Origin:** new.\n- **Evidence:** executed, `.../finder-1/probes/p4_pickle.py`.\n  - Base: `pickle ok` / `deepcopy ok` for both `UnixFileLock` and `SoftFileLock`.\n  - Head: `TypeError cannot pickle '_thread.RLock' object`.\n- **Action:** you decide. There is no documented pickling contract, but the regression reaches classes this branch was not meant to change.\n\n**7. A host whose name contains whitespace can never acquire** \u2014 `_strict.py:361-371`\n- **Trigger:** `socket.gethostname()` returns something like `\"my host\"`. The parser rejects the claim this same process just wrote.\n- **Consequence:** every acquire raises `SoftFileLockProtocolError: ... malformed claim record`.\n- **Origin:** new.\n- **Evidence:** executed with a mocked hostname (`p6_hostname.py \"my host\"`). Base `acquired` / `released`; head raises. The reach is rare.\n\n**8. An unreadable lock file now gives a silent `Timeout` instead of an error** \u2014 `_strict.py:248-253`\n- **Trigger:** the lock path exists but cannot be opened, for example a file with mode 000.\n- **Consequence:** at base this raised `PermissionError` at once. At head the open error is treated as \"someone else holds it\": the call waits the full timeout (forever with the default), and `lock.claims` returns `()`, so nothing shows what is blocking.\n- **Origin:** new.\n- **Evidence:** executed, `.scratch/strict-owner-claims/main/unusable_path.py`.\n- **Action:** you decide. When the path is a directory, the test `test_strict_soft_existing_non_regular_sentinel_blocks` asserts `Timeout`, so that case is intended. No test covers the permission case.\n\n## Minor observations\n- **No jitter at the default poll interval** (`_api.py:1240-1247`): with the default `poll_interval=0.05`, equal to the strict cap of 0.05, every delay is exactly 0.05. I saw 1 distinct value at 0.05 and 771 at 0.01. The async strict lock never uses this backoff at all. No livelock showed up on Linux, even with 32 processes; the commit that added the backoff reported livelock on Windows at a 0.5 ms poll interval.\n- **Wrong `lifetime` warning:** `StrictSoftFileLock(lifetime=...)` now says \"a native OS lock cannot be broken safely by file age\". At base it said \"a strict lock never reclaims a marker by age\".\n- **`SoftFileLock(p).pid` returns `1`** once the strict lock's permanent placeholder file is at the path (base returns `None`).\n\n## Outside the change\nNone.\n\n## Questions for the author\n- Defect 6: should non-thread-local locks stay picklable? Making the `RLock` lazy or adding `__getstate__` would keep that.\n- Defect 8: should an unreadable lock file raise, as the base did, instead of waiting?\n- Defect 5: is use of one lock by several OS users supported? The strict docs do not say.\n\n**Dropped leads:**\n- Claims left behind after a close failure: existing tests assert this outcome.\n- A directory at the lock path: a test asserts `Timeout`.\n- `claim_root` going stale, fork resets of the new state, and async instances having no `RLock`: each is contradicted by the code.\n- API removals compared with the base strict lock: 3.30.0 is unreleased.\n\n**Searches and gaps:**\n- Five separate reads searched the change: three independent finders, one finder limited to shared state, and my own pass.\n- mypy and ty showed no new diagnostics at head beyond environment noise.\n- The strict test files pass at head: 116 passed, 3 skipped.\n- Not covered: Windows, NFS/SMB, and a real second user.\n- Another read could still find more.\n\nThe probes and their logs are in `.scratch/strict-owner-claims/`, under `main/` and the four finder folders.",
+  "created": [
+   ".mypy_cache/.gitignore",
+   ".mypy_cache/3.13/cache.0.db",
+   ".mypy_cache/3.13/cache.1.db",
+   ".mypy_cache/3.13/cache.10.db",
+   ".mypy_cache/3.13/cache.11.db",
+   ".mypy_cache/3.13/cache.12.db",
+   ".mypy_cache/3.13/cache.13.db",
+   ".mypy_cache/3.13/cache.14.db",
+   ".mypy_cache/3.13/cache.15.db",
+   ".mypy_cache/3.13/cache.2.db",
+   ".mypy_cache/3.13/cache.3.db",
+   ".mypy_cache/3.13/cache.4.db",
+   ".mypy_cache/3.13/cache.5.db",
+   ".mypy_cache/3.13/cache.6.db",
+   ".mypy_cache/3.13/cache.7.db",
+   ".mypy_cache/3.13/cache.8.db",
+   ".mypy_cache/3.13/cache.9.db",
+   ".mypy_cache/CACHEDIR.TAG",
+   ".mypy_cache/missing_stubs",
+   ".scratch/strict-owner-claims/finder-1/probes/COMMANDS.txt",
+   ".scratch/strict-owner-claims/finder-1/probes/p1_poll_delay.py",
+   ".scratch/strict-owner-claims/finder-1/probes/p2_default_contention.py",
+   ".scratch/strict-owner-claims/finder-1/probes/p3_release_blocks.py",
+   ".scratch/strict-owner-claims/finder-1/probes/p4_pickle.py",
+   ".scratch/strict-owner-claims/finder-1/probes/p5_close_failure_orphan.py",
+   ".scratch/strict-owner-claims/finder-1/probes/p6_hostname.py",
+   ".scratch/strict-owner-claims/finder-1/probes/p7_fork_gate.py",
+   ".scratch/strict-owner-claims/finder-1/probes/p8_shared_mode.py",
+   ".scratch/strict-owner-claims/finder-1/probes/p9_soft_pid_on_sentinel.py",
+   ".scratch/strict-owner-claims/finder-2/probes/all.log",
+   ".scratch/strict-owner-claims/finder-2/probes/p1_backoff_default.py",
+   ".scratch/strict-owner-claims/finder-2/probes/p2_release_blocks.py",
+   ".scratch/strict-owner-claims/finder-2/probes/p3_mutex_stress.py",
+   ".scratch/strict-owner-claims/finder-2/probes/p3b_stress_pi.py",
+   ".scratch/strict-owner-claims/finder-2/probes/p4_failed_discard_reenters.py",
+   ".scratch/strict-owner-claims/finder-2/probes/p5_scan_toctou_overlap.py",
+   ".scratch/strict-owner-claims/finder-2/probes/p6.log",
+   ".scratch/strict-owner-claims/finder-2/probes/p6_lifetime_reason.py",
+   ".scratch/strict-owner-claims/finder-3/probes/p1.out",
+   ".scratch/strict-owner-claims/finder-3/probes/p1_bad_sentinel.py",
+   ".scratch/strict-owner-claims/finder-3/probes/p2.out",
+   ".scratch/strict-owner-claims/finder-3/probes/p2_backoff.py",
+   ".scratch/strict-owner-claims/finder-3/probes/p3.out",
+   ".scratch/strict-owner-claims/finder-3/probes/p3_async_contention.py",
+   ".scratch/strict-owner-claims/finder-3/probes/p4.out",
+   ".scratch/strict-owner-claims/finder-3/probes/p4_other_soft_classes.py",
+   ".scratch/strict-owner-claims/finder-3/probes/p5.out",
+   ".scratch/strict-owner-claims/finder-3/probes/p5_release_blocks.py",
+   ".scratch/strict-owner-claims/finder-3/probes/p6.out",
+   ".scratch/strict-owner-claims/finder-3/probes/p6_mode_dirs.py",
+   ".scratch/strict-owner-claims/finder-3/probes/p7.out",
+   ".scratch/strict-owner-claims/finder-3/probes/p7_legacy_vs_sentinel.py",
+   ".scratch/strict-owner-claims/finder-3/tools/mypy-base.txt",
+   ".scratch/strict-owner-claims/finder-3/tools/mypy-head.txt",
+   ".scratch/strict-owner-claims/finder-3/tools/ty-base.txt",
+   ".scratch/strict-owner-claims/finder-3/tools/ty-head.txt",
+   ".scratch/strict-owner-claims/finder-state/probe1-2.log",
+   ".scratch/strict-owner-claims/finder-state/probe3.log",
+   ".scratch/strict-owner-claims/finder-state/probe4.log",
+   ".scratch/strict-owner-claims/finder-state/probe_nonblocking_reentrant.py",
+   ".scratch/strict-owner-claims/finder-state/probe_reentrant_latency.py",
+   ".scratch/strict-owner-claims/finder-state/probe_release_blocks.py",
+   ".scratch/strict-owner-claims/finder-state/probe_timeout_reentrant.py",
+   ".scratch/strict-owner-claims/main/finder1_rerun.out",
+   ".scratch/strict-owner-claims/main/finder2_rerun.out",
+   ".scratch/strict-owner-claims/main/mode_dirs.out",
+   ".scratch/strict-owner-claims/main/mode_dirs.py",
+   ".scratch/strict-owner-claims/main/poll_delay.out",
+   ".scratch/strict-owner-claims/main/poll_delay.py",
+   ".scratch/strict-owner-claims/main/state_rerun.out",
+   ".scratch/strict-owner-claims/main/unusable_path.out",
+   ".scratch/strict-owner-claims/main/unusable_path.py",
+   ".scratch/strict-owner-claims/static/a",
+   ".scratch/strict-owner-claims/static/b",
+   ".scratch/strict-owner-claims/static/mypy_base.txt",
+   ".scratch/strict-owner-claims/static/mypy_head.txt",
+   ".scratch/strict-owner-claims/static/ty_base.txt",
+   ".scratch/strict-owner-claims/static/ty_head.txt",
+   "src/filelock/__pycache__/__init__.cpython-313.pyc",
+   "src/filelock/__pycache__/_api.cpython-313.pyc",
+   "src/filelock/__pycache__/_async.cpython-313.pyc",
+   "src/filelock/__pycache__/_async_read_write.cpython-313.pyc",
+   "src/filelock/__pycache__/_descriptor.cpython-313.pyc",
+   "src/filelock/__pycache__/_error.cpython-313.pyc",
+   "src/filelock/__pycache__/_lease.cpython-313.pyc",
+   "src/filelock/__pycache__/_marker.cpython-313.pyc",
+   "src/filelock/__pycache__/_read_write.cpython-313.pyc",
+   "src/filelock/__pycache__/_soft.cpython-313.pyc",
+   "src/filelock/__pycache__/_soft_protocol.cpython-313.pyc",
+   "src/filelock/__pycache__/_strict.cpython-313.pyc",
+   "src/filelock/__pycache__/_unix.cpython-313.pyc",
+   "src/filelock/__pycache__/_util.cpython-313.pyc",
+   "src/filelock/__pycache__/_windows.cpython-313.pyc",
+   "src/filelock/__pycache__/asyncio.cpython-313.pyc",
+   "src/filelock/__pycache__/version.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/__init__.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_async.cpython-313.pyc",
+   "src/filelock/_soft_rw/__pycache__/_sync.cpython-313.pyc",
+   "tests/__pycache__/conftest.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_async_soft_contracts.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_marker_records.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_compat.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_failures.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_paths.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_races.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_recovery.cpython-313-pytest-9.1.1.pyc",
+   "tests/__pycache__/test_strict_soft_stress.cpython-313-pytest-9.1.1.pyc"
+  ],
+  "graders": {
+   "defects-section": {
+    "passed": true,
+    "why": "matched"
+   },
+   "f01-dir-mode": {
+    "passed": true,
+    "why": "Defect 5 reports that `<path>.filelock/` and `claims/` are created with a bare `mkdir()` under umask 022. They end up 0o755 and owned by the first user, \"whatever `mode` says\", so a second OS user gets `PermissionError` and cannot acquire. The message cites `_ensure_protocol_directory`. It describes"
+   },
+   "f02-jitter-noop": {
+    "passed": true,
+    "why": "The message reports under \"Minor observations\" that at the default poll_interval of 0.05, equal to the strict cap of 0.05, every delay is exactly 0.05 (1 distinct value), so the jitter has no effect. It also states that the async strict lock never uses this backoff at all, so both conditions in the "
+   },
+   "f03-lifetime-warning": {
+    "passed": true,
+    "why": "The message reports the wrong-`lifetime` warning under \"Minor observations\": `StrictSoftFileLock(lifetime=...)` now says \"a native OS lock cannot be broken safely by file age\", where the base said \"a strict lock never reclaims a marker by age\". It doesn't say outright that this is wrong for a soft l"
+   },
+   "f04-eperm-hardlink": {
+    "passed": false,
+    "why": "The message never mentions the `link()` failing with `EPERM` on filesystems such as vfat or exfat, nor a `PermissionError` leaking in place of `SoftFileLockProtocolError`. Defect 5 and defect 8 involve `PermissionError`, but for different triggers (directory modes and unreadable lock files).\n\nVERDIC"
+   },
+   "f05-release-blocks": {
+    "passed": true,
+    "why": "Defect 4 reports that `release()` on an unheld `thread_local=False` strict lock blocks while another thread waits in `acquire()`. It cites `_api.py:1121-1122` and says B returned after 2.73s at head against 0.00s at base. It doesn't state the shared transition lock as the cause. It does give the mec"
+   },
+   "f06-bad-path-waits": {
+    "passed": true,
+    "why": "Defect 8 reports that a lock path that cannot be opened (a file with mode 000) used to raise `PermissionError` at base. At head the open error is swallowed and the caller waits the full timeout, with no error. It also notes that the directory case is an intended `Timeout`. This matches the rubric.\n\n"
+   },
+   "f07-stale-docs": {
+    "passed": false,
+    "why": "The message never mentions that the docs or changelog still describe the old marker-based strict lock and contradict the new text. Its closest item is the `lifetime` warning wording, which is a code message and not docs or changelog.\n\nVERDICT: FAIL"
+   },
+   "f08-failed-discard-held": {
+    "passed": true,
+    "why": "Defect 2 reports this: when the doorway loses and removing its own intent claim fails, `_discard_doorway` leaves the instance marked as owned. `is_locked` stays `True`, and the next `acquire()` succeeds while the competitor's held claim exists. The probe output confirms it (\"second acquire SUCCEEDED"
+   },
+   "f09-orphan-claim": {
+    "passed": false,
+    "why": "The message does not report this defect. Defect 2 covers a failed removal of an intent claim, and the \"Dropped leads\" line mentions claims left behind after a close failure but says existing tests assert that outcome. Neither says that an error while closing or finalizing a claim after it was linked"
+   },
+   "f10-dual-holders": {
+    "passed": true,
+    "why": "Defect 1 reports that two processes can both hold the strict lock with no fault injected. The cause is a race in the claim scan: B's read of A's intent claim finds the file gone, so B skips it, and B's final check then sees no smaller token. The message gives a trigger and a probe that showed both `"
+   },
+   "f11-reentry-timeout": {
+    "passed": true,
+    "why": "Defect 3 reports that re-acquiring a shared strict lock the instance already holds can raise `Timeout` or wait. It says the new gate is taken before the \"already held, just count\" shortcut, so `acquire(blocking=False)` or a small timeout fails or sleeps. The probe numbers back this up: 14000 timeout"
+   },
+   "f12-hostname-space": {
+    "passed": true,
+    "why": "Defect 7 reports that a host name containing whitespace (e.g. \"my host\") makes the parser reject the claim record the same process just wrote. That raises `SoftFileLockProtocolError: malformed claim record` on every acquire, so the lock can never acquire.\n\nVERDICT: PASS"
+   },
+   "f13-pickle": {
+    "passed": true,
+    "why": "Defect 6 reports that non-thread-local `FileLock` and `SoftFileLock` instances can no longer be pickled or deep-copied. It attributes this to the new `RLock` created in `_api.py:727`, and it backs the claim with a probe that gave `TypeError cannot pickle '_thread.RLock' object` at head.\n\nVERDICT: PA"
+   },
+   "f14-claims-indexerror": {
+    "passed": false,
+    "why": "The message does not report an `IndexError` from the `claims` property or `force_break` racing a release on a shared instance. None of the eight defects, minor observations or questions mention it. Defect 4 covers `release()` blocking, which is a different issue.\n\nVERDICT: FAIL"
+   },
+   "f15-dropped-close-error": {
+    "passed": false,
+    "why": "The message does not report the dropped close error from unlinking the intent claim on the winning path. Defect 2 covers a failed intent-claim removal on the losing path. The \"Dropped leads\" line mentions claims left behind after a close failure, but that is a different case and it was dismissed.\n\nV"
+   },
+   "f16-interrupt-gate": {
+    "passed": false,
+    "why": "The message does not report that a `KeyboardInterrupt` between taking the transition lock and entering the `try` leaves the gate held. Defect 2 mentions \"an interrupt during the unlink\", but that is a different scenario, and nothing else covers the gate.\n\nVERDICT: FAIL"
+   },
+   "f17-pid-placeholder": {
+    "passed": true,
+    "why": "The message reports it under \"Minor observations\": `SoftFileLock(p).pid` returns `1` once the strict lock's permanent placeholder file is at the path, and the base returns `None`.\n\nVERDICT: PASS"
+   },
+   "ka-enotsup-import": {
+    "passed": false,
+    "why": "The message lists eight defects and several minor observations, but none mention importing `ENOTSUP` from `errno` at module scope failing on runtimes such as GraalPy, or that this breaks `import filelock`. The \"Outside the change\" section is \"None.\"\n\nVERDICT: FAIL"
+   },
+   "kb-private-record-oserror": {
+    "passed": false,
+    "why": "The message never reports that a non-regular node (directory, symlink, FIFO, socket) at a sentinel private-record name makes the first `acquire()` raise a bare `OSError` instead of `SoftFileLockProtocolError`. Defect 8 and the dropped lead on a directory at the lock path both mention a non-regular l"
+   },
+   "kc-descriptor-leak": {
+    "passed": false,
+    "why": "The message does not report that a failed claim unlink on release or discard leaves the sentinel file descriptor open. Defect 2 covers a failed discard unlink, but it describes the consequence as `is_locked` staying `True` and a wrongful re-entry. It never mentions a leaked or open descriptor. The o"
+   },
+   "kd-symlink-swap": {
+    "passed": false,
+    "why": "The message does not report that the claims directory is reached by name, so a symlink or junction swapped in after a check could redirect claim files elsewhere. Defect 5 covers claims directory permissions and the minor observations cover other issues, but none mention symlink or junction swapping."
+   }
+  }
+ }
+]

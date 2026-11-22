@@ -13,13 +13,21 @@ first run missed. How much do runs differ, and what closes the gap?
   `probes/`, with one grader each. `probes/p10_custom_handler_deps.py` shows a
   fifteenth that no grader scores.
 - `find-bugs-filelock/`: tox-dev/filelock PR 659, base `126cab7`, head
-  `e6538e1`. Held out: no answer key was read and no run is recorded yet.
+  `e6538e1`. Held out: the arm text was frozen and all eight runs finished
+  before any later fix was read. Its graders were written afterwards, one for
+  each of 17 distinct findings the runs reported (`f01` to `f17`) and one for
+  each of 4 defects that later fixes attribute to this PR (`ka` to `kd`).
+  `probes/` reproduces 10 of the 17, three of them only under an injected
+  fault or a forced interleaving.
 - `results/`: one `results.json` for each set of runs, with every final
   message and grader verdict. `ev-prose` and `ev-prose2` are runs of the
   `find-bugs-recall` fixture, which lives on the `find-bugs-improvements`
   branch.
+- `results/finder-reports-judged.json`: the same graders applied to what each
+  finder returned to its lead.
 - `arm-passes-SKILL.md`: the `find-bugs` text of the independent-passes arm,
-  frozen before the held-out runs.
+  frozen before the held-out runs. `arm-solo-SKILL.md`: one finder and a
+  verifying lead; no run of it is recorded here.
 - `run_overlap.py`: `evals/run.py` as of commit fdf0248 (`--evals-dir`, runs
   for each case, pairwise overlap, a `T` mark for a run with more than one
   result event), with Docker, `curl`, `wget`, and package installs blocked.
@@ -33,17 +41,48 @@ first run missed. How much do runs differ, and what closes the gap?
 | `main` | 6 | 5.3 mean, 3 to 8 | 0.53 | $1.19 |
 | class questions and `## Minor observations` | 5 | 6.0 mean | 0.60 | $1.17 |
 | independent passes | 3 | 11, 10, 11 | 0.83 | $5.86 |
-| `find-bugs-improvements` ledger | 1 | 9 | not measured | $2.54 |
+| `find-bugs-improvements` ledger | 3 | 9, 8, 7 | 0.78 | $4.05 |
 | `main` on Fable 5.2 | 1 | 8 | not measured | $1.97 |
 
 Five `main` runs merged find 8.7 on average, for $5.95. No arm found the
 `APIRoute.tags` typing break; `static_delta.py` over `docs_src` prints it.
 The runner marked all three independent-passes runs `T`; one was scored on its
-longest message, not its last.
+longest message, not its last. The third ledger run probed the cache race and
+listed it as a minor observation; the judge scored that a miss. A fourth
+ledger run was cut off by a usage limit and is not recorded.
 
-These numbers come from one PR and one model. The state finder's instruction
-was written after this PR showed the cache race missed, so its three hits are
-not a confirmation.
+The state finder's instruction was written after this PR showed the cache
+race missed, so its three hits here are not a confirmation.
+
+## Results on filelock PR 659, Opus 5.5, held out
+
+| Arm | Runs | Findings of 17 | Reproduced of 10 | Pairwise overlap | Cost for each run |
+|---|---|---|---|---|---|
+| `main` | 5 | 3.6 mean: 5, 2, 6, 3, 2 | 2.4 mean | 0.22 | $1.57 |
+| independent passes | 3 | 10.3 mean: 9, 11, 11 | 7.3 mean | 0.51 | $8.23 |
+
+Five `main` runs merged reach 10.0 findings and 7.0 reproduced, for $7.86: the
+same as one independent-passes run for the same money. No run of either arm
+found any of the 4 defects that later fixes attribute to this PR.
+
+"Reproduced" means a behavior change observed at the head and not at the
+base, or a failure in new code under the stated fault. It does not mean a
+maintainer fixed it. The 17 graders were written after reading the runs, so
+they score agreement between runs, not recall against an independent list.
+
+## What the two PRs support
+
+- One `main` run reports a fraction of what repeated runs report.
+- For the same money, independent passes match merged plain runs. The gain is
+  repeated reading with a checked merge in one run, at about five times the
+  cost of one read.
+- Runs of a structured arm agree more with each other: 0.51 to 0.83 against
+  0.22 to 0.53.
+- One plain finder returned 7.0 (fastapi) and 5.8 (filelock) findings to its
+  lead, against 5.3 and 3.6 delivered by a whole `main` run. No run has tested
+  a single finder with a verifying lead.
+- The ledger was not run on filelock, so it is not ranked against
+  independent passes.
 
 ## Rebuild and run
 

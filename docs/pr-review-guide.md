@@ -10,7 +10,7 @@ or fix.
 1. **Pin the snapshot and use the requested depth.** Record the head SHA,
    comparison base, and observed base tip separately. A kickoff round asks only the choices
    the prompt leaves open: familiarity, HTML or text, full review or overview,
-   search for bugs; text, a full guide, and the search are the recommendations,
+   search for bugs with one read or a thorough search; text, a full guide, and a one-read search are the recommendations,
    and "go" takes them. An overview-only request gets a
    scoped, checked report before deep investigation. A full review continues
    to the final guide. The bottom line explains the consequential findings and
@@ -36,7 +36,8 @@ or fix.
    directions, from the intent to the code and from delivered behavior back
    to intent, so effects nobody asked for stay visible.
 4. **Integrate defects, then check claims.** When selected, the search for bugs
-   runs and its findings are ranked into the list. An optional second reader forms a brief understanding from the report,
+   runs and its findings are ranked into the list. A thorough search starts its
+   finders from the guide's own session, since a worker may be unable to start them. An optional second reader forms a brief understanding from the report,
    then checks the consequential claims, recommendations and reassurances
    against their evidence. It returns discrepancies and scope limits; a
    per-claim ledger is used only when the assignment needs one.

@@ -18,7 +18,7 @@ The check changes no application code or tests. It writes to a ticket only when 
 
 ## 1. Kickoff and pin
 
-Hold the kickoff round from [asking](../ASKING.md) first, with the questions the request leaves open: how much codebase familiarity to assume; the deliverable, text plus an HTML companion (recommended) or text only; whether to run straight through (recommended) or confirm the extracted requirement list before verification; and *Search for bugs?*, *Yes* (recommended) or *No*. Apply a choice the request states without asking. The first delivery states every applied choice in its `Kickoff:` line.
+Hold the kickoff round from [asking](../ASKING.md) first, with the questions the request leaves open: how much codebase familiarity to assume; the deliverable, text plus an HTML companion (recommended) or text only; whether to run straight through (recommended) or confirm the extracted requirement list before verification; and *Search for bugs?*, *Yes* (recommended), one read; *Thorough*, several independent reads at about five times the cost of one; or *No*. Apply a choice the request states without asking. The first delivery states every applied choice in its `Kickoff:` line.
 
 Pin `head` as a full SHA: the checkout's HEAD, or a named branch resolved to its SHA. A `base` is optional and serves attribution only. When a base is inferable, such as the merge-base of a feature branch with the default branch, find it and state it as an assumption instead of asking. Write `head`, `base` when pinned, and `repository: owner/name` in the report's front matter. Record local modifications and relevant configuration; dirty source follows the [snapshot rule](../EVIDENCE.md#capture-a-local-snapshot).
 
@@ -80,7 +80,7 @@ Done when the section lists each such behavior with its pinned source, or states
 
 ## 6. Search for bugs
 
-When selected, load [find-bugs](../find-bugs/SKILL.md) and follow it as a scoped helper, yourself or through native delegation. Supply the head, the base when pinned, the feature scope (commit set and traced files or symbols), the report directory, the local tool record when available, and hypotheses from the verification step. Keep its probe scripts, fixtures, logs, and environment records under the report directory's `runs/bugs/`. Read the worker's questions as well as its defects: a question that carries a verified break becomes a defect marked *you decide*, as [find-bugs](../find-bugs/SKILL.md#4-check-rank-and-deliver) says. Integrate returned defects as bug cards with the [acceptance origins](references/report-format.md#bug-origins):
+When selected, load [find-bugs](../find-bugs/SKILL.md) and follow it as a scoped helper, yourself or through native delegation. For a thorough search, follow it yourself, because a worker may be unable to start the finders. Supply the depth, the head, the base when pinned, the feature scope (commit set and traced files or symbols), the report directory, the local tool record when available, and hypotheses from the verification step. Keep its probe scripts, fixtures, logs, and environment records under the report directory's `runs/bugs/`. Read the worker's questions as well as its defects: a question that carries a verified break becomes a defect marked *you decide*, as [find-bugs](../find-bugs/SKILL.md#4-check-rank-and-deliver) says. Integrate returned defects as bug cards with the [acceptance origins](references/report-format.md#bug-origins):
 
 - A bug that breaks a requirement sets that row to Partial or Unmet and links its card.
 - Every other bug gets its own card.

@@ -1,0 +1,125 @@
+[
+ {
+  "case": "find-bugs-fastapi",
+  "run": 0,
+  "num_turns": 12,
+  "total_cost_usd": 1.9673019999999999,
+  "is_error": false,
+  "truncated": false,
+  "final": "The branch has seven defects against `main`, all reproduced by running the same probe on both revisions. Three are regressions I would fix before merge, three are behaviour changes that need your decision, and one is a gap in the new feature.\n\n**Scope:** head `1e70f7c` (`refactor/router-tree`) against merge-base `016ab76` (`main`), clean working tree. I read `fastapi/routing.py`, `fastapi/openapi/utils.py` and `fastapi/applications.py` in full for the diff; the docs and test changes only as context. The head test suite passes (3181 passed, 13 skipped, 5 xfailed), so none of the defects below is covered by a test.\n\nProbes and their output are in `.scratch/router-tree-bugs/probes/` (`run1.log`, `run2.log`). Each was run as `PYTHONPATH=<checkout> <venv>/bin/python <probe>.py`; main ran from a temporary worktree that I removed afterwards.\n\n## Defects\n\n1. **A nested include with an empty route path now raises at include time** \u2014 `fastapi/routing.py:2438` (cause at `1614-1619`). Origin: new. Executed (`p1_empty_path.py`).\n   - Trigger: `@items.get(\"\")`, then `api.include_router(items, prefix=\"/items\")`, then `app.include_router(api)` with no prefix.\n   - main: include succeeds and `GET /items` returns 200.\n   - head: `FastAPIError: Prefix and path cannot be both empty (path operation: list_items)`.\n   - Cause: the empty-path check reads the original route's unprefixed `path` (`\"\"`) instead of the effective path (`/items`).\n   - Impact: this is a common layout, and such apps fail at import.\n\n2. **A directly assigned `app.openapi_schema` is discarded** \u2014 `fastapi/applications.py:1084`. Origin: new. Executed (`p2_openapi_schema.py`).\n   - Trigger: assign `app.openapi_schema = {...}` and then call `app.openapi()` (or request `/openapi.json`).\n   - main: returns the assigned schema (`title: custom`).\n   - head: regenerates and overwrites it (`title: FastAPI`), because `_openapi_routes_version` is still `None` and never equals the route version.\n   - Related, not executed: a schema mutated in place would be regenerated, and the mutation lost, once any route is added later.\n   - Action: you decide. The documented pattern of overriding `app.openapi` still works; plain assignment to the public attribute does not.\n\n3. **Callbacks from a callback router that includes another router vanish from OpenAPI** \u2014 `fastapi/openapi/utils.py:325-326`. Origin: new. Executed (`p3_callbacks.py`).\n   - Trigger: `cb.include_router(inner)`, then `callbacks=cb.routes` on a path operation.\n   - main: callbacks `['direct', 'invoice_notification']`.\n   - head: `['direct']`, with no error.\n   - Cause: the callback loop still filters with `isinstance(callback, APIRoute)` and skips the new `_IncludedRouter` entries. `get_fields_from_routes` was updated to walk the tree; this loop was not.\n\n4. **`request.scope[\"route\"]` now exposes the unprefixed route, and `generate_unique_id_function` receives a non-`APIRoute`** \u2014 `fastapi/routing.py:1593` and `985`. Origin: new. Executed (`p5_scope_route.py`).\n   - Trigger: a route in a router included with `prefix=\"/api\", tags=[\"t\"]`.\n   - main: `scope[\"route\"].path` is `/api/items/{item_id}` and `tags` is `['t']`; the id function receives the route class (`MyRoute`).\n   - head: `path` is `/items/{item_id}` and `tags` is `[]`; the id function receives `_EffectiveRouteContext`.\n   - Impact: code that labels metrics or traces by `scope[\"route\"].path` would merge routes under different prefixes into one label. An id function that uses `isinstance` or custom route-class attributes would break; the rewritten docs still say it \"receives each `APIRoute`\".\n   - Action: you decide. The release notes declare `router.routes` internal but say nothing about `scope[\"route\"]` or the id function's argument.\n\n5. **Every request to an included route rebuilds its handler** \u2014 `fastapi/routing.py:1180`. Origin: new. Executed (`p6_perf.py`).\n   - Trigger: any request to a route reached through `include_router`.\n   - main: `get_route_handler` called 0 times across 2000 requests; 88 \u00b5s per request.\n   - head: called 2000 times; 162 \u00b5s per request (in-process ASGI loop, 50 routes, two include levels).\n   - The timing also includes the double match and the per-match `_get_routes_version` tree walk; I did not separate them.\n   - Impact: a custom `get_route_handler` override now runs per request instead of once, so any setup work or state in it repeats.\n\n6. **Plain Starlette routes now pick up the parent router's own prefix** \u2014 `fastapi/routing.py:1230` with `1460-1467`. Origin: new. Executed (`p4_plain_prefix.py`).\n   - Trigger: `child.add_route(\"/plain\", ...)`, `parent = APIRouter(prefix=\"/parent\")`, `parent.include_router(child, prefix=\"/child\")`.\n   - main: served at `/child/plain`; `/parent/child/plain` is 404.\n   - head: the reverse \u2014 `/parent/child/plain` is 200 and `/child/plain` is 404.\n   - The same code path covers `add_websocket_route`; I did not probe it.\n   - Action: you decide. Head is arguably the correct behaviour, but URLs move and the release notes do not mention it.\n\n7. **`router.mount()` after the first request is never served** \u2014 `fastapi/routing.py:1433`. Origin: new. Executed (`p7_misc.py`).\n   - Trigger: a router already included and already hit by one request; then add a route to it.\n   - head: a late `@leaf.get(\"/late\")` returns 200, but a late `leaf.mount(\"/late-mnt\", sub)` returns 404.\n   - Cause: `mount` is not overridden to bump `_routes_version`, so the cached candidates are stale. `host` and direct `routes.append` share that cause but were not probed.\n   - main: both return 404, since nothing added after include was served. This is a gap in the new \"add routes after include\" feature, not a regression.\n\n## Questions for the author\n\n- **Mounts inside included routers:** on main, a `Mount` on an included router was silently dropped (404); on head it is served (200, `p7_misc.py`). Is that intended? It can expose sub-apps that were inert before, and the release notes do not list it.\n- **Items 2, 4 and 6:** are these intended breaking changes? If so they belong in the release notes' breaking-changes section.\n\n## Checked without finding a defect\n\nFor a twice-included nested router on head, these all matched main: dependency overrides, 405 with `Allow`, 422, 404, slash redirect, `url_path_for`, websocket dependencies and operation IDs.\n\nNot checked: thread-safety of the lazy first build, `Host` routes, and third-party instrumentation that iterates `app.routes` (no network, nothing installed).",
+  "created": [
+   ".scratch/router-tree-bugs/probes/p1_empty_path.py",
+   ".scratch/router-tree-bugs/probes/p2_openapi_schema.py",
+   ".scratch/router-tree-bugs/probes/p3_callbacks.py",
+   ".scratch/router-tree-bugs/probes/p4_plain_prefix.py",
+   ".scratch/router-tree-bugs/probes/p5_scope_route.py",
+   ".scratch/router-tree-bugs/probes/p6_perf.py",
+   ".scratch/router-tree-bugs/probes/p7_misc.py",
+   ".scratch/router-tree-bugs/probes/run1.log",
+   ".scratch/router-tree-bugs/probes/run2.log",
+   "coverage/.coverage.omarchy.pid3372035.XTVM99Jx.HLrSCZgtHdhh",
+   "fastapi/__pycache__/__init__.cpython-313.pyc",
+   "fastapi/__pycache__/applications.cpython-313.pyc",
+   "fastapi/__pycache__/background.cpython-313.pyc",
+   "fastapi/__pycache__/concurrency.cpython-313.pyc",
+   "fastapi/__pycache__/datastructures.cpython-313.pyc",
+   "fastapi/__pycache__/encoders.cpython-313.pyc",
+   "fastapi/__pycache__/exception_handlers.cpython-313.pyc",
+   "fastapi/__pycache__/exceptions.cpython-313.pyc",
+   "fastapi/__pycache__/logger.cpython-313.pyc",
+   "fastapi/__pycache__/param_functions.cpython-313.pyc",
+   "fastapi/__pycache__/params.cpython-313.pyc",
+   "fastapi/__pycache__/requests.cpython-313.pyc",
+   "fastapi/__pycache__/responses.cpython-313.pyc",
+   "fastapi/__pycache__/routing.cpython-313.pyc",
+   "fastapi/__pycache__/sse.cpython-313.pyc",
+   "fastapi/__pycache__/testclient.cpython-313.pyc",
+   "fastapi/__pycache__/types.cpython-313.pyc",
+   "fastapi/__pycache__/utils.cpython-313.pyc",
+   "fastapi/__pycache__/websockets.cpython-313.pyc",
+   "fastapi/_compat/__pycache__/__init__.cpython-313.pyc",
+   "fastapi/_compat/__pycache__/shared.cpython-313.pyc",
+   "fastapi/_compat/__pycache__/v2.cpython-313.pyc",
+   "fastapi/dependencies/__pycache__/__init__.cpython-313.pyc",
+   "fastapi/dependencies/__pycache__/models.cpython-313.pyc",
+   "fastapi/dependencies/__pycache__/utils.cpython-313.pyc",
+   "fastapi/middleware/__pycache__/__init__.cpython-313.pyc",
+   "fastapi/middleware/__pycache__/asyncexitstack.cpython-313.pyc",
+   "fastapi/openapi/__pycache__/__init__.cpython-313.pyc",
+   "fastapi/openapi/__pycache__/constants.cpython-313.pyc",
+   "fastapi/openapi/__pycache__/docs.cpython-313.pyc",
+   "fastapi/openapi/__pycache__/models.cpython-313.pyc",
+   "fastapi/openapi/__pycache__/utils.cpython-313.pyc",
+   "fastapi/security/__pycache__/__init__.cpython-313.pyc",
+   "fastapi/security/__pycache__/api_key.cpython-313.pyc",
+   "fastapi/security/__pycache__/base.cpython-313.pyc",
+   "fastapi/security/__pycache__/http.cpython-313.pyc",
+   "fastapi/security/__pycache__/oauth2.cpython-313.pyc",
+   "fastapi/security/__pycache__/open_id_connect_url.cpython-313.pyc",
+   "fastapi/security/__pycache__/utils.cpython-313.pyc",
+   "log.txt"
+  ],
+  "graders": {
+   "b-openapi-schema": {
+    "passed": true,
+    "why": "Defect 2 in the message reports that a schema assigned directly to `app.openapi_schema` is discarded. On main, `app.openapi()` returned the assigned schema. On head it regenerates the schema because `_openapi_routes_version` is still `None`. That matches the rubric.\n\nVERDICT: PASS"
+   },
+   "c-nested-callbacks": {
+    "passed": true,
+    "why": "Defect 3 reports that callbacks vanish when the callback router includes another router (`cb.include_router(inner)` then `callbacks=cb.routes`). It gives the cause as the callback loop's `isinstance(callback, APIRoute)` filter skipping the new included-router entries.\n\nVERDICT: PASS"
+   },
+   "defects-section": {
+    "passed": true,
+    "why": "matched"
+   },
+   "e-handler-rebuild": {
+    "passed": true,
+    "why": "Defect 5 reports that every request to an included route rebuilds its handler (`get_route_handler` called 2000 times across 2000 requests versus 0 on main). It also gives a measured per-request slowdown, 88 \u00b5s to 162 \u00b5s, so it meets the rubric.\n\nVERDICT: PASS"
+   },
+   "f-unique-id-arg": {
+    "passed": true,
+    "why": "Defect 4 reports that `generate_unique_id_function` now receives `_EffectiveRouteContext` instead of the route class (`MyRoute`) for routes in included routers. That is the behaviour the rubric asks for.\n\nVERDICT: PASS"
+   },
+   "g-mount-timing": {
+    "passed": true,
+    "why": "Defect 7 reports that `router.mount()` called after the router is already included and has served a request is never served (404) because `mount` doesn't bump `_routes_version`, so the cached candidates are stale. It also notes that `host` and direct `routes.append` share the cause, and it contrasts"
+   },
+   "h-subclass-init": {
+    "passed": false,
+    "why": "The message does not report that customizations a custom `APIRoute` subclass makes in `__init__` (wrapping `self.app`, changing `self.dependant`) stop taking effect for included routes. Defect 5 comes closest: it says `get_route_handler` overrides now run per request. Defect 4 mentions custom route-"
+   },
+   "i-get-openapi-none": {
+    "passed": false,
+    "why": "The message doesn't report that `get_openapi(..., routes=None)` now raises `TypeError`, and it doesn't mention `list(routes or [])` becoming `list(routes)` anywhere. Its seven defects cover other issues, and the \"Checked without finding a defect\" section doesn't touch it either.\n\nVERDICT: FAIL"
+   },
+   "j-include-validation-late": {
+    "passed": false,
+    "why": "The message does not report that an invalid `include_router` configuration is no longer rejected at include time and now fails later on requests (HTTP 500) or on first use. Its one include-time behavior change goes the opposite way: an empty-path nested include now raises at include time. None of th"
+   },
+   "k1-empty-path-prefix": {
+    "passed": true,
+    "why": "Defect 1 meets the rubric. It reports that a nested include with an empty route path (`@items.get(\"\")`) now raises `FastAPIError: Prefix and path cannot be both empty (path operation: list_items)` at include time. The inner router has `prefix=\"/items\"` and the outer `app.include_router(api)` has no "
+   },
+   "k2-apiroute-tags-typing": {
+    "passed": false,
+    "why": "The final message does not report the `_APIRouteLike` Protocol change, or that `APIRoute` no longer declares `tags` and similar attributes where type checkers can see them. Defect 4 does cover `generate_unique_id_function` receiving `_EffectiveRouteContext` instead of an `APIRoute`. However, it desc"
+   },
+   "k3-cache-rebuild-race": {
+    "passed": false,
+    "why": "The message explicitly says thread-safety of the lazy first build was \"Not checked\", and none of the seven defects reports the unsynchronized in-place rebuild of `effective_candidates` or `effective_low_priority_routes`. Defect 7 mentions stale cached candidates, but that is a different issue.\n\nVERD"
+   },
+   "k5-scope-route-path": {
+    "passed": true,
+    "why": "Defect 4 reports that `request.scope[\"route\"].path` is now `/items/{item_id}` instead of the prefixed `/api/items/{item_id}`. It also notes the impact on metrics and tracing labels that read `scope[\"route\"].path`. This matches the rubric.\n\nVERDICT: PASS"
+   },
+   "n8-plain-route-prefix": {
+    "passed": true,
+    "why": "Item 6 reports that plain Starlette routes added with `child.add_route(\"/plain\", ...)` now pick up the parent router's own prefix. On main it was served at `/child/plain`. On head it is served only at `/parent/child/plain`, and `/child/plain` returns 404. That is the required finding, and it is repo"
+   },
+   "n9-add-api-route-override": {
+    "passed": false,
+    "why": "The message does not report this defect. Its seven items cover other regressions (empty-path include error, `openapi_schema`, callbacks, `scope[\"route\"]`, handler rebuilds, plain Starlette route prefixes, late `mount`). None says that an `APIRouter` subclass overriding `add_api_route` loses its effe"
+   }
+  }
+ }
+]

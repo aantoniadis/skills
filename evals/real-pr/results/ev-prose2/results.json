@@ -1,0 +1,210 @@
+[
+ {
+  "case": "find-bugs-recall",
+  "run": 0,
+  "num_turns": 8,
+  "total_cost_usd": 0.40995840000000006,
+  "is_error": false,
+  "final": "I found 8 defects on `feature/batch-import`, and 7 of them reproduce when run. The worst: `notes search` on the command line now crashes, and `replace_all` can delete notes it never replaces. All 7 existing tests still pass at head, and none of them cover these failures.\n\n**What I compared:** branch head `936eb89` against `main` (`54c2c91`, which is also the merge-base). The working tree was clean, so this is a commit-to-commit review. I read all five changed files plus the unchanged modules that use them (`cli.py`, `links.py`, `sync.py`). Nothing was excluded.\n\n**How I tested:** `python3 -B .scratch/batch-import-bugs/probes.py <checkout>`, run once on the head checkout and once in a temporary worktree at base. The output is in `head.log` and `base.log`. A second script, `dup_stems.py`, repeats the duplicate-filename import 50 times (`dup_stems.log`). All of these are in `.scratch/batch-import-bugs/`, which git ignores. Your checkout is unchanged.\n\n## Defects\n\n1. **`notes search` on the command line crashes** (`notes/index.py:20-26`, which breaks `notes/cli.py:13`)\n   - **Trigger:** `python -m notes.cli search <word>` when at least one note matches.\n   - **Consequence:** `index.search` now returns `(note_id, score)` pairs, but `cli.py` still joins the results as strings. The command fails with `TypeError: sequence item 0: expected str instance, tuple found`. At base the same call returns `(0, 'weekly-plan')`.\n   - **Origin:** new; a regression in code the branch didn't touch. The test was changed to expect the new tuples, but no test runs `cli search`.\n   - **Evidence:** executed.\n   - **Impact:** search no longer works for command-line users whenever there is a match.\n\n2. **`replace_all` deletes every note before it knows the import will succeed** (`notes/batch.py:24-26`)\n   - **Trigger:** any file in the source folder that can't be read: not valid UTF-8, no permission, or two files with the same name (defect 3).\n   - **Consequence:** with an existing note \"Keep Me\", importing a folder holding `good.md` and a non-UTF-8 `bad.md` raised `UnicodeDecodeError`. Afterwards the store held only `['good']`, so \"Keep Me\" was gone. The error does reach the caller, but the deleted notes can't be recovered.\n   - **Origin:** new.\n   - **Evidence:** executed.\n   - **Impact:** permanent loss of the user's notes. Import into a staging folder and swap it in, or delete only after every file has been read.\n\n3. **Files with the same name in different subfolders make `import_dir` fail or overwrite each other** (`notes/batch.py:10,17`, together with the shared `.tmp` path at `store.py:19`)\n   - **Trigger:** the import searches subfolders, and the note id comes from the file name alone. So `2024/plan.md` and `2025/plan.md` both become id `plan`. All workers then write to the same `plan.tmp`.\n   - **Consequence:** with 8 `plan.md` files, all 50 runs raised `FileNotFoundError: .../plan.tmp -> .../plan.md`. Some files are written before the error. Even without the parallel workers, all but one file would be lost without any error.\n   - **Origin:** new.\n   - **Evidence:** executed (50 out of 50 runs).\n   - **Impact:** a common folder layout (one folder per year or project) can't be imported. Combined with defect 2, this also deletes the old notes.\n\n4. **Searches and `export_search` still return deleted notes** (`notes/index.py:9-14`; exposed by `store.delete` and `batch.replace_all`)\n   - **Trigger:** search, delete a note (or run `replace_all`), then search again in the same process.\n   - **Consequence:** the in-memory index only adds and updates entries; it never drops deleted ones. After `replace_all`, `export_search(\"parser\")` returned 2 and wrote `['old-parser', 'plan']`, while the store held only `['plan']`. The same stale entry existed at base, but base had no delete feature that would reach it.\n   - **Origin:** made worse. The branch's new test `setUp` clears the index before each test, which hides this.\n   - **Evidence:** executed.\n   - **Impact:** exported lists include ids that no longer exist, and loading them fails with `FileNotFoundError`.\n\n5. **Imported notes keep the raw file name as their id instead of the usual slug** (`notes/batch.py:17`)\n   - **Trigger:** importing `Weekly Plan.md`.\n   - **Consequence:** the note's id becomes `Weekly Plan`, although `store.py:1` says notes are \"named by the slug of their title\". The link pattern in `links.py:6` only accepts `[a-z0-9-]`, so no note can ever link to it. An imported `[[weekly-plan]]` link points at a note that doesn't exist.\n   - **Origin:** new.\n   - **Evidence:** executed. The ids came out as `['Retro', 'Weekly Plan']`, and `backlinks(\"Weekly Plan\")` returned `[]`.\n   - **Impact:** links between imported notes break. Likely fix: `note_id=store.slug(path.stem)`.\n\n6. **The sync key change makes other team members' clients see every note twice** (`notes/sync.py:23`)\n   - **Trigger:** running `push` against a bucket that clients on `main` have already pushed to.\n   - **Consequence:** the old `notes/<id>.md` keys stay in the bucket and new `notes/v2/<id>.md` keys are added. The `sync.py` docstring says other team members' clients \"treat every key as a note\", so each note shows up twice for them. The probe ended with `['notes/retro.md', 'notes/v2/retro.md']`.\n   - **Origin:** new. The test was loosened from an exact `assertEqual` on all keys to `assertIn`, which no longer catches this.\n   - **Evidence:** executed against the in-memory test remote (`FakeRemote`). I did not test the production S3-style bucket (`RemoteStore`).\n   - **Impact:** you decide; see question 1.\n\n7. **`average_words` crashes on a folder with no `.md` files** (`notes/batch.py:33`)\n   - **Trigger:** an empty source folder, or one without Markdown files.\n   - **Consequence:** `ZeroDivisionError`.\n   - **Origin:** new.\n   - **Evidence:** executed.\n   - **Impact:** any caller has to guard this case itself. Returning 0 or `None` would avoid it.\n\n8. **The new search treats multi-word queries as \"any of these words\"** (`notes/index.py:20-25`)\n   - **Trigger:** `search(\"ship parser\")`.\n   - **Consequence:** it matches notes containing either word. Before, multi-word queries matched nothing.\n   - **Origin:** new.\n   - **Evidence:** inferred from reading the code; not run.\n   - **Impact:** this looks like the intended ranking feature, so it is listed only for completeness and may need no action.\n\n## Outside the change\nNone found.\n\n## Questions for the author\n1. Was moving the sync keys to `notes/v2/` meant to be a migration? If so, where do the old `notes/` keys get removed, and how do clients still on `main` avoid showing duplicates?\n2. Should `import_dir` keep subfolder names in the id (for example `2024-plan`), or reject duplicate names before writing anything?\n\n## Minor observations\n- `import_dir` updates the shared index from 4 worker threads at once. In the current code that is safe, because each update only adds dictionary entries. If something else calls `search` on another thread at the same time, it could fail with \"dictionary changed size during iteration\". No such caller exists in this repo, so I didn't test it.\n\n**Not covered:** the real S3 remote, case-insensitive filesystems (where `Plan.md` and `plan.md` would collide), and running the tests under a coverage tool.",
+  "created": [
+   ".scratch/batch-import-bugs/base.log",
+   ".scratch/batch-import-bugs/dup_stems.log",
+   ".scratch/batch-import-bugs/dup_stems.py",
+   ".scratch/batch-import-bugs/head.log",
+   ".scratch/batch-import-bugs/probes.py",
+   "notes/__pycache__/__init__.cpython-314.pyc",
+   "notes/__pycache__/batch.cpython-314.pyc",
+   "notes/__pycache__/cli.cpython-314.pyc",
+   "notes/__pycache__/index.cpython-314.pyc",
+   "notes/__pycache__/links.cpython-314.pyc",
+   "notes/__pycache__/store.cpython-314.pyc",
+   "notes/__pycache__/sync.cpython-314.pyc",
+   "tests/__pycache__/test_notes.cpython-314.pyc"
+  ],
+  "changed": [],
+  "graders": {
+   "checkout-untouched": {
+    "passed": true,
+    "why": "unchanged"
+   },
+   "cli-search-consumer": {
+    "passed": true,
+    "why": "The message reports this defect as item 1. `notes/index.py` now returns `(note_id, score)` pairs, and the unchanged `notes/cli.py:13` still joins the results as strings. The CLI search command therefore fails with `TypeError: sequence item 0: expected str instance, tuple found`. The message names th"
+   },
+   "decoy-export-note": {
+    "passed": true,
+    "why": "The final message does not list the `export_note` skip of deleted notes (FileNotFoundError returning False) in the numbered defects, in the minor observations or anywhere else. Its only FileNotFoundError mentions concern the `plan.tmp` rename failure and loading stale exported ids, which are differe"
+   },
+   "defects-section": {
+    "passed": true,
+    "why": "matched"
+   },
+   "delete-stale-index": {
+    "passed": true,
+    "why": "The final message reports the stale search index as defect 4: deleting a note (or running `replace_all`) leaves its entry in the in-memory index, so searches and `export_search` still return the deleted note. It ties this to the new delete path, saying the problem is \"made worse\" and \"exposed by `st"
+   },
+   "empty-average": {
+    "passed": true,
+    "why": "The message reports defect 7: `average_words` in `notes/batch.py:33` raises `ZeroDivisionError` when the source folder is empty or has no `.md` files, and it suggests returning 0 or `None`. That names the function and the empty-input trigger, so it meets the rubric.\n\nVERDICT: PASS"
+   },
+   "import-id-normalization": {
+    "passed": true,
+    "why": "Defect 5 matches the rubric: imported notes keep the raw file name as their id (`Weekly Plan`) instead of going through `store.slug`. The message cites `store.py:1`, the slug contract, and the `[a-z0-9-]` link pattern in `links.py:6`. It states the consequence that no note can link to that id, and t"
+   },
+   "import-refresh-cost": {
+    "passed": false,
+    "why": "The message never mentions that `_import_one` calls `index.refresh()` for every imported file, or that each file rescans the whole store. Its only index-related points are stale deleted entries (defect 4) and a thread-safety note about updating the shared index from worker threads, and the rubric ru"
+   },
+   "import-tmp-race": {
+    "passed": true,
+    "why": "Defect 3 is the closest match, but the message doesn't fully meet the rubric. It names the shared `.tmp` path (`plan.tmp`) at `store.py:19` and says 8 same-named files raised `FileNotFoundError` on `plan.tmp -> plan.md` in 50 of 50 runs. It also says the workers write to that one path in parallel. H"
+   },
+   "replace-all-data-loss": {
+    "passed": true,
+    "why": "Defect 2 satisfies the rubric. The message reports that `replace_all` deletes every existing note before it knows the import will succeed. With an existing note \"Keep Me\" and a non-UTF-8 `bad.md`, the store ended up holding only `['good']`, so \"Keep Me\" was lost permanently and could not be recovere"
+   },
+   "sync-key-prefix": {
+    "passed": true,
+    "why": "The message states the consumer break: defect 6 says `sync.py`'s docstring notes other team members' clients \"treat every key as a note\", so the new `notes/v2/` keys sit alongside the old `notes/` keys and each note shows up twice for them. It also ties this to the loosened `assertIn` test, which no"
+   }
+  }
+ },
+ {
+  "case": "find-bugs-recall",
+  "run": 1,
+  "num_turns": 8,
+  "total_cost_usd": 0.41442140000000005,
+  "is_error": false,
+  "final": "## Defects\n\n**Scope:** I compared `feature/batch-import` at `936eb89` against its merge-base with `main`, `54c2c91`. That is one commit touching `notes/batch.py`, `index.py`, `store.py`, `sync.py` and `tests/test_notes.py`. The working tree was clean, so only committed changes are included. I read all of `notes/` at the head, including the unchanged `cli.py` and `links.py` that use the changed code. The existing suite passes on the head (7 tests, OK), running on Python 3.14.8.\n\n**Evidence:** the probe script is `.scratch/batch-import/probe.py`, run as `python3 -I -B probe.py <checkout> <case>`. Its output is in `.scratch/batch-import/probe-output.txt` and `duplicate-stems-20runs.txt`. I ran the base in a separate disposable worktree and removed it afterwards; your checkout is unchanged.\n\n1. **`replace_all` deletes every note before the import has succeeded** (`notes/batch.py:24-26`)\n   - **Trigger:** the source path is mistyped or missing, the source has no `.md` files, or any file in it fails to import (non-UTF-8 text, a permission error, or the duplicate-name race in item 3).\n   - **Consequence:** the user's notes are deleted from disk with no backup. When the source is missing, the call reports success and returns `[]`.\n   - **Origin:** new. **Evidence:** executed.\n     - `replace-missing-source` \u2192 `replace_all(typo dir) -> []`, `ids after: []`\n     - `replace-bad-file` \u2192 raises `UnicodeDecodeError`, and `ids after: ['good']`: the old note is gone and only part of the new set was imported.\n   - **Impact:** the user loses their data. Importing into a staging location first and deleting only after it succeeds would prevent it.\n\n2. **The CLI `search` command now crashes** (`notes/index.py:26`, used by `notes/cli.py:13`)\n   - **Trigger:** `python -m notes.cli search <term>` whenever anything matches.\n   - **Consequence:** `search()` now returns `(id, score)` pairs, but the CLI still passes the result straight to `\", \".join(...)`. The command fails with `TypeError: sequence item 0: expected str instance, tuple found`.\n   - **Origin:** new. The CLI file did not change; the function it calls did.\n   - **Evidence:** executed (`cli-search`). The base prints `weekly-plan` and exits 0. The head raises the `TypeError`.\n   - **Impact:** every CLI search that finds a note fails. No test covers the CLI search path.\n\n3. **Two source files with the same name in different subfolders race and lose a note** (`notes/batch.py:10-17`, `store.py:19-21`)\n   - **Trigger:** `import_dir` searches subfolders too (`rglob`), so `2024/plan.md` and `2025/plan.md` both get the id `plan`. They are imported in parallel and both write to the same temporary file, `plan.tmp`.\n   - **Consequence:** the result is random. In 20 runs:\n     - 12 raised `FileNotFoundError: 'plan.tmp' -> 'plan.md'` after one copy had already been written.\n     - 8 returned `['plan', 'plan']` with no error, keeping whichever copy finished last (\"new\" 6 times, \"old\" 2 times).\n   - **Origin:** new. **Evidence:** executed (`duplicate-stems`, repeated 20 times).\n   - **Impact:** one note is lost without warning. Through `replace_all`, the error also triggers item 1.\n\n4. **Sync now pushes to `notes/v2/` instead of `notes/`, and the test was relaxed to allow it** (`notes/sync.py:23`)\n   - **Trigger:** any `push` to the shared bucket.\n   - **Consequence:**\n     - The key change itself is executed: the base pushes `notes/weekly-plan.md`, the head pushes `notes/v2/weekly-plan.md`.\n     - The effect on other users is inferred from the module docstring (lines 4-5), which says teammates' clients \"treat every key as a note\". The predicted result: notes already in the bucket under `notes/` stay there and stop being updated, and every note pushed from now on appears a second time under `notes/v2/`.\n   - **Supporting signal:** `weakened_checks.py` flags that the exact-keys assertion was replaced by `assertIn(\"notes/v2/retro.md\", ...)`. That check would no longer catch duplicate or stale keys.\n   - **Origin:** new. The commit message does not mention it.\n   - **Settling check:** pull from a bucket that has keys under both `notes/` and `notes/v2/` using the current client.\n   - **Action:** you decide; see the first question below.\n\n5. **Search results and `export_search` still include deleted notes** (`notes/index.py:9-14`, exposed by `store.delete` and `batch.export_search`)\n   - **Trigger:** search once (which fills the in-memory index), then `delete` or `replace_all`, then search again.\n   - **Consequence:** the index adds and updates entries but never removes them. After `replace_all`, `search('parser')` still returns `retro` and `weekly-plan`, `export_search` writes both ids and returns 2, and `export_note('retro')` then returns `False`.\n   - **Origin:** made worse. The index behaved this way before, but this branch adds the first in-library ways to delete notes.\n   - **Evidence:** executed (`stale-index`). The new test `setUp` clears `index._cache` before each test, so no test sees this.\n   - **Impact:** an export lists notes that no longer exist.\n\n6. **Imported notes use the raw file name, not the slug** (`notes/batch.py:17`)\n   - **Trigger:** importing a file such as `Weekly Plan.md`.\n   - **Consequence:** the note gets the id `Weekly Plan`. The README says notes are named by title slug, and `[[...]]` links only match `[a-z0-9-]`. So `[[weekly-plan]]` does not resolve (`load('weekly-plan')` raises `FileNotFoundError`), and nothing can link to the imported note. A later `store.save(\"Weekly Plan\", ...)` creates a second note, `weekly-plan`.\n   - **Origin:** new. **Evidence:** executed (`unslugged-id`).\n\n7. **`average_words` on an empty folder raises `ZeroDivisionError`** (`notes/batch.py:33`)\n   - **Origin:** new. **Evidence:** executed (`average-empty`).\n   - **Impact:** a loud crash, low severity. The caller has to guard against an empty folder.\n\n## Minor observations\n\n- `_import_one` rebuilds the whole index after every file it imports (`batch.py:18`), so an import does work proportional to files \u00d7 notes. This only matters for large note sets, which I did not measure.\n\n## Questions for the author\n\n- Is moving to `notes/v2/` meant to be a coordinated migration with the other clients? If so, what happens to the existing `notes/` keys, and do current clients ignore `notes/v2/`?\n- Should duplicate file names across subfolders be rejected, or turned into distinct ids?\n\n**Gaps:** I did not run coverage or a type checker. The sync finding was checked only against `FakeRemote`, not a real bucket or client. The thread-safety check covered only the parallel writes inside `import_dir`.",
+  "created": [
+   ".scratch/batch-import/duplicate-stems-20runs.txt",
+   ".scratch/batch-import/probe-output.txt",
+   ".scratch/batch-import/probe.py",
+   "notes/__pycache__/__init__.cpython-314.pyc",
+   "notes/__pycache__/batch.cpython-314.pyc",
+   "notes/__pycache__/cli.cpython-314.pyc",
+   "notes/__pycache__/index.cpython-314.pyc",
+   "notes/__pycache__/links.cpython-314.pyc",
+   "notes/__pycache__/store.cpython-314.pyc",
+   "notes/__pycache__/sync.cpython-314.pyc",
+   "tests/__pycache__/test_notes.cpython-314.pyc"
+  ],
+  "changed": [],
+  "graders": {
+   "checkout-untouched": {
+    "passed": true,
+    "why": "unchanged"
+   },
+   "cli-search-consumer": {
+    "passed": true,
+    "why": "Item 2 reports that `index.search` now returns `(id, score)` pairs while the unchanged `notes/cli.py:13` still passes the result to `\", \".join(...)`. It says the CLI `search` command then raises `TypeError: sequence item 0: expected str instance, tuple found`, and that this was run and confirmed. Th"
+   },
+   "decoy-export-note": {
+    "passed": true,
+    "why": "The final message does not report the `export_note` skip of deleted notes as a defect. Item 5 mentions `export_note('retro')` returning `False`, but only as a consequence of the stale index. It is not flagged as swallowed errors, and no numbered item treats the skip as a bug.\n\nVERDICT: PASS"
+   },
+   "defects-section": {
+    "passed": true,
+    "why": "matched"
+   },
+   "delete-stale-index": {
+    "passed": true,
+    "why": "Defect 5 in the final message meets the rubric. It says deleting notes (via `delete` or `replace_all`) leaves them in the index, so `search` and `export_search` still return deleted notes. It attributes this as \"made worse\" through the new delete path, which the rubric accepts, and says it was execu"
+   },
+   "empty-average": {
+    "passed": true,
+    "why": "The message reports the defect as item 7: `average_words` in `notes/batch.py:33` raises `ZeroDivisionError` on an empty folder, with the trigger executed as `average-empty`. It names the function and the empty-input trigger, which is what the rubric asks for. It does describe the cause as a crash on"
+   },
+   "import-id-normalization": {
+    "passed": true,
+    "why": "Item 6 reports that the import stores notes under the raw file name (`Weekly Plan.md` gets the id `Weekly Plan`) instead of the slug. It says the slug contract is broken, so `load('weekly-plan')` raises `FileNotFoundError` and `[[weekly-plan]]` links don't resolve. It also says nothing can link to t"
+   },
+   "import-refresh-cost": {
+    "passed": true,
+    "why": "Defect 1 doesn't meet the rubric: the message mentions `_import_one` rebuilding the whole index after every file, and says the work grows with files \u00d7 notes. It lists this under \"Minor observations\", which the rubric accepts as an explicit bound. The complexity argument is stated, though it says it "
+   },
+   "import-tmp-race": {
+    "passed": true,
+    "why": "Item 3 reports the defect: `import_dir` imports files in parallel, and two files with the same name in different subfolders get the same id (`plan`). Both write to the same temporary file, `plan.tmp`. That produces either `FileNotFoundError: 'plan.tmp' -> 'plan.md'` (12 of 20 runs) or a note holding"
+   },
+   "replace-all-data-loss": {
+    "passed": true,
+    "why": "Item 1 reports that `replace_all` deletes every existing note before the import runs (`notes/batch.py:24-26`). It names a missing source, an empty source, and a file that fails to import, such as one that is not valid UTF-8, as triggers. It says the user's notes are lost with no backup. The executed"
+   },
+   "sync-key-prefix": {
+    "passed": true,
+    "why": "The message identifies the key layout change in item 4 and cites the module docstring saying teammates' clients \"treat every key as a note\". It also states the consequence for those consumers: existing notes go stale under `notes/`, and every new push shows up a second time under `notes/v2/`. It not"
+   }
+  }
+ },
+ {
+  "case": "find-bugs-recall",
+  "run": 2,
+  "num_turns": 8,
+  "total_cost_usd": 0.399436,
+  "is_error": false,
+  "final": "I reviewed branch `feature/batch-import` at `936eb89` against its merge-base with `main`, `54c2c91`. That covers the 5 changed files plus the code that uses them. The working tree was clean, and nothing was generated, binary or excluded. I found 9 defects. The worst one: `notes search` on the command line now crashes on any search that finds something. The existing 7 tests pass, but none of them catches these.\n\nTo reproduce, run `python3 -I .scratch/batch-import/probe.py <checkout>` (Python 3.14.8) against the branch and against the base commit, which I checked out temporarily and then removed. The output is saved in `.scratch/batch-import/head.log` and `base.log`, and the race traceback in `race.log`. The checkout is unchanged.\n\n## Defects\n\n1. **`notes search` crashes on any match.** `notes/index.py:26` and `notes/cli.py:13`\n   - **Trigger:** `python -m notes.cli search <term>` where at least one note contains the term.\n   - **Consequence:** `search()` now returns `(note_id, score)` pairs, but the command line still joins the results as plain strings. It fails with `TypeError: sequence item 0: expected str instance, tuple found`. On `main` the same input prints `weekly-plan` and exits 0.\n   - **Origin:** new. **Evidence:** I ran it on both revisions.\n   - **Impact:** search from the command line no longer works. Neither the command line nor any other caller of `search()` was updated, and no test covers `cli search`.\n\n2. **`replace_all` deletes every note before it imports anything.** `notes/batch.py:24-26`\n   - **Trigger:** any import failure, such as a `.md` file that isn't valid UTF-8, the same-name race in item 3, or a missing source folder.\n   - **Consequence:** the exception propagates and the store is left empty or only partly filled. I ran it with one undecodable file: it raised `UnicodeDecodeError` and the store went from `['keep-me']` to `[]`.\n   - **Origin:** new. **Evidence:** I ran it.\n   - **Impact:** notes are permanently lost, with no way to roll back.\n\n3. **Importing two files with the same name at once crashes the import.** `notes/batch.py:17`, with the temporary-file write at `notes/store.py:19-21`\n   - **Trigger:** `import_dir` on a folder tree where two subfolders contain a file with the same name, such as `a/todo.md` and `b/todo.md`. The search goes into subfolders, so this is easy to hit.\n   - **Consequence:**\n     - The 4 worker threads write the same temporary file, `todo.tmp`. One thread renames it into place, and the next rename fails with `FileNotFoundError: '\u2026/todo.tmp' -> '\u2026/todo.md'`. This happened in all 200 of 200 runs with 8 identical names.\n   - **Origin:** new. **Evidence:** I ran it.\n   - **Impact:** the import aborts part-way. When this happens inside `replace_all`, it combines with item 2 and the existing notes are lost.\n\n4. **Files with the same name silently overwrite each other.** `notes/batch.py:17`\n   - **Trigger:** the same folder layout as item 3, but without the crash.\n   - **Consequence:** `import_dir` returned `['todo', 'todo']`, but the store holds a single note. Which file's text survives depends on thread timing; in my run it was `'from a'`.\n   - **Origin:** new. **Evidence:** I ran it.\n   - **Impact:** the caller is told 2 notes were imported, but 1 was lost without any error.\n\n5. **Deleted notes still show up in search and exports.** `notes/store.py:29-30` and `notes/batch.py:24-25`, against the cache in `notes/index.py:9-14`\n   - **Trigger:** `store.delete` or `replace_all`, followed by `search` or `export_search`. `refresh()` only adds or updates cache entries and never removes them.\n   - **Consequence:** `search(\"parser\")` still returns `('weekly-plan', 1)` after that note is deleted. After `replace_all`, `export_search` wrote `old\\nplan` and returned 2, although the store holds only `['plan']`.\n   - **Origin:** made worse. The cache never removed entries on `main` either, but this change adds the delete functions that expose it.\n   - **Evidence:** I ran it. The test setup now clears `index._cache`, which hides this from the tests.\n   - **Impact:** exported files list notes that don't exist, and `export_note` then skips them.\n\n6. **Pushed notes move to a new remote location that team members' clients don't read.** `notes/sync.py:23`\n   - **Trigger:** any `push` after this change.\n   - **Consequence:** keys move from `notes/<id>.md` to `notes/v2/<id>.md`. According to the comment at `notes/sync.py:3-5`, other team members' clients pull the same bucket and \"treat every key as a note\". Depending on how those clients map keys to notes, either they get a second copy of every note, or newly pushed edits never replace the old ones. The old keys are never removed.\n   - **Origin:** new.\n   - **Evidence:** inferred. I didn't have the other clients' code. To settle it, have an old-format client pull from a bucket that holds both `notes/x.md` and `notes/v2/x.md`.\n   - **Impact:** what team members see goes out of sync. The test was loosened from an exact `assertEqual` to `assertIn` (`tests/test_notes.py:23`), so a stale or duplicated set of keys would still pass.\n\n7. **Imported notes keep their file names instead of the usual ID format.** `notes/batch.py:17`\n   - **Trigger:** importing a file whose name isn't already in that format, such as `Weekly Plan.md`. Normally note IDs come from the title, lower-cased with dashes (the slug, e.g. `weekly-plan`).\n   - **Consequence:** the note gets the ID `Weekly Plan`. Saving a note titled \"Weekly Plan\" then creates a second note, giving `['Weekly Plan', 'weekly-plan']`. The `[[link]]` pattern (`notes/links.py:6`) only matches IDs made of `[a-z0-9-]`, so other notes can't link to the imported one.\n   - **Origin:** new. **Evidence:** I ran it.\n   - **Impact:** duplicate notes, and imported notes that can't be linked.\n\n8. **`average_words` crashes on an empty folder.** `notes/batch.py:33`\n   - **Trigger:** a folder with no `.md` files.\n   - **Consequence:** `ZeroDivisionError`.\n   - **Origin:** new. **Evidence:** I ran it.\n   - **Impact:** callers have to guard against an empty folder themselves.\n\n9. **Import time grows with the square of the store size.** `notes/batch.py:18`\n   - **Trigger:** every imported file triggers `index.refresh()`, which checks the modification time of every note in the store.\n   - **Consequence:** file-status calls grew from 1,286 for 50 files to 20,140 for 200 files, so 4\u00d7 the files cost about 16\u00d7 the calls. A 10,000-note import would make on the order of 50 million calls.\n   - **Origin:** new. **Evidence:** I ran it, counting calls to `os.stat`.\n   - **Impact:** large imports slow down sharply. The refresh is also unnecessary there, because `search()` already refreshes.\n\n## Questions for the author\n\n- Was the `notes/v2/` key change meant to come with a migration, or a reader change in the other clients? Your answer decides whether item 6 is fixed by reverting the key or by shipping a migration alongside it.\n- Should `import_dir` turn file names into the usual ID format, and reject or rename files with the same name? Items 4 and 7 depend on that choice.\n\n## Gaps\n\n- I didn't test the real remote store or other team members' clients; item 6 is reasoned from the code and comments.\n- I didn't measure test coverage or run a linter or type checker; this review is from reading the code plus the probes.",
+  "created": [
+   ".scratch/batch-import/base.log",
+   ".scratch/batch-import/head.log",
+   ".scratch/batch-import/probe.py",
+   ".scratch/batch-import/race.log",
+   ".scratch/batch-import/race_trace.py",
+   "notes/__pycache__/__init__.cpython-314.pyc",
+   "notes/__pycache__/batch.cpython-314.pyc",
+   "notes/__pycache__/cli.cpython-314.pyc",
+   "notes/__pycache__/index.cpython-314.pyc",
+   "notes/__pycache__/links.cpython-314.pyc",
+   "notes/__pycache__/store.cpython-314.pyc",
+   "notes/__pycache__/sync.cpython-314.pyc",
+   "tests/__pycache__/test_notes.cpython-314.pyc"
+  ],
+  "changed": [],
+  "graders": {
+   "checkout-untouched": {
+    "passed": true,
+    "why": "unchanged"
+   },
+   "cli-search-consumer": {
+    "passed": true,
+    "why": "Defect 1 meets the rubric. It reports that `search()` now returns `(note_id, score)` pairs while the unchanged `notes/cli.py:13` still joins the results as strings. That raises `TypeError: sequence item 0: expected str instance, tuple found` in `notes search`. The message names the CLI consumer and "
+   },
+   "decoy-export-note": {
+    "passed": true,
+    "why": "The final message does list the skip, but it never reports `export_note` returning False for deleted notes as a bug. Item 5 mentions that `export_note` \"then skips them\" only as a consequence of stale cache entries, which is consistent with the intended and tested behavior. No numbered defect descri"
+   },
+   "defects-section": {
+    "passed": true,
+    "why": "matched"
+   },
+   "delete-stale-index": {
+    "passed": true,
+    "why": "Item 5 reports the defect: `store.delete` and `replace_all` remove notes, but `refresh()` never evicts their `index._cache` entries. The message says `search(\"parser\")` still returns `('weekly-plan', 1)` after deletion, and `export_search` still writes deleted notes. It attributes this as \"made wors"
+   },
+   "empty-average": {
+    "passed": true,
+    "why": "The message reports item 8, which names `average_words` at `notes/batch.py:33`, gives the trigger (a folder with no `.md` files), and states the consequence (`ZeroDivisionError`). The item does not spell out that the cause is dividing by the file count, but it does name the function and the empty-in"
+   },
+   "import-id-normalization": {
+    "passed": true,
+    "why": "Defect 7 meets the rubric. It says imported notes keep their raw file names, so \"Weekly Plan.md\" gets the id `Weekly Plan`, which has a space and capitals. It names the mismatch with the usual slug format (`weekly-plan`). It also gives the consequences: a second note is created when \"Weekly Plan\" is"
+   },
+   "import-refresh-cost": {
+    "passed": true,
+    "why": "Defect 9 reports that `index.refresh()` runs for every imported file. It says each call stats every note in the store, which is a whole-store rescan per file. It gives measured `os.stat` counts at two sizes (1,286 calls for 50 files, 20,140 for 200) and a quadratic argument, and it is listed as a nu"
+   },
+   "import-tmp-race": {
+    "passed": true,
+    "why": "Item 3 reports the defect the rubric asks for. `import_dir` runs 4 worker threads, and `store.save` writes one fixed temporary file per note id (`todo.tmp`). Two files with the same name therefore race on that path, and one rename fails with `FileNotFoundError: '\u2026/todo.tmp' -> '\u2026/todo.md'`. Item 4 c"
+   },
+   "replace-all-data-loss": {
+    "passed": true,
+    "why": "Defect 2 matches the rubric. The message reports that `replace_all` deletes every note before importing anything, so any import failure leaves the store empty or partly filled with no rollback. It gives the concrete case of one undecodable file, where the store went from `['keep-me']` to `[]`, and i"
+   },
+   "sync-key-prefix": {
+    "passed": true,
+    "why": "The message states that the `sync.push` key change (`notes/<id>.md` \u2192 `notes/v2/<id>.md`) conflicts with the comment in `notes/sync.py` saying other team members' clients pull the same bucket and \"treat every key as a note\". It names the consumer consequence: they get duplicate copies of every note,"
+   }
+  }
+ }
+]

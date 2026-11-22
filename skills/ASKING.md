@@ -38,7 +38,7 @@ the target and look at its size, such as the diff stat, the failing test, or
 the file list, so the recommendations fit it. A choice the request already
 states, in any wording, is settled: "I'm new to this code" answers familiarity, "HTML" or
 "text only" the deliverable, "find bugs", "thorough bug search", or "skip the bug search" the search,
-"go deep", "full review", or "quick overview" the depth. Skip those questions
+"go deep", "full review", "thorough review", or "quick overview" the depth. Only a request that ties thoroughness to bugs, such as "thorough bug search" or "find every bug", settles a thorough search for bugs. Skip those questions
 and ask only the open ones; when none is open, ask nothing. A **small target**
 takes the recommendations without a round: a diff of at most 5 files and 150
 changed lines, or one failing check whose contract is already pinned. State

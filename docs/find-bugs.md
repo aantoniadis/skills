@@ -44,7 +44,8 @@ searched the change.
    under `## Defects`, with evidence and relevant questions. A material
    pre-existing defect that a probe executed goes under `## Outside the change`.
    A confirmed consequence that occurs only at the head, through a public
-   entry point, where a consumer sees it, is a defect. One whose materiality
+   entry point, where a consumer sees it, is a defect, and so is a failure
+   the base handled and the head does not. One whose materiality
    depends on an unverifiable scale or configuration goes under
    `## Minor observations`. The findings are
    saved as `findings.md`. A later search of the same base and head lists the

@@ -56,7 +56,40 @@ Defects that only one arm found:
   placeholder, dropped close error, orphan claim.
 - filelock, only `main`: dual holders and claims `IndexError`, one run each.
 
-## What each focused finder contributed
+## Next version on a held-out PR
+
+The next version (commit 1fd1a47 on this branch) drops the general finder,
+starts the fault finder only when `failure_points.py` lists five or more
+lines, and keeps a confirmed head-only behavior under `## Minor observations`
+instead of dropping it.
+
+It ran against `main` on urllib3/urllib3 PR 5095, base `d7030c0`, head
+`8486f9a`, which shaped none of the focuses. `cases/find-bugs-urllib3/` holds
+the fixture, prompt, and graders. Build the cache at `/tmp/real-pr-cache/urllib3`
+as for filelock: fetch the PR head into branch `fix-percent-encode-hosts` and
+the base into `main`, then install the `dev` dependency group and `mypy`.
+
+The maintainers attribute three regressions to this PR in #5260. Only one
+reproduces at the PR's own head: an unbracketed scoped IPv6 host such as
+`fe80::1%eth0` is rejected (`ka`, `probe_known_regression.py`). The other two
+come from later commits. The other graders were written after both arms ran,
+one for each distinct finding; `probe_minor_findings.py` confirms `f04` and
+`f05` at base and head.
+
+| Arm | Finders | Graders passed, of 6 | Mean | Cost for each run |
+|---|---|---|---|---|
+| `main` | 5 | 6, 4, 3 | 4.3 | $5.30 |
+| next version | 3 | 4, 4, 5 | 4.3 | $4.04 |
+
+Every run of both arms found `ka`, `f01`, and `f02`. The PR has one failure
+point, so the next version started no fault finder. One finder in the next
+version made an outbound request to example.com against the prompt; its lead
+reported it. Results are in `results/urllib3-*.json`.
+
+The PR is small and its defects are few, so both arms come near the ceiling:
+this run shows the same recall for 24% less, not a recall gain.
+
+## What each finder contributed in the first focused arm
 
 `judge_finders.py` judges each finder's own report against the case graders,
 with Sonnet 5.5. The reports are in `results/focused-finder-reports/` and the

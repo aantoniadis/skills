@@ -1,26 +1,45 @@
 # Thorough search
 
 Read this when the user or the caller asks for a thorough search. Five finders
-read the change independently; you merge what they return, record a decision
-for every candidate, and verify. A thorough search costs about six times one
-read.
+read the change independently, each with its own focus. You run the shared
+tools once, merge what the finders return, record a decision for every
+candidate, and confirm each delivered candidate once. A thorough search costs
+several times one read.
 
 ## Start the finders
 
 Through [native delegation](../WORKERS.md), start five finders in one message:
-three general finders, one state finder, and one fault finder. Wait for all
-five results before step 3. Give each this assignment and nothing from your
-own reading; a finder that knows what was found looks where the others looked:
+one general finder and four focused finders, for consumers, inputs, state,
+and faults. Wait for all five results before step 3. Give each this assignment
+and nothing from your own reading or the shared tools; a finder that knows
+what was found looks where the others looked:
 
-> You are one of several independent finders for one change. You do not see the others' work. Repository: `<path>`. Base: `<sha>`. Head: `<sha>`. Conditions: `<dependency and environment notes from step 1>`. Work in `<this search's folder>/finder-<n>/` and leave the checkout unchanged. Follow steps 2 and 3 of `<package>/skills/find-bugs/SKILL.md` for this change as one read: search alone and start no workers. Return every candidate you could not contradict: location, trigger, base result, head result, the contract it breaks, and the saved probe with its command, or *inferred* with the missing probe. List the leads you dropped, one line each with the counterevidence. Do not rank or write a report.
+> You are one of several independent finders for one change. You do not see the others' work. Repository: `<path>`. Base: `<sha>`. Head: `<sha>`. Conditions: `<dependency and environment notes from step 1>`. Work in `<this search's folder>/finder-<focus>/` and leave the checkout unchanged. Follow steps 2 and 3 of `<package>/skills/find-bugs/SKILL.md` for this change as one read: search alone and start no workers. The lead runs the static deltas, `weakened_checks.py`, and the base's tests for this search, so begin with the reading. Run code when running it is how you find out, because the source leaves the outcome open: inject a failure, force an interleaving, try an input, or compare base and head on a scenario you suspect. Save each probe you run with its command and result. When the source already shows the outcome, return the candidate as *inferred* with the probe that would show it; the lead confirms each distinct candidate once. Return every candidate you could not contradict: location, trigger, base result, head result, the contract it breaks, and the saved probe, or *inferred* with the probe to run. List the leads you dropped, one line each with the counterevidence. Do not rank or write a report.
 
-The **state finder** gets one more sentence: *Search only the state this
-change adds or shares: caches, lazy initialization, counters, and containers
-that outlive one call. For each, probe what two threads or tasks see when they
-reach it at once, and what a reader sees after it changes.*
+The general finder gets the assignment as it stands. Each focused finder gets
+one more paragraph.
 
-The **fault finder** gets one more paragraph: *Search only what happens when
-the outside world does not cooperate. `python3 <package>/skills/find-bugs/scripts/failure_points.py --base <base> --head <head> --repo <checkout>`
+The **consumers finder**: *Search only what code outside the change sees.
+List the callers of each changed function; the subclasses and overrides of
+each changed class; the callbacks and hooks that users supply; the generic
+protocols that users apply to changed objects, such as copy, pickle, equality,
+and iteration; and the docs, examples, and type declarations that describe the
+changed code. For each, compare what it receives or observes at the base and
+at the head.*
+
+The **inputs finder**: *Search only the values that the changed code now
+treats differently: None, empty, boundary, and malformed arguments; each
+default; each option that the changed path reads or now ignores, alone and
+combined with the others; and each runtime, operating system, and filesystem
+that the project supports. For each value, compare the base and head results.*
+
+The **state finder**: *Search only the state this change adds or shares:
+caches, lazy initialization, counters, and containers that outlive one call.
+For each, probe what two threads or tasks see when they reach it at once, and
+what a reader sees after it changes.*
+
+The **fault finder**: *Search only what happens when the outside world does
+not cooperate. `python3 <package>/skills/find-bugs/scripts/failure_points.py --base <base> --head <head> --repo <checkout>`
 lists the added lines that open, read, write, close, rename, delete, lock,
 spawn, or connect. Make each one fail in turn, part-way through the change's
 sequence, with an error that call can raise, and record what remains: open
@@ -32,38 +51,46 @@ read permission. Report a candidate only when the base handled the same
 condition, or when the change documents how it handles it.*
 
 When no failure point is listed, start the fault finder anyway: the list finds
-leads, not every call.
+leads, not every call. Where no delegation tool is available, as can happen
+for a worker, search once yourself and say so in the delivery.
 
-While the finders run, run the static deltas yourself. Where no delegation
-tool is available, as can happen for a worker, search once yourself and say so
-in the delivery.
+## Run the shared tools once
+
+While the finders run, run these yourself, once for the whole search. Each
+result you keep is a candidate from finder `lead`.
+
+- The static deltas, as step 2 says.
+- `weakened_checks.py`, as step 2 says.
+- The base's tests against the head. In a disposable worktree at the head,
+  restore the test files that the change edits or deletes to their base
+  versions: `git -C <worktree> checkout <base> -- <test files>`. Run those
+  files. A test that passes at the base and fails there pinned a behavior that
+  the change altered. Skip this when the change edits no test file, and record
+  that.
 
 ## Decide every candidate
 
-Write `candidates.md` in this search's folder, one row for each candidate any
-finder returned:
+Write `candidates.md` in this search's folder, one row for each candidate that
+a finder or a shared tool returned:
 
 ```markdown
 | Candidate | Finders | Disposition |
 |---|---|---|
-| release() blocks a waiting acquire | 1, 3 | delivered |
-| same, through release(force=True) | 2 | merged into release() blocks a waiting acquire |
-| lifetime warning text | 4 | dropped: base prints the same text, probe p3 |
+| release() blocks a waiting acquire | general, state | delivered |
+| same, through release(force=True) | inputs | merged into release() blocks a waiting acquire |
+| lifetime warning text | consumers | dropped: base prints the same text, probe p3 |
 ```
 
 A disposition is `delivered`, `merged into <candidate>`, or
 `dropped: <counterevidence>`. Merge candidates that share a location and
 mechanism, keep every distinct trigger, and list a merged row's finders on the
 row it merged into. A candidate from one finder is as likely real as one from
-all five: verify it in step 3, do not vote. Drop one only with the source line
+several: confirm it in step 3, do not vote. Drop one only with the source line
 or probe result that contradicts it.
 
-Then run `python3 <package>/skills/find-bugs/scripts/remaining.py --finders 5 <this search's folder>/candidates.md`.
-It exits 1 while a row has no disposition. Its last line estimates what share
-of the defects that reads of this kind find this search found: many candidates
-seen by one finder only mean another thorough search would add more. State
-that share in the delivery as a rough figure, and say that it does not count
-defects no read of this kind reaches.
+Then run `python3 <package>/skills/find-bugs/scripts/remaining.py <this search's folder>/candidates.md`.
+It exits 1 while a row has no disposition.
 
 Done when every finder has returned or is recorded as *not run* with its
-reason, and `remaining.py` exits 0.
+reason, each shared tool ran or has a recorded reason, and `remaining.py`
+exits 0.

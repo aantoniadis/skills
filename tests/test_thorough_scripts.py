@@ -50,6 +50,13 @@ class RemainingTest(unittest.TestCase):
         self.assertEqual(result.returncode, 1)
         self.assertIn("- lifetime text", result.stdout)
 
+    def test_without_finders_checks_dispositions_only(self):
+        result = run("remaining.py", self.table(TABLE))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout, "7 candidates: 5 delivered, 2 merged or dropped.\n")
+        result = run("remaining.py", self.table(TABLE.replace("| 4 | delivered |", "| 4 | maybe |")))
+        self.assertEqual(result.returncode, 1)
+
     def test_missing_columns_exit_2(self):
         self.assertEqual(run("remaining.py", "--finders", "4", self.table("| a | b |\n|---|---|\n| x | y |\n")).returncode, 2)
 

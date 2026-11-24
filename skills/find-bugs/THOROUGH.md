@@ -1,10 +1,10 @@
 # Thorough search
 
-Read this when the user or the caller asks for a thorough search. Three or
-four finders read the change independently, each with its own focus. You run
-the shared tools once, merge what the finders return, record a decision for
-every candidate, and confirm each delivered candidate once. A thorough search costs
-several times one read.
+Read this when the user or the caller asks for a thorough search. Four or
+five finders read the change independently: one general finder and three or
+four finders with their own focus. You run the shared tools once, merge what
+the finders return, record a decision for every candidate, and confirm each
+delivered candidate once. A thorough search costs several times one read.
 
 ## Contents
 
@@ -19,8 +19,8 @@ It lists the added lines that open, read, write, close, rename, delete, lock,
 spawn, or connect.
 
 Then, through [native delegation](../WORKERS.md), start the finders in one
-message: a consumers finder, an inputs finder, a state finder, and, when the
-list has five or more lines, a fault finder. With fewer lines, skip the fault
+message: a general finder, a consumers finder, an inputs finder, a state
+finder, and, when the list has five or more lines, a fault finder. With fewer lines, skip the fault
 finder: make each listed line fail once yourself in step 3, and record that.
 Wait for every finder's result before step 3. Give each this assignment and
 nothing from your own reading or the shared tools; a finder that knows what
@@ -28,7 +28,9 @@ was found looks where the others looked:
 
 > You are one of several independent finders for one change. You do not see the others' work. Repository: `<path>`. Base: `<sha>`. Head: `<sha>`. Conditions: `<dependency and environment notes from step 1>`. Work in `<this search's folder>/finder-<focus>/` and leave the checkout unchanged. Follow steps 2 and 3 of `<package>/skills/find-bugs/SKILL.md` for this change as one read: search alone and start no workers. The lead runs the static deltas, `weakened_checks.py`, and the base's tests for this search, so begin with the reading. Run code when running it is how you find out, because the source leaves the outcome open: inject a failure, force an interleaving, try an input, or compare base and head on a scenario you suspect. Save each probe you run with its command and result. When the source already shows the outcome, return the candidate as *inferred* with the probe that would show it; the lead confirms each distinct candidate once. Return every candidate you could not contradict: location, trigger, base result, head result, the contract it breaks, and the saved probe, or *inferred* with the probe to run. List the leads you dropped, one line each with the counterevidence. Do not rank or write a report.
 
-Each finder also gets the paragraph for its focus.
+The general finder gets the assignment as it stands; it catches what falls
+outside the focuses. Each focused finder also gets the paragraph for its
+focus.
 
 The **consumers finder**: *Search only what code outside the change sees.
 List the callers of each changed function; the subclasses and overrides of

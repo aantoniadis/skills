@@ -12,7 +12,7 @@ bounded by its [evidence](../EVIDENCE.md).
 
 Return defects a maintainer would fix, with their trigger, consequence, and supporting evidence. Keep speculative possibilities out of the finding list unless source or observations support a plausible in-scope trigger and material impact. A probe establishes an observation; the contract and the consequence decide whether it is a defect.
 
-One read of a change finds part of what repeated reads find: on the same pins, separate reads report different defects. Search with **one read** unless the user or the caller asks for a **thorough** search, in words such as thorough, exhaustive, or find everything. A thorough search runs several independent reads, each with its own focus, and costs several times one read. A caller passes the depth it settled with the user. Every search starts blind: it works in a new folder of its own and leaves an earlier search's `findings.md`, probes, and logs unopened until step 4, because a search that starts from an earlier list finds what the list names.
+One read of a change finds part of what repeated reads find: on the same pins, separate reads report different defects. Search with **one read** unless the user or the caller asks for a **thorough** search, in words such as thorough, exhaustive, or find everything. A thorough search runs several independent reads, most with their own focus, and costs several times one read. A caller passes the depth it settled with the user. Every search starts blind: it works in a new folder of its own and leaves an earlier search's `findings.md`, probes, and logs unopened until step 4, because a search that starts from an earlier list finds what the list names.
 
 ## 1. Pin the scope
 

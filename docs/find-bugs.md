@@ -7,14 +7,21 @@ predictions and include material questions and review limits.
 One read of a change finds part of what repeated reads find. On two public
 pull requests, one read reported about a third to a half of what five reads
 reported together. The default is one read. A **thorough** search, asked for
-in words such as "thorough" or "find everything", runs five independent
-finders: three general ones, one for shared state, and one that makes each
-added file, process, or network call fail and gives each new path a hostile
-filesystem state. The lead records a decision for every candidate they
-return, verifies the delivered ones, and estimates from their overlap what
-share of what such reads find this search found. It costs about six times one
-read. Neither depth is a completeness claim: the delivery says how many reads
-searched the change.
+in words such as "thorough" or "find everything", runs four or five
+independent finders. One is general. Three have their own focus: what code
+outside the change sees (callers, subclasses, hooks, docs), the values the
+change treats differently (arguments, defaults, options, platforms), and
+shared state. A fifth makes each added file, process, or network call fail
+and gives each new path a hostile filesystem state; it runs when the change
+adds five or more such calls, and otherwise the lead fails each one itself.
+The lead runs the type checker and the other shared checks once, records a
+decision for every candidate the finders return, and confirms each delivered
+one with a probe at base and head. A drop names its ground: absent at the
+head, the same at the base, or documented intent. A confirmed small change
+is delivered as a minor observation. `evals/thorough-focus/` records how
+focused finders compared with three general finders on four public pull
+requests. Neither depth is a completeness claim: the
+delivery says how many reads searched the change.
 
 ## How it works
 
@@ -23,8 +30,9 @@ searched the change.
    retain the relevant dirty source. Read changed source and consequential
    callers; name excluded or unavailable material.
 2. **Investigate leads.** In a thorough search, each finder gets the pins and
-   nothing from the lead's own reading, and returns every candidate it could
-   not contradict. Every search compares the project's type checker or linter
+   nothing from the lead's own reading, runs code where the source leaves the
+   outcome open, and returns every candidate it could not contradict. Every
+   search compares the project's type checker or linter
    at base and head over the repository root. Select useful project tools and applicable prepared
    results. Coverage gaps, dependency compatibility, new consumers,
    and history can expose hypotheses. Each hypothesis needs a
@@ -32,7 +40,7 @@ searched the change.
 3. **Resolve uncertainty.** Reuse applicable source and run evidence. A source-only
    search can return inferred findings with a proposed settling check. When a
    probe is useful and authorized, run the smallest adequate check against the intended checkout and
-   dependencies. In a thorough search the lead reruns each probe a finder saved.
+   dependencies. In a thorough search the lead confirms each delivered candidate once.
    Compare base and head under equivalent conditions, with the base
    in a disposable worktree so your checkout stays untouched. Retain
    scripts, commands, output, inputs, and environment limits. A probe confirms
@@ -59,11 +67,14 @@ Dependency checks use the project's supported-version commands, constraints,
 and resolver in a fresh environment.
 
 The remaining-share helper reads the thorough search's candidate table. It
-exits 1 while a candidate has no decision, and it estimates, from how many
-finders returned each delivered candidate, what share of what such reads find
-this search found (the bias-corrected Chao2 estimator, rough with five
-finders). The failure-point helper lists the added lines that open, read,
-write, close, rename, delete, lock, spawn, or connect, for the fault finder.
+exits 1 while a candidate has no decision or a drop names no allowed ground.
+With `--finders`, it also estimates, from how many finders returned each
+delivered candidate, what share of what such reads find this search found
+(the bias-corrected Chao2 estimator). The estimate holds only for finders
+with the same assignment, so the thorough search leaves it out. The
+failure-point helper lists the added lines that open, read, write, close,
+rename, delete, lock, spawn, or connect; the lead uses the count to decide
+whether the fault finder runs.
 
 The static-delta helper runs a type checker or linter command in an exported
 copy of two commits and prints the diagnostics the head has and the base

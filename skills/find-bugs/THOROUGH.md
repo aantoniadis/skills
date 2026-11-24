@@ -88,21 +88,26 @@ a finder or a shared tool returned:
 |---|---|---|
 | release() blocks a waiting acquire | consumers, state | delivered |
 | same, through release(force=True) | inputs | merged into release() blocks a waiting acquire |
-| lifetime warning text | consumers | dropped: base prints the same text, probe p3 |
+| lifetime warning text | consumers | dropped: same at base: base prints the same text, probe p3 |
+| duplicate pool for an encoded host | inputs | delivered |
 ```
 
-A disposition is `delivered`, `merged into <candidate>`, or
-`dropped: <counterevidence>`. Merge candidates that share a location and
-mechanism, keep every distinct trigger, and list a merged row's finders on the
-row it merged into. A candidate from one finder is as likely real as one from
-several: confirm it in step 3, do not vote. Drop one only with the source line
-or probe result that shows the behavior is absent at the head or present at
-the base too, or with the text in which the change documents it as intended. A behavior that the head
-shows and the base does not stays `delivered` when you judge its consequence
-small: deliver it under `## Minor observations`, naming why it is minor.
+A disposition is `delivered`, `merged into <candidate>`, or a drop that names
+one of three grounds and then the evidence for it:
+
+- `dropped: absent at head: <source line or probe result>`
+- `dropped: same at base: <source line or probe result>`
+- `dropped: documented intent: <the text in the change that documents it>`
+
+Merge candidates that share a location and mechanism, keep every distinct
+trigger, and list a merged row's finders on the row it merged into. A
+candidate from one finder is as likely real as one from several: confirm it
+in step 3, do not vote. A small consequence is not a ground for a drop: a
+behavior that the head shows and the base does not stays `delivered`, and you
+deliver it under `## Minor observations`, naming why it is minor.
 
 Then run `python3 <package>/skills/find-bugs/scripts/remaining.py <this search's folder>/candidates.md`.
-It exits 1 while a row has no disposition.
+It exits 1 while a row has no disposition or a drop names no allowed ground.
 
 Done when every finder has returned or is recorded as *not run* with its
 reason, each shared tool ran or has a recorded reason, each listed failure

@@ -8,9 +8,17 @@ finder returned:
   |---|---|---|
   | release() blocks a waiting acquire | 1, 3 | delivered |
   | same, through release(force=True) | 2 | merged into release() blocks a waiting acquire |
-  | lifetime warning text | 4 | dropped: base prints the same text, probe p3 |
+  | lifetime warning text | 4 | dropped: same at base: base prints the same text, probe p3 |
 
-A disposition is `delivered`, `merged into <candidate>`, or `dropped: <counterevidence>`.
+A disposition is `delivered`, `merged into <candidate>`, or a drop that names its ground
+and then its evidence:
+
+  dropped: absent at head: <source line or probe result>
+  dropped: same at base: <source line or probe result>
+  dropped: documented intent: <the text that documents it>
+
+A small consequence is not a ground for a drop: such a candidate is delivered as a minor
+observation.
 List a merged row's finders on the row it merged into as well.
 
 With --finders, it also estimates what share of what such reads find this search
@@ -31,7 +39,8 @@ from pathlib import Path
 import re
 import sys
 
-DISPOSITION = re.compile(r"^(delivered\b|merged into \S|dropped: \S)", re.I)
+DISPOSITION = re.compile(r"^(delivered\b|merged into \S|dropped: (absent at head|same at base|documented intent): \S)", re.I)
+GROUNDS = "absent at head, same at base, or documented intent"
 
 
 def rows(text):
@@ -73,8 +82,10 @@ def main(argv=None):
     delivered = [row for row in table if row.get("disposition", "").lower().startswith("delivered")]
     sets = [set(re.findall(r"[\w-]+", row["finders"])) for row in delivered]
     if undecided:
-        print(f"{len(undecided)} candidates without a disposition:")
+        print(f"{len(undecided)} candidates without a valid disposition:")
         print("\n".join(f"- {name}" for name in undecided))
+        print(f"A drop names its ground: {GROUNDS}. Deliver any other confirmed behavior, "
+              "as a minor observation when its consequence is small.")
         return 1
     if args.finders is None:
         print(f"{len(table)} candidates: {len(delivered)} delivered, {len(table) - len(delivered)} merged or dropped.")

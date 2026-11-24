@@ -1,6 +1,6 @@
 I found 6 candidates (5 executed, 1 a minor performance observation) and dropped 4 leads. This was one read covering the shared state the change adds: the `_IncludedRouter` candidate cache and its version counters, the new `app.openapi()` cache key, the `scope["fastapi"]` dict, the ContextVar, and the route handlers now built per request.
 
-Each probe runs against both commits through `run.sh`, which sets `PYTHONPATH` to a disposable base (`016ab760`) or head (`1e70f7cd`) worktree and uses `/tmp/real-pr-cache/fastapi/venv/bin/python`. Each `.out` file holds the exact command and the base and head output. Probes are in `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-fastapi-1/.scratch/router-tree/search-1/finder-state/probes/`. I removed my two worktrees, and the checkout is unchanged at `1e70f7c`.
+Each probe runs against both commits through `run.sh`, which sets `PYTHONPATH` to a disposable base (`016ab760`) or head (`1e70f7cd`) worktree and uses `/tmp/real-pr-cache/fastapi/venv/bin/python`. Each `.out` file holds the exact command and the base and head output. Probes are in `<scratch>/out-arm/find-bugs-fastapi-1/.scratch/router-tree/search-1/finder-state/probes/`. I removed my two worktrees, and the checkout is unchanged at `1e70f7c`.
 
 ## Candidates
 

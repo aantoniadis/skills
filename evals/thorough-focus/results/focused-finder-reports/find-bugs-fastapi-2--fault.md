@@ -52,7 +52,7 @@ This one is outside the failure lens, but the base handled the same condition.
 - **Dependency overrides:** `dependency_overrides_provider` comes from the parent router at include time, the same source as the base's `add_api_route`.
 - **Files, sockets, locks, subprocesses:** the change adds none, so there are no descriptor, partial-file or symlink conditions to test.
 
-Everything is in `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-fastapi-2/.scratch/router-tree/search-1/finder-faults/`:
+Everything is in `<scratch>/out-arm/find-bugs-fastapi-2/.scratch/router-tree/search-1/finder-faults/`:
 - `COMMANDS.txt` (exact commands and environment for base and head)
 - `probe_deferred_include_errors.py` / `.log`
 - `probe_unique_id_fn_object.py` / `.log`

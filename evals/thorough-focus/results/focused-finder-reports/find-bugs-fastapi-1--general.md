@@ -1,4 +1,4 @@
-I found 8 candidates I could not contradict, all executed at both commits. This was one read, comparing base 016ab760 with head 1e70f7cd. Probe files and the runner are in `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-fastapi-1/.scratch/router-tree/search-1/finder-general/probes/`, and the outputs are saved in `results.log` there.
+I found 8 candidates I could not contradict, all executed at both commits. This was one read, comparing base 016ab760 with head 1e70f7cd. Probe files and the runner are in `<scratch>/out-arm/find-bugs-fastapi-1/.scratch/router-tree/search-1/finder-general/probes/`, and the outputs are saved in `results.log` there.
 
 **Command for every probe:** `./run.sh <probe>.py`. It runs the probe with `-I` and the venv Python, once against a base worktree and once against a head worktree. The output confirms each run imported fastapi from its own worktree. I have removed my worktrees, the checkout has no changes, and I did not touch the lead's worktrees.
 

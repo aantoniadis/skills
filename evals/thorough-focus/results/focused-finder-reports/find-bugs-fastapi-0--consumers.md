@@ -1,7 +1,7 @@
 I found 8 candidates where code outside the change sees something different at base 016ab760 and head 1e70f7cd. Seven were run at both commits. The eighth (translated docs) is inferred. The reviewed checkout is unchanged at 1e70f7cd. The base worktree I created has been removed.
 
 **Where things are:**
-- Probes and their saved output: `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-fastapi-0/.scratch/router-tree/search-1/finder-consumers/probes/`. Each `pN_*.py` has a `pN_*.out` beside it.
+- Probes and their saved output: `<scratch>/out-arm/find-bugs-fastapi-0/.scratch/router-tree/search-1/finder-consumers/probes/`. Each `pN_*.py` has a `pN_*.out` beside it.
 - To re-run one, use `probes/run.sh pN_x.py` from that folder. It runs the probe at base (from `../base`, so recreate that worktree first) and at head. It uses `/tmp/real-pr-cache/fastapi/venv/bin/python` with PYTHONPATH set to each checkout.
 - `p10_run.sh` runs `mypy --strict` the same way, with MYPYPATH instead of PYTHONPATH.
 

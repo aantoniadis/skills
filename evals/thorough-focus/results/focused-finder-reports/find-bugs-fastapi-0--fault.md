@@ -1,6 +1,6 @@
 I found four candidates I could not contradict; three were run at both base and head. The script that lists failure points flagged one added line, `copy.copy(route)` at `fastapi/routing.py:1495`. I dropped it because the base never included `Mount` routes (reason below). The checkout is unchanged and the base worktree has been removed.
 
-All probes are in `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-fastapi-0/.scratch/router-tree/search-1/finder-faults/probes/`. Each `pN_*.py` has a matching `.out` file, and the commands are in `COMMANDS.txt`.
+All probes are in `<scratch>/out-arm/find-bugs-fastapi-0/.scratch/router-tree/search-1/finder-faults/probes/`. Each `pN_*.py` has a matching `.out` file, and the commands are in `COMMANDS.txt`.
 
 ## Candidates
 

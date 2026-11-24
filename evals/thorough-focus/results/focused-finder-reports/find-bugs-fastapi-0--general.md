@@ -1,6 +1,6 @@
 I did one read of base `016ab760` → head `1e70f7cd` and found eight candidates I could not contradict, all executed. I didn't run the static deltas, `weakened_checks.py` or the base test suite, since those are yours.
 
-Probes are in `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-fastapi-0/.scratch/router-tree/search-1/finder-general/probes/`, with each `<name>.py` next to its `<name>.out` and the base and head output in each `.out`. The command for every probe is `./run.sh probes/<name>.py`, run from `finder-general/`; `COMMANDS.txt` there gives the exact interpreter and PYTHONPATH. The base and head worktrees I used are removed and the checkout is unchanged.
+Probes are in `<scratch>/out-arm/find-bugs-fastapi-0/.scratch/router-tree/search-1/finder-general/probes/`, with each `<name>.py` next to its `<name>.out` and the base and head output in each `.out`. The command for every probe is `./run.sh probes/<name>.py`, run from `finder-general/`; `COMMANDS.txt` there gives the exact interpreter and PYTHONPATH. The base and head worktrees I used are removed and the checkout is unchanged.
 
 ## Candidates
 

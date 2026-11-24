@@ -1,6 +1,6 @@
 I found two candidates in the new shared state that I could not contradict. Both were run at base and at head. The checkout at e6538e1 is unchanged, and I started no workers.
 
-Probes, outputs and the exact commands are saved in `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-filelock-0/.scratch/strict-owner-claims/search-1/finder-state/` (commands in `COMMANDS.txt`). The base run uses a disposable worktree at `.../finder-state/base` (126cab7, with `version.py` copied in). Each run printed `filelock.__file__` to confirm it loaded the intended `src`.
+Probes, outputs and the exact commands are saved in `<scratch>/out-arm/find-bugs-filelock-0/.scratch/strict-owner-claims/search-1/finder-state/` (commands in `COMMANDS.txt`). The base run uses a disposable worktree at `.../finder-state/base` (126cab7, with `version.py` copied in). Each run printed `filelock.__file__` to confirm it loaded the intended `src`.
 
 ## Candidate 1 (executed): `release()` on a lock nobody holds now waits for another thread's acquire, and can deadlock
 

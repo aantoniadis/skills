@@ -1,4 +1,4 @@
-This was one read of the change from 016ab760 (base) to 1e70f7cd (head). I found 9 candidates that I could not contradict, and all of them were run on both base and head. Probes, `run.sh` and the result files are in `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-fastapi-1/.scratch/router-tree/search-1/finder-inputs/`. `COMMANDS.txt` there gives the command: `./run.sh $PWD/<probe>.py` runs a probe on base, then on head. I removed both worktrees afterwards, and `git status` on the checkout is clean.
+This was one read of the change from 016ab760 (base) to 1e70f7cd (head). I found 9 candidates that I could not contradict, and all of them were run on both base and head. Probes, `run.sh` and the result files are in `<scratch>/out-arm/find-bugs-fastapi-1/.scratch/router-tree/search-1/finder-inputs/`. `COMMANDS.txt` there gives the command: `./run.sh $PWD/<probe>.py` runs a probe on base, then on head. I removed both worktrees afterwards, and `git status` on the checkout is clean.
 
 ## Candidates (all executed)
 

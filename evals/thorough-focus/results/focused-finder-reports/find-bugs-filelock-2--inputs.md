@@ -1,6 +1,6 @@
 I found six candidates I could not contradict, five of them from probes run on both base and head. This was one read of the change, and I started no workers.
 
-The probes and logs are in `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-filelock-2/.scratch/strict-owner-claims/search-1/finder-inputs/`. That folder holds the scripts `p1_multiuser_mode.py`, `p2_malformed_paths.py`, `p3_release_blocks.py` and `p5_hostname_namelen.py`, the output in `run1.log` and `run2.log`, and the exact commands in `COMMANDS.txt`. Every probe ran with Python 3.13 from the venv, as root, with `PYTHONPATH=wt-{base,head}/src`. The checkout is unchanged.
+The probes and logs are in `<scratch>/out-arm/find-bugs-filelock-2/.scratch/strict-owner-claims/search-1/finder-inputs/`. That folder holds the scripts `p1_multiuser_mode.py`, `p2_malformed_paths.py`, `p3_release_blocks.py` and `p5_hostname_namelen.py`, the output in `run1.log` and `run2.log`, and the exact commands in `COMMANDS.txt`. Every probe ran with Python 3.13 from the venv, as root, with `PYTHONPATH=wt-{base,head}/src`. The checkout is unchanged.
 
 ## Candidates
 

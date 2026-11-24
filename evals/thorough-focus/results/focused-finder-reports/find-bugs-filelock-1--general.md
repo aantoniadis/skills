@@ -1,6 +1,6 @@
 I read the whole diff once and ran 7 probes. Six candidates survived. In P1, P2, P3, P6 and P7 the source left the outcome open, so I ran them; the docs candidate is backed by P4. I compared base and head wherever the base has an equivalent path. The checkout is unchanged: I worked from `git archive` exports of base and head (with `version.py` copied in) under `finder-general/{base,head}`.
 
-All paths below are relative to `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-filelock-1/.scratch/strict-owner-claims/search-1/finder-general/probes/`. Each `pN_*.py` has a log next to it, `pN.{base,head}.log`, whose first line is the exact command. The general form is `PYTHONPATH=<base|head>/src /tmp/real-pr-cache/filelock/venv/bin/python probes/pN_*.py`, run from `finder-general/`.
+All paths below are relative to `<scratch>/out-arm/find-bugs-filelock-1/.scratch/strict-owner-claims/search-1/finder-general/probes/`. Each `pN_*.py` has a log next to it, `pN.{base,head}.log`, whose first line is the exact command. The general form is `PYTHONPATH=<base|head>/src /tmp/real-pr-cache/filelock/venv/bin/python probes/pN_*.py`, run from `finder-general/`.
 
 ## Candidates
 

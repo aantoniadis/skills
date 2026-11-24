@@ -1,6 +1,6 @@
 Six candidates hold up against base and head. Four come from executed probes run at both base and head (a fifth result in the same probes is head-only). One is inferred from the docs and checked against probe 2. This was one read, limited to what code outside the change sees.
 
-All paths below are relative to `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-filelock-0/.scratch/strict-owner-claims/search-1/finder-consumers/`. That folder holds base worktree `base/` (126cab7) and head worktree `head/` (e6538e1), with `version.py` copied into both. Probe scripts, outputs and exact commands are in `probes/`, with the commands in `probes/COMMANDS.txt`. Every probe prints `filelock.__file__`, which confirmed the worktree's `src/` was loaded each time. The checkout itself is unchanged.
+All paths below are relative to `<scratch>/out-arm/find-bugs-filelock-0/.scratch/strict-owner-claims/search-1/finder-consumers/`. That folder holds base worktree `base/` (126cab7) and head worktree `head/` (e6538e1), with `version.py` copied into both. Probe scripts, outputs and exact commands are in `probes/`, with the commands in `probes/COMMANDS.txt`. Every probe prints `filelock.__file__`, which confirmed the worktree's `src/` was loaded each time. The checkout itself is unchanged.
 
 ## Candidates
 

@@ -1,4 +1,4 @@
-I searched the consumer-facing surface of the change in one read and started no workers. I have six candidates I could not contradict, five of them with saved probes run at base and head. Everything is saved in `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-filelock-2/.scratch/strict-owner-claims/search-1/finder-consumers/`. Each probe is a `.py` file with its output in a matching `.out` file.
+I searched the consumer-facing surface of the change in one read and started no workers. I have six candidates I could not contradict, five of them with saved probes run at base and head. Everything is saved in `<scratch>/out-arm/find-bugs-filelock-2/.scratch/strict-owner-claims/search-1/finder-consumers/`. Each probe is a `.py` file with its output in a matching `.out` file.
 
 Every probe was run as `PYTHONPATH=<wt-base|wt-head>/src /tmp/real-pr-cache/filelock/venv/bin/python <probe>.py`.
 

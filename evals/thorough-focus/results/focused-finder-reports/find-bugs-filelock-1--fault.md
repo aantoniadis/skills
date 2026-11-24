@@ -1,4 +1,4 @@
-I found 4 candidates I could not contradict, plus one minor. Probes and outputs are in `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-filelock-1/.scratch/strict-owner-claims/search-1/finder-faults/probes/`, with the exact commands in `COMMANDS.txt`. My base and head worktrees are removed and the checkout is unchanged. I did not touch the other agents' worktrees.
+I found 4 candidates I could not contradict, plus one minor. Probes and outputs are in `<scratch>/out-arm/find-bugs-filelock-1/.scratch/strict-owner-claims/search-1/finder-faults/probes/`, with the exact commands in `COMMANDS.txt`. My base and head worktrees are removed and the checkout is unchanged. I did not touch the other agents' worktrees.
 
 ## Candidates
 

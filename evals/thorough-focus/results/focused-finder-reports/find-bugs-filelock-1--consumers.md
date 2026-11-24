@@ -1,4 +1,4 @@
-I found seven candidates I could not contradict, and six of them were run at both base and head. This was one read, focused on what code outside the change sees. The probes and their outputs are saved under `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-filelock-1/.scratch/strict-owner-claims/search-1/finder-consumers/probes/`, and `COMMANDS.txt` there has the exact commands. The base and head trees are `git archive` exports in `base/` and `head/` next to it, so the checkout is unchanged. Everything ran on Python 3.13.18, Linux, as root.
+I found seven candidates I could not contradict, and six of them were run at both base and head. This was one read, focused on what code outside the change sees. The probes and their outputs are saved under `<scratch>/out-arm/find-bugs-filelock-1/.scratch/strict-owner-claims/search-1/finder-consumers/probes/`, and `COMMANDS.txt` there has the exact commands. The base and head trees are `git archive` exports in `base/` and `head/` next to it, so the checkout is unchanged. Everything ran on Python 3.13.18, Linux, as root.
 
 ## Candidates
 

@@ -1,4 +1,4 @@
-I found three candidates in this one read: two in the failure-mode scope, plus one outside it. The probes ran at both base and head (worktrees at 016ab760 and 1e70f7cd), and the worktrees have since been removed. The checkout is unchanged (`git status` is clean). Probes, their outputs and `COMMANDS.txt` are in `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-fastapi-1/.scratch/router-tree/search-1/finder-faults/probes/`.
+I found three candidates in this one read: two in the failure-mode scope, plus one outside it. The probes ran at both base and head (worktrees at 016ab760 and 1e70f7cd), and the worktrees have since been removed. The checkout is unchanged (`git status` is clean). Probes, their outputs and `COMMANDS.txt` are in `<scratch>/out-arm/find-bugs-fastapi-1/.scratch/router-tree/search-1/finder-faults/probes/`.
 
 `failure_points.py` listed one added failure point, `copy.copy(route)` for a Mount at `fastapi/routing.py:1495`. It did not lead to a candidate (see the dropped leads). The search then turned to user code that raises during router inclusion and request handling.
 

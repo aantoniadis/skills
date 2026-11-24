@@ -1,6 +1,6 @@
 I found 13 candidates I could not contradict; 12 are executed and 1 is inferred. This was one read focused on what code outside the change sees, comparing base 016ab760 with head 1e70f7cd.
 
-Probes are in `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-fastapi-1/.scratch/router-tree/search-1/finder-consumers/probes/`. To run one, go to that folder and run `./run.sh pNN_*.py`, which runs it at base and then at head. Before that, recreate the two worktrees as `COMMANDS.txt` there describes, because I removed them when done. The outputs are in `results-1.txt` to `results-5.txt` in the same folder. The checkout is unchanged.
+Probes are in `<scratch>/out-arm/find-bugs-fastapi-1/.scratch/router-tree/search-1/finder-consumers/probes/`. To run one, go to that folder and run `./run.sh pNN_*.py`, which runs it at base and then at head. Before that, recreate the two worktrees as `COMMANDS.txt` there describes, because I removed them when done. The outputs are in `results-1.txt` to `results-5.txt` in the same folder. The checkout is unchanged.
 
 ## Candidates
 

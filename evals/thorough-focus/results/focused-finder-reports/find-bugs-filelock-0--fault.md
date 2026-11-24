@@ -1,6 +1,6 @@
 I made the listed failure points fail and probed what another process or account could leave at each path. There are six candidates I could not contradict, five of them confirmed by base/head probes. The checkout is unchanged, and the base and head worktrees are in my folder.
 
-F = `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-filelock-0/.scratch/strict-owner-claims/search-1/finder-faults`. Probes and outputs are in `F/probes/`, with the exact commands in `F/probes/COMMANDS.txt`. Every run prints `filelock.__file__` to confirm it loaded the intended checkout. I ran as root and used `setpriv` to act as uids 1000 and 1001. The cross-account probes used temporary directories under `/tmp/fl-finder-faults-p*`, which they delete when done.
+F = `<scratch>/out-arm/find-bugs-filelock-0/.scratch/strict-owner-claims/search-1/finder-faults`. Probes and outputs are in `F/probes/`, with the exact commands in `F/probes/COMMANDS.txt`. Every run prints `filelock.__file__` to confirm it loaded the intended checkout. I ran as root and used `setpriv` to act as uids 1000 and 1001. The cross-account probes used temporary directories under `/tmp/fl-finder-faults-p*`, which they delete when done.
 
 ## Candidates
 

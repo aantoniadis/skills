@@ -1,6 +1,6 @@
 I found six candidates I could not contradict. Five are confirmed by probes and one (C6) is inferred from the source with an injection probe. I ran no static deltas, `weakened_checks.py` or base tests, as you asked.
 
-Everything is in `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-filelock-2/.scratch/strict-owner-claims/search-1/finder-faults/`: each probe script `pN_*.py`, its output in `pN.out`, and the exact commands in `COMMANDS.txt`. The checkout is unchanged (`git status` is empty).
+Everything is in `<scratch>/out-arm/find-bugs-filelock-2/.scratch/strict-owner-claims/search-1/finder-faults/`: each probe script `pN_*.py`, its output in `pN.out`, and the exact commands in `COMMANDS.txt`. The checkout is unchanged (`git status` is empty).
 
 Probes p4 and p5 had to run as two other accounts. The scratchpad tree is mode 0700 and owned by root, so other accounts cannot reach it. Those probes therefore make a short-lived `mkdtemp` folder under `/tmp`, fork, drop to uid 60001 or 60002 with umask 022, and delete the folder afterwards.
 

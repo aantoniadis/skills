@@ -1,6 +1,6 @@
 This was one read of 126cab7..e6538e1, done alone with no workers. It produced six candidates I could not contradict. Five were run at both base and head. The documentation one is partly inferred: only part of it was run.
 
-The checkout is unchanged. My work is in `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-filelock-0/.scratch/strict-owner-claims/search-1/finder-general/`, which holds the worktrees `base/` and `head/` and the folder `probes/`. Probe scripts, outputs and exact commands are in `probes/`, with the commands in `probes/COMMANDS.md`. Every probe prints `filelock.__file__`, and each run loaded the intended worktree.
+The checkout is unchanged. My work is in `<scratch>/out-arm/find-bugs-filelock-0/.scratch/strict-owner-claims/search-1/finder-general/`, which holds the worktrees `base/` and `head/` and the folder `probes/`. Probe scripts, outputs and exact commands are in `probes/`, with the commands in `probes/COMMANDS.md`. Every probe prints `filelock.__file__`, and each run loaded the intended worktree.
 
 ## Candidates
 

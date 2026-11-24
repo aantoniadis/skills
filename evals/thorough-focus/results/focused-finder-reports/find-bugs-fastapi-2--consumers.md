@@ -1,7 +1,7 @@
 I found 11 candidates I could not contradict (C1–C11), and dropped 8 leads. C1–C8 and C11 ran at both base and head; C9 and C10 are inferred. This was one read of the consumer side only.
 
 - **Pins:** base `016ab76`, head `1e70f7c`. Each probe ran with `PYTHONPATH` set to a disposable worktree of base or head, using the locked venv.
-- **Where things are:** probes and `run_both.sh` are in `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-fastapi-2/.scratch/router-tree/search-1/finder-consumers/probes/`. Every command and its full output are in `probes/results.txt` in that folder.
+- **Where things are:** probes and `run_both.sh` are in `<scratch>/out-arm/find-bugs-fastapi-2/.scratch/router-tree/search-1/finder-consumers/probes/`. Every command and its full output are in `probes/results.txt` in that folder.
 - **Rerunning:** I removed my worktrees afterwards and the checkout is unchanged. To rerun, recreate `finder-consumers/base` at 016ab76 and `finder-consumers/head` at 1e70f7c, then run `sh probes/run_both.sh <probe>`.
 
 ## Candidates

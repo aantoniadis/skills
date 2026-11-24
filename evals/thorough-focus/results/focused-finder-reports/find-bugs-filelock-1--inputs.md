@@ -1,6 +1,6 @@
 I found six candidates I could not contradict and dropped five leads. This was one read. I started no workers and did not run the static deltas, `weakened_checks.py` or the base tests, since you said you would run those.
 
-**Setup.** Base `126cab7` and head `e6538e1` are checked out as worktrees under `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-filelock-1/.scratch/strict-owner-claims/search-1/finder-inputs/{base,head}`, each with `version.py` copied in. Probes ran on Python 3.13, Linux, ext4 `/tmp`, as root. Scripts, outputs and `COMMANDS.txt` are in `.../finder-inputs/probes/`. The reviewed checkout is unchanged (`git status` is clean). Running the probes wrote `__pycache__` folders into my own worktrees only.
+**Setup.** Base `126cab7` and head `e6538e1` are checked out as worktrees under `<scratch>/out-arm/find-bugs-filelock-1/.scratch/strict-owner-claims/search-1/finder-inputs/{base,head}`, each with `version.py` copied in. Probes ran on Python 3.13, Linux, ext4 `/tmp`, as root. Scripts, outputs and `COMMANDS.txt` are in `.../finder-inputs/probes/`. The reviewed checkout is unchanged (`git status` is clean). Running the probes wrote `__pycache__` folders into my own worktrees only.
 
 ## Candidates
 

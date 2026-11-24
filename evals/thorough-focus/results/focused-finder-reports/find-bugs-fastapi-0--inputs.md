@@ -1,6 +1,6 @@
 I found 10 candidates I could not contradict. One read, no workers. I compared base `016ab760` with head `1e70f7cd` using the locked venv, with `PYTHONPATH` set to the base worktree or the head checkout. The checkout is unchanged (`git status` is clean, HEAD is still `1e70f7cd`) and the base worktree has been removed.
 
-All probes are in `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-fastapi-0/.scratch/router-tree/search-1/finder-inputs/probes/`. To run one on both sides: `probes/run.sh probes/<pNN>.py`. Each `<pNN>.out` file holds the exact command and the output for both sides.
+All probes are in `<scratch>/out-arm/find-bugs-fastapi-0/.scratch/router-tree/search-1/finder-inputs/probes/`. To run one on both sides: `probes/run.sh probes/<pNN>.py`. Each `<pNN>.out` file holds the exact command and the output for both sides.
 
 ## Candidates (none contradicted)
 

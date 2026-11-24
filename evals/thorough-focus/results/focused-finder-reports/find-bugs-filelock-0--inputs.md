@@ -1,7 +1,7 @@
 I read the change once, alone, and ran ten probes. Every value-dependent behaviour I checked was run at both the base and the head, except two inferred results named in candidates 6 and 7.
 
 - **Pins:** base `126cab7` and head `e6538e1`.
-- **Probe location:** `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-filelock-0/.scratch/strict-owner-claims/search-1/finder-inputs/probes/`. Each probe has a `.py` script and a `.out` result there, and `COMMANDS.txt` lists the exact commands. Each probe printed `filelock.__file__`, which shows it loaded the `base/` or `head/` worktree in that folder.
+- **Probe location:** `<scratch>/out-arm/find-bugs-filelock-0/.scratch/strict-owner-claims/search-1/finder-inputs/probes/`. Each probe has a `.py` script and a `.out` result there, and `COMMANDS.txt` lists the exact commands. Each probe printed `filelock.__file__`, which shows it loaded the `base/` or `head/` worktree in that folder.
 - **Checkout:** left unchanged. The two worktrees are still registered in git.
 
 ## Candidates

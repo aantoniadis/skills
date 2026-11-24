@@ -1,6 +1,6 @@
 I found three candidates in the state this change adds that I could not contradict, and I confirmed all three by running probes at both head and base. This was one read, scoped to caches, lazy initialization, counters and long-lived containers. I did not run the static deltas, `weakened_checks.py` or the base tests, as you said the lead runs those.
 
-Probes and their outputs are in `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-fastapi-0/.scratch/router-tree/search-1/finder-state/probes/`, with the exact command in `COMMANDS.txt` and outputs in the `results*.txt` files. The base worktree has been removed and the checkout is unchanged.
+Probes and their outputs are in `<scratch>/out-arm/find-bugs-fastapi-0/.scratch/router-tree/search-1/finder-state/probes/`, with the exact command in `COMMANDS.txt` and outputs in the `results*.txt` files. The base worktree has been removed and the checkout is unchanged.
 
 ## Candidates
 

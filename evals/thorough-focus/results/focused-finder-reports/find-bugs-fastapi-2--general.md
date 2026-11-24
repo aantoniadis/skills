@@ -2,7 +2,7 @@ I found seven candidates I could not contradict. I ran each one at base 016ab76 
 
 The lead's static deltas, `weakened_checks.py` and base test run were left to the lead. The base worktree has been removed, and the checkout is clean at 1e70f7c.
 
-Probe folder: `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-fastapi-2/.scratch/router-tree/search-1/finder-general/probes/`
+Probe folder: `<scratch>/out-arm/find-bugs-fastapi-2/.scratch/router-tree/search-1/finder-general/probes/`
 - Scripts: `probe_all.py` (scenarios p1–p10) and `probe_more.py` (scenarios q1–q5).
 - Logs: `probe_all.base.log`, `probe_all.head.log`, `probe_more.base.log`, `probe_more.head.log`. Each log starts with its exact command and with the path FastAPI was loaded from, which confirms the right checkout ran.
 - Command: `PYTHONPATH=<checkout> /tmp/real-pr-cache/fastapi/venv/bin/python probe_all.py` (or `probe_more.py`).

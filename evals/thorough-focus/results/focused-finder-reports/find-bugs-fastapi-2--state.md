@@ -1,6 +1,6 @@
 I found six candidates in the state this change adds, from one read of base `016ab76` against head `1e70f7c`. Each one was run at both revisions. The checkout is unchanged, and the base and head worktrees I made are removed.
 
-Every probe runs through `run.sh <probe>`, which runs it at base and then head. It uses `/tmp/real-pr-cache/fastapi/venv/bin/python` with `PYTHONPATH` set to each worktree. Probes, outputs and `COMMANDS.txt` are in `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-fastapi-2/.scratch/router-tree/search-1/finder-state/probes/`.
+Every probe runs through `run.sh <probe>`, which runs it at base and then head. It uses `/tmp/real-pr-cache/fastapi/venv/bin/python` with `PYTHONPATH` set to each worktree. Probes, outputs and `COMMANDS.txt` are in `<scratch>/out-arm/find-bugs-fastapi-2/.scratch/router-tree/search-1/finder-state/probes/`.
 
 ## Candidates
 

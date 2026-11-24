@@ -1,4 +1,4 @@
-I found three candidates that I could not contradict. All are about state that outlives one call. Each one has a probe I ran at base and at head. Files are under `/tmp/claude-0/-home-user-skills/7576268c-0701-58be-90ef-46380bf7278b/scratchpad/out-arm/find-bugs-filelock-1/.scratch/strict-owner-claims/search-1/finder-state/`. That folder holds base and head copies of `src` (made with `git archive`, plus `version.py`), the probes, their outputs, and `probes/COMMANDS.txt`. The reviewed checkout is unchanged.
+I found three candidates that I could not contradict. All are about state that outlives one call. Each one has a probe I ran at base and at head. Files are under `<scratch>/out-arm/find-bugs-filelock-1/.scratch/strict-owner-claims/search-1/finder-state/`. That folder holds base and head copies of `src` (made with `git archive`, plus `version.py`), the probes, their outputs, and `probes/COMMANDS.txt`. The reviewed checkout is unchanged.
 
 Every probe ran as:
 `for v in base head; do PYTHONPATH=$PWD/$v/src timeout 20 /tmp/real-pr-cache/filelock/venv/bin/python probes/<probe>.py; done`, run from `finder-state/`.

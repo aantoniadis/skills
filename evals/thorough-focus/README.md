@@ -89,6 +89,36 @@ reported it. Results are in `results/urllib3-*.json`.
 The PR is small and its defects are few, so both arms come near the ceiling:
 this run shows the same recall for 24% less, not a recall gain.
 
+## The drop check on a held-out PR with file operations
+
+The next version plus the drop check (commit b7ed077 on this branch) ran
+against `main` on pypa/pipx PR 2229, base `af5f5a1`, head `5323afc`. The
+change moves an environment into pipx's trash and restores it on failure;
+`failure_points.py` lists 11 lines, so the fault finder starts.
+`cases/find-bugs-pipx/` holds the fixture, prompt, and graders. Build the
+cache at `/tmp/real-pr-cache/pipx`: fetch `refs/pull/2229/head` into branch
+`fix/force-retry-keeps-venv` and the base into `main`, then install the
+project's dependencies, its `test` group, and `ty`.
+
+The maintainers fixed one regression of this PR in #2350: a failed move into
+the trash deletes the live environment (`ka`, `probe_known_regression.py`).
+The other graders were written after both arms ran, one for each distinct
+finding. Two findings are not graded: one run reported a restore blocked by a
+locked file, which another run showed is the same at base, and the lost
+"Not removing existing venv" warning is documented in the changelog.
+
+| Arm | Finders | Graders passed, of 5 | Mean | Cost for each run |
+|---|---|---|---|---|
+| `main` | 5 | 5, 5, 4 | 4.7 | $6.61 |
+| next version plus the drop check | 4 | 5, 4, 4 | 4.3 | $4.85 |
+
+The fault finder started in every run of the focused version. Every drop in
+its `candidates.md` names an allowed ground. It missed `f02`, the uv backend
+restoring an environment uv already changed, in two runs: in all three `main`
+runs that finding came from a general finder, and no focused finder reported
+it. Results are in `results/pipx-*.json`. A first attempt of the `main` arm
+stopped at a usage limit and is not recorded.
+
 ## What each finder contributed in the first focused arm
 
 `judge_finders.py` judges each finder's own report against the case graders,

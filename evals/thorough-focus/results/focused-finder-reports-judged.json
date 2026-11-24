@@ -1,0 +1,2162 @@
+{
+ "find-bugs-fastapi-0--consumers": {
+  "b-openapi-schema": {
+   "passed": true,
+   "why": "Candidate 2 reports the behavior the rubric describes. A schema the user assigns to `app.openapi_schema` is replaced when `app.openapi()` first runs, because `_openapi_routes_version` starts as `None`. The base returned the assigned schema (\"preset survives: False\" at head).\n\nVERDICT: PASS"
+  },
+  "c-nested-callbacks": {
+   "passed": true,
+   "why": "The report includes this finding as candidate 4: callbacks from a router included into a callback router disappear from OpenAPI. It names the cause in `get_openapi_path`, where the callbacks loop still filters with `isinstance(callback, routing.APIRoute)` and doesn't walk the route tree. It gives th"
+  },
+  "e-handler-rebuild": {
+   "passed": true,
+   "why": "The report does cover this in candidate 6: it says `APIRoute.handle` builds `request_response(self.get_route_handler())` on every request, so `get_route_handler` goes from 2 calls at base to 1 at setup plus 1 per request at head (6 after 5 requests). It also says measured raw per-request speed showe"
+  },
+  "f-unique-id-arg": {
+   "passed": true,
+   "why": "Candidate 5 reports that a custom `generate_unique_id_function` receives `_EffectiveRouteContext` instead of an `APIRoute` for routes in included routers. It says `isinstance` is False at head and True at base, and that this breaks the `Callable[[APIRoute], str]` contract. That matches the rubric.\n\n"
+  },
+  "g-mount-timing": {
+   "passed": true,
+   "why": "The report does mention `router.mount()` / `host()` not bumping `_routes_version`, so a Mount added after the first request is cached out. It files this under dropped leads, and its reason is that base never routed Mounts or Hosts from included routers at all. The report does say the behavior contra"
+  },
+  "h-subclass-init": {
+   "passed": true,
+   "why": "The report never mentions the specific defect. Candidate 6 says a custom `APIRoute` subclass's `__init__` is not re-run for included routes. It gives a registry that holds `['/users']` at head, and a tag-driven auth dependency that the subclass injects is skipped. This is the same effect as the rubr"
+  },
+  "i-get-openapi-none": {
+   "passed": false,
+   "why": "The report never mentions `get_openapi(..., routes=None)` or a `TypeError` from `list(routes)`. None of the 8 candidates or the dropped leads covers it.\n\nVERDICT: FAIL"
+  },
+  "j-include-validation-late": {
+   "passed": false,
+   "why": "The report doesn't say that an invalid `include_router` configuration used to be rejected at include time and is now accepted, failing later with HTTP 500 or on first use. Candidate 8's empty-prefix check is the only item close to this. It says the check \"runs only at include time, so routes added l"
+  },
+  "k1-empty-path-prefix": {
+   "passed": false,
+   "why": "The report never says that a prefix-less outer `include_router` can now raise `FastAPIError` (\"Prefix and path cannot be both empty\") for a route with an empty path that an inner include had already prefixed. Its only related item is a dropped lead about the empty-prefix check running only at includ"
+  },
+  "k2-apiroute-tags-typing": {
+   "passed": true,
+   "why": "Candidate 7 in the report covers the required finding. It says `APIRoute` no longer declares attributes such as `tags`, because `__init__` now sets them through `_populate_api_route_state(cast(_APIRouteLike, self), ...)`. It says code that reads `route.tags` (including the generate-clients docs patt"
+  },
+  "k3-cache-rebuild-race": {
+   "passed": false,
+   "why": "The report doesn't mention the lazy rebuild of the cached route lists in `_IncludedRouter` (`effective_candidates` / `effective_low_priority_routes`). It also says nothing about a missing lock, partial lists, or duplicate appends under concurrent first requests. The one nearby item, about `_routes_v"
+  },
+  "k5-scope-route-path": {
+   "passed": true,
+   "why": "Candidate 1 reports that `request.scope[\"route\"]` at head is the original route without the include prefix. Base gave `/v1/items/{item_id}` and head gives `/items/{item_id}` for both `.path` and `.path_format`. It names metrics, tracing and instrumentation middleware that read `route.path` and flags"
+  },
+  "n8-plain-route-prefix": {
+   "passed": false,
+   "why": "The report never says that a plain Starlette route added with `add_route` now gets the including router's prefix, so its URL changes. Candidate 3 only covers a subclass's `add_route` override not running. The dropped lead says a plain Starlette `Route` loses its `middleware=` at both commits, which "
+  },
+  "n9-add-api-route-override": {
+   "passed": true,
+   "why": "Candidate 3 reports that a parent `APIRouter` subclass's `add_api_route` override no longer runs for included routes. It says `APIRouter.include_router` now appends `_IncludedRouter` instead of calling `self.add_api_route(...)`. The report also gives the base and head results: the override sees `['/"
+  }
+ },
+ "find-bugs-fastapi-0--fault": {
+  "b-openapi-schema": {
+   "passed": true,
+   "why": "The report does mention this, but only as an unprobed item in \"Outside my focus (inferred, not probed)\". It says `app.openapi()` now regenerates the schema when `_openapi_routes_version` is `None`, so an `app.openapi_schema` the user set directly, without first calling `app.openapi()`, gets overwrit"
+  },
+  "c-nested-callbacks": {
+   "passed": false,
+   "why": "The report doesn't mention OpenAPI callbacks, a callback router, or `callbacks=cb.routes`. None of its four candidates, dropped leads or out-of-focus notes cover callbacks being dropped when the callback router includes another router.\n\nVERDICT: FAIL"
+  },
+  "e-handler-rebuild": {
+   "passed": true,
+   "why": "Candidate 3 reports that `get_route_handler()` now runs on every request for included routes. It says the call happens once per request in `APIRoute.handle`, where the base called it once at construction. The probe measured 4 calls after 3 requests, and the repeated call made the hook raise.\n\nVERDIC"
+  },
+  "f-unique-id-arg": {
+   "passed": false,
+   "why": "The report doesn't say that a custom `generate_unique_id_function` now receives an internal object (`_EffectiveRouteContext` or similar) instead of an `APIRoute` for routes in included routers. Candidate 1 does mention a `generate_unique_id_function` that raises, but only as a trigger for deferred e"
+  },
+  "g-mount-timing": {
+   "passed": false,
+   "why": "The report does not cover the rubric's issue. Its last \"Outside my focus\" bullet says Starlette's `router.mount()` and `router.host()` don't call `_mark_routes_changed()`, so a mount added to a sub-router after it is included stays unreachable through the cached tree. That is close to the rubric's i"
+  },
+  "h-subclass-init": {
+   "passed": false,
+   "why": "The report doesn't mention that a custom `APIRoute` subclass's `__init__` customizations, such as wrapping `self.app` or changing `self.dependant`, stop taking effect for routes served through `include_router`. Candidate 3 is related but different. It covers `get_route_handler()` running on every re"
+  },
+  "i-get-openapi-none": {
+   "passed": false,
+   "why": "The report never mentions `get_openapi(..., routes=None)` raising `TypeError`, or the change from `list(routes or [])` to `list(routes)`. The closest items are a note about `app.openapi()` regenerating the schema and the four candidates, and none of them cover this.\n\nVERDICT: FAIL"
+  },
+  "j-include-validation-late": {
+   "passed": true,
+   "why": "Candidate 1 reports the behavior the rubric describes. An invalid `include_router` configuration is no longer rejected when the router is included. The examples are `responses={204: {\"model\": M}}`, a non-callable dependency, and a raising `generate_unique_id_function`. At head, `include_router` succ"
+  },
+  "k1-empty-path-prefix": {
+   "passed": false,
+   "why": "The report doesn't name the nested-include case that now fails. It never says that a route with an empty path (`\"\"`) under an outer `include_router` with no prefix now raises `FastAPIError` \"Prefix and path cannot be both empty\" when an inner include already gave it a prefix. None of the four candid"
+  },
+  "k2-apiroute-tags-typing": {
+   "passed": false,
+   "why": "The report never mentions that `APIRoute` no longer declares attributes like `tags` in a form static type checkers can see. It also doesn't mention that code reading `route.tags` (for example a `generate_unique_id_function`) would fail type checking. None of its four candidates, dropped leads or out"
+  },
+  "k3-cache-rebuild-race": {
+   "passed": true,
+   "why": "Candidate 4 names the unsynchronized lazy rebuild in `_IncludedRouter.effective_candidates`. The code resets the shared list to empty, appends to it in place, and stamps the version afterward, with no lock. It also shows the concurrent consequence: when two threads build at once, the cache ends up w"
+  },
+  "k5-scope-route-path": {
+   "passed": true,
+   "why": "Candidate 2 in the report says that for a route reached through an included router, `scope[\"route\"].path` and `.path_format` now lack the include prefix. The report gives base `/api/v1/boom/{item_id}` against head `/boom/{item_id}`. It names logging and metrics labelling as the consumers, and it lis"
+  },
+  "n8-plain-route-prefix": {
+   "passed": false,
+   "why": "The report never mentions that a plain Starlette route added with `add_route` inside an included router now gets the including router's prefix. Its only nearby item is the `copy.copy(route)` / `Mount` lead, which it dropped, and that is about `Mount` routes, not plain `add_route` routes. None of the"
+  },
+  "n9-add-api-route-override": {
+   "passed": false,
+   "why": "The report doesn't mention the `add_api_route` override problem. None of its four candidates, dropped leads or out-of-focus notes say that an `APIRouter` subclass overriding `add_api_route` loses its effect for included routes. The closest item is candidate 1, which covers errors in `include_router`"
+  }
+ },
+ "find-bugs-fastapi-0--general": {
+  "b-openapi-schema": {
+   "passed": true,
+   "why": "Candidate 2 reports the behavior the rubric describes. A schema assigned to `app.openapi_schema` is overwritten. `FastAPI.openapi()` regenerates it because `_openapi_routes_version` starts as `None`. Base returns the assigned schema (title `custom`), and head regenerates it (title `FastAPI`).\n\nVERDI"
+  },
+  "c-nested-callbacks": {
+   "passed": true,
+   "why": "Candidate 5 reports that OpenAPI drops callbacks when the callback router itself includes another router (`cb.include_router(sub)`, then `callbacks=cb.routes`). It names the cause as the callback loop in `get_openapi_path` keeping only `isinstance(callback, routing.APIRoute)`, and it shows the resul"
+  },
+  "e-handler-rebuild": {
+   "passed": true,
+   "why": "Candidate 7 reports that `get_route_handler` now runs on every request to an included route (3 calls over 3 requests, against 0 at base). That is the per-request handler rebuild the rubric asks for. The report then calls the raw cost negligible, but the rubric accepts a minor observation or a defect"
+  },
+  "f-unique-id-arg": {
+   "passed": true,
+   "why": "The report includes this finding as candidate 4. It says `generate_unique_id_function` receives an `_EffectiveRouteContext` instead of the `APIRoute` (so `isinstance(..., APIRoute)` is False) for included routes. It gives the base and head behavior and the `AttributeError` that results.\n\nVERDICT: PA"
+  },
+  "g-mount-timing": {
+   "passed": false,
+   "why": "The report never mentions the stale-cache problem. Its \"Dropped leads\" section has an item on stale cache after `router.mount()` or direct `routes` mutation, but it dismisses that as intended. It says base never included mounts and the head docs say not to mutate `routes`. That is the opposite of re"
+  },
+  "h-subclass-init": {
+   "passed": true,
+   "why": "Candidate 6 reports this. Changes a custom `APIRoute` subclass makes in `__init__` (for example inserting a denying dependency into `self.dependant`) are lost for included routes. The cause given is that `_EffectiveRouteContext.from_api_route` rebuilds the route state without running the subclass `_"
+  },
+  "i-get-openapi-none": {
+   "passed": false,
+   "why": "The report does mention `get_openapi(routes=None)` raising, but only under \"Dropped leads\". It dismisses it because `routes` is typed as a required `Sequence[BaseRoute]`. The rubric accepts a mention in any section, but it also expects the report to say the call raises `TypeError` because `list(rout"
+  },
+  "j-include-validation-late": {
+   "passed": true,
+   "why": "Candidate 3 reports this: with `include_router(router, responses={204: {\"model\": M}})`, base raised `AssertionError: Status code 204 must not have a response body` at startup. Head lets the include succeed and then returns 500 on every request, `/health` and `/openapi.json` included. That is the beh"
+  },
+  "k1-empty-path-prefix": {
+   "passed": false,
+   "why": "The report doesn't include the required finding. It never says that a nested include with a prefix-less outer `include_router` now raises \"Prefix and path cannot be both empty\" for an empty-path route. The only nearby mention is under \"Dropped leads\": \"Empty path added after a no-prefix include\", an"
+  },
+  "k2-apiroute-tags-typing": {
+   "passed": false,
+   "why": "The report doesn't mention that `APIRoute` no longer declares instance attributes such as `tags` where static type checkers can see them. It also doesn't mention that code reading `route.tags` on an `APIRoute` would fail type checking. Candidate 4 is the closest. It covers `generate_unique_id_functi"
+  },
+  "k3-cache-rebuild-race": {
+   "passed": false,
+   "why": "The report does not name the lazy rebuild of the cached route lists in `_IncludedRouter` (`effective_candidates` or `effective_low_priority_routes`) as unsafe under concurrency. Candidate 3 covers lazy construction in `effective_candidates`, but only for the error-timing change. The report never men"
+  },
+  "k5-scope-route-path": {
+   "passed": true,
+   "why": "Candidate 1 reports that `scope[\"route\"]` for a route reached through an included router is now the original route with its local path. Base gave `/v1/items/{item_id}` and head gives `/items/{item_id}`, with `.path` and `.path_format` both shown. It names middleware and monitoring tools that read th"
+  },
+  "n8-plain-route-prefix": {
+   "passed": false,
+   "why": "The report doesn't flag the plain Starlette route case. Candidate 1 is about `scope[\"route\"]` for included routes. The dropped lead about Starlette `Route` `url_for` inside a nested prefixed router says only that base returned 404 and head is correct, and it calls this an improvement. Neither item s"
+  },
+  "n9-add-api-route-override": {
+   "passed": false,
+   "why": "The report never says that an `APIRouter` subclass overriding `add_api_route` stops seeing routes from routers it includes. Candidate 6 is the closest. It covers lost `APIRoute.__init__` changes for included routes, but that is a different mechanism. Nothing in the report mentions the parent's `add_"
+  }
+ },
+ "find-bugs-fastapi-0--inputs": {
+  "b-openapi-schema": {
+   "passed": true,
+   "why": "Item 3 reports it: assigning `app.openapi_schema` without overriding `app.openapi` now gets silently regenerated on head. Base served the custom schema (`info.title` is `custom`). Head's `_openapi_routes_version` is None, so the cache check fails on the first call and the generated schema replaces i"
+  },
+  "c-nested-callbacks": {
+   "passed": true,
+   "why": "Item 4 reports it directly. It says callbacks from a callback router that includes another router are dropped from OpenAPI. The trigger is `callbacks=cb.routes` where `cb.include_router(inner)`, the head output is `callbacks: {}`, and the cause is that the loop keeps only `isinstance(callback, APIRo"
+  },
+  "e-handler-rebuild": {
+   "passed": true,
+   "why": "Item 8 reports that `get_route_handler()` is rebuilt on every request for routes in included routers. It gives the base side as 0 calls over 5 requests and the head side as 5 calls, and it cites the per-request overhead.\n\nVERDICT: PASS"
+  },
+  "f-unique-id-arg": {
+   "passed": true,
+   "why": "Candidate 5 reports that a custom `generate_unique_id_function` now receives `_EffectiveRouteContext` instead of the route instance. The report ties this to routes in included routers: the `/p/a` example, `from_api_route`, and the base-versus-head comparison all point that way. It matches the rubric"
+  },
+  "g-mount-timing": {
+   "passed": false,
+   "why": "The report doesn't cover this case. Candidate 6 mentions a lazily built cache that isn't stored when the build raises. Candidate 9 covers `app.routes` consumers. The \"Dropped leads\" section says a stale cache needs \"direct `routes` mutation or `mount()` after a first build\", and it dismisses that as"
+  },
+  "h-subclass-init": {
+   "passed": false,
+   "why": "The report doesn't flag the described defect. Candidate 2 and its \"same cause, inferred\" note come closest: a custom `APIRoute.get_route_handler` that reads `self.path` or `self.dependencies` now sees unprefixed state. That is about `get_route_handler`, not about customizations made in `__init__`, s"
+  },
+  "i-get-openapi-none": {
+   "passed": true,
+   "why": "Candidate 10 reports that `get_openapi(routes=None)` now raises `TypeError: 'NoneType' object is not iterable` on head, where base returned `{}`. It is tied to `fastapi/openapi/utils.py:562`, and the message notes the change from the previous `routes or []`. The finder report lists it as a weak cand"
+  },
+  "j-include-validation-late": {
+   "passed": true,
+   "why": "Candidate 6 reports the behavior the rubric describes. An invalid include-level configuration, `responses={204: {\"model\": M}}`, used to raise `AssertionError: Status code 204 must not have a response body` at include time. On head the include succeeds, and every request returns 500, as does `/openap"
+  },
+  "k1-empty-path-prefix": {
+   "passed": true,
+   "why": "Candidate 1 meets the rubric. It names the empty-path route (`@c.get(\"\")` in router C). The outer include has no prefix (`app.include_router(b)`) and the inner include gives the route a prefix (`b.include_router(c, prefix=\"/c\")`). Head raises `FastAPIError: Prefix and path cannot be both empty`, whi"
+  },
+  "k2-apiroute-tags-typing": {
+   "passed": false,
+   "why": "The report doesn't mention that `APIRoute` no longer declares instance attributes such as `tags` where static type checkers can see them. It also doesn't mention that code reading `route.tags` fails type checking. Candidate 5 comes nearest: it says `generate_unique_id_function` now receives `_Effect"
+  },
+  "k3-cache-rebuild-race": {
+   "passed": false,
+   "why": "The report never mentions the lazy rebuild of the cached route lists in `_IncludedRouter` (`effective_candidates` and `effective_low_priority_routes`) being unsafe under concurrency. Candidate 6 touches `effective_candidates` only for validation errors being deferred to request time, and nothing in "
+  },
+  "k5-scope-route-path": {
+   "passed": true,
+   "why": "Candidate 2 reports this defect. On head, `request.scope[\"route\"].path` for a route in a prefixed included router is `'/items/{item_id}'`, where base gave `'/v1/items/{item_id}'`. It names tracing and metrics middleware as the affected consumers, and it says the route object now carries the unprefix"
+  },
+  "n8-plain-route-prefix": {
+   "passed": true,
+   "why": "Candidate 7 reports this. A plain Starlette route added with `c.add_route(\"/plain\", ...)` in a nested included router changes URL. The base served it at `/c/plain` and returned 404 at `/b/c/plain`. The head returns 404 at `/c/plain` and 200 at `/b/c/plain`, because it now takes the including router'"
+  },
+  "n9-add-api-route-override": {
+   "passed": false,
+   "why": "The report doesn't flag this defect. None of the 10 candidates says that an `APIRouter` subclass overriding `add_api_route` stops seeing routes from included routers, because inclusion no longer passes each route through the parent's `add_api_route`. Candidate 7 does say the base `Router.add_route` "
+  }
+ },
+ "find-bugs-fastapi-0--state": {
+  "b-openapi-schema": {
+   "passed": true,
+   "why": "The report covers the rubric item. Candidate 2 says a schema assigned to `app.openapi_schema` before the first `app.openapi()` call is discarded on head, where the base served it. It names the new `_openapi_routes_version` check, which starts as `None`, and its probe returned \"FastAPI\" at head and \""
+  },
+  "c-nested-callbacks": {
+   "passed": false,
+   "why": "The report doesn't mention OpenAPI callbacks being dropped when a callback router includes another router. Its three candidates cover a cache race, a preset `openapi_schema` being overwritten, and lazy include errors. The dropped leads don't cover it either.\n\nVERDICT: FAIL"
+  },
+  "e-handler-rebuild": {
+   "passed": true,
+   "why": "The report does mention it, but only as a dropped lead. The \"Dropped leads\" section includes \"`get_route_handler()` now runs on every request for included routes. This is a per-request cost and creates no shared state.\" That reports the per-request extra work for included-router routes, and the rubr"
+  },
+  "f-unique-id-arg": {
+   "passed": false,
+   "why": "Candidate 3 is the closest the report comes. It says include-level validation now runs lazily inside `_EffectiveRouteContext.from_api_route`. It never says that a custom `generate_unique_id_function` now receives an `_EffectiveRouteContext` instead of an `APIRoute` for routes in included routers. No"
+  },
+  "g-mount-timing": {
+   "passed": true,
+   "why": "The report doesn't clearly report the defect the rubric describes. It does mention `router.mount()` after include being ignored once the cache is warm: 200 before the first request and 404 after, because `mount` and `host` don't bump `_routes_version`. But it lists this only under \"Dropped leads\" an"
+  },
+  "h-subclass-init": {
+   "passed": false,
+   "why": "The report doesn't mention that custom `APIRoute` subclass customizations made in `__init__` (wrapping or replacing `self.app`, changing `self.dependant`) stop taking effect for routes served through `include_router`. Its three candidates are a cache race, the `app.openapi_schema` override, and lazy"
+  },
+  "i-get-openapi-none": {
+   "passed": false,
+   "why": "The report doesn't mention `get_openapi(..., routes=None)` raising `TypeError`, or any change from `list(routes or [])` to `list(routes)`. None of the three candidates or the dropped leads cover it. The closest item is the `app.openapi_schema` behavior change, which is a different issue.\n\nVERDICT: F"
+  },
+  "j-include-validation-late": {
+   "passed": true,
+   "why": "Candidate 3 matches the rubric. The report says `include_router` now succeeds for an invalid include-time configuration, `responses={204: {\"model\": M}}`. The assertion (\"Status code 204 must not have a response body\") now runs lazily, so requests and `/openapi.json` return 500. At base, `include_rou"
+  },
+  "k1-empty-path-prefix": {
+   "passed": false,
+   "why": "The report doesn't name the nested-include case. It never says that an outer `include_router` with no prefix, around an inner include that gave the route a prefix, now raises `FastAPIError` \"Prefix and path cannot be both empty\" for a route whose own path is `\"\"`. The three candidates cover a cache "
+  },
+  "k2-apiroute-tags-typing": {
+   "passed": false,
+   "why": "The report never mentions that `APIRoute` lost its visible instance attribute declarations (such as `tags`) because the assignments moved into a `_APIRouteLike` Protocol-typed helper, or that code reading `route.tags` would fail static type checking. All three candidates are runtime state bugs (a th"
+  },
+  "k3-cache-rebuild-race": {
+   "passed": true,
+   "why": "Candidate 1 reports the defect the rubric describes. It names the unsynchronized in-place rebuild in `_IncludedRouter.effective_candidates()`. The method assigns `self._effective_candidates = []`, appends to the shared attribute, and stamps the version only at the end. It also names the concurrent c"
+  },
+  "k5-scope-route-path": {
+   "passed": false,
+   "why": "The report doesn't mention that `scope[\"route\"]` for routes reached through an included router now holds the original route object with its local path, so it no longer includes the include prefixes. It also doesn't say that middleware reading `scope[\"route\"].path` for metrics, tracing or logging wou"
+  },
+  "n8-plain-route-prefix": {
+   "passed": false,
+   "why": "The report doesn't mention that a plain Starlette route added with `add_route` inside an included router now gets the including router's prefix. None of the three candidates or the dropped leads cover it. The nearest item is the `router.mount()` lead, which is a different mechanism.\n\nVERDICT: FAIL"
+  },
+  "n9-add-api-route-override": {
+   "passed": false,
+   "why": "The report doesn't mention that an `APIRouter` subclass overriding `add_api_route` stops seeing the routes of routers it includes. Its three candidates cover a thread race in the route cache, a pre-assigned `app.openapi_schema` being discarded, and lazy include-option errors. The dropped leads don't"
+  }
+ },
+ "find-bugs-fastapi-1--consumers": {
+  "b-openapi-schema": {
+   "passed": true,
+   "why": "Candidate 8 reports it: a schema the user assigns to `app.openapi_schema` is overwritten. The head regenerates it on the first `app.openapi()` call, because `_openapi_routes_version` starts as `None`, whereas the base served the assigned custom schema. The report names the cause and the trigger, and"
+  },
+  "c-nested-callbacks": {
+   "passed": true,
+   "why": "Candidate 7 reports the defect described in the rubric. It says `get_openapi_path` keeps the `isinstance(callback, routing.APIRoute)` loop and never walks into `_IncludedRouter`. With `callbacks=cb_router.routes` where `cb_router.include_router(cb_inner)`, the head returns `callbacks: {}` where the "
+  },
+  "e-handler-rebuild": {
+   "passed": true,
+   "why": "Candidate 12 reports that a subclass `get_route_handler` now runs on every request for included routes (5 calls over 5 requests at head, 0 at base). It also says the full request handler is rebuilt per request, and it gives a measured slowdown of about 7% for included routes.\n\nVERDICT: PASS"
+  },
+  "f-unique-id-arg": {
+   "passed": true,
+   "why": "Candidate 9 reports that a custom `generate_unique_id_function` now receives `_EffectiveRouteContext` instead of `APIRoute`. It says `isinstance(route, APIRoute)` is False at head and that a hook asserting the type raises. This is the behavior the rubric asks for.\n\nVERDICT: PASS"
+  },
+  "g-mount-timing": {
+   "passed": true,
+   "why": "Candidate 13 reports that routes added with `router.mount()` or `router.host()` after a request has been served do not appear on an already-included router. It gives the cause: those methods do not bump `_routes_version`, so the cached `_effective_candidates` go stale. It also contrasts this with th"
+  },
+  "h-subclass-init": {
+   "passed": true,
+   "why": "The report doesn't flag the specific defect. Candidate 3 comes closest: a wrapper set on `self.app` in a subclass `__init__` is skipped for included routes, and it blames the head for never calling the subclass constructor. But it covers only the `self.app` wrapping case. The rubric's other example,"
+  },
+  "i-get-openapi-none": {
+   "passed": false,
+   "why": "The report does not flag the `get_openapi(..., routes=None)` regression. It lists the change under \"Dropped leads\" and calls it outside the contract. It says the `list(routes or [])` to `list(routes)` change means passing `None` was never valid. That treats it as a non-issue and does not report that"
+  },
+  "j-include-validation-late": {
+   "passed": false,
+   "why": "The report doesn't clearly cover the rubric item. Candidate 10 is the closest: a nested include with an empty prefix now raises a false error at include time. That is the reverse of the rubric item. The report says nothing about an invalid `include_router` configuration (such as `responses` with a b"
+  },
+  "k1-empty-path-prefix": {
+   "passed": true,
+   "why": "Candidate 10 reports the defect the rubric describes. It names the nested case: `S` has an empty-path route `@S.get(\"\")`, `R.include_router(S, prefix=\"/s\")` gives it a prefix, and `app.include_router(R)` has no prefix. It says this raises `FastAPIError` at include time, while the base included it fi"
+  },
+  "k2-apiroute-tags-typing": {
+   "passed": false,
+   "why": "The report doesn't say that `APIRoute` stopped declaring instance attributes such as `tags` where static type checkers can see them. It also doesn't say that the assignments moved into a helper typed against a Protocol (`_APIRouteLike`), or that code reading `route.tags` on an `APIRoute` would fail "
+  },
+  "k3-cache-rebuild-race": {
+   "passed": false,
+   "why": "The report never identifies the unsynchronized lazy rebuild of the cached route lists in `_IncludedRouter` (`effective_candidates` or `effective_low_priority_routes`). Candidate 13 does mention stale `_effective_candidates`, but only because `mount()` and `host()` don't bump the version. That is a s"
+  },
+  "k5-scope-route-path": {
+   "passed": true,
+   "why": "Candidate 4 states that `request.scope[\"route\"]` at the head is the original route with the local path (`/items/{item_id}`), where the base gave the full path (`/api/items/{item_id}`). It also notes that this breaks middleware and tracing tools that read `scope[\"route\"].path`. That matches the rubri"
+  },
+  "n8-plain-route-prefix": {
+   "passed": false,
+   "why": "The report doesn't include the finding. Its closest item is candidate 13, about `mount()` and `host()`. The report's \"Dropped leads\" section says \"Mount, Host and `add_route` in included routers: the base dropped Mount and Host silently; the head serves them.\" That says Mount and Host routes are now"
+  },
+  "n9-add-api-route-override": {
+   "passed": false,
+   "why": "The report never says that an `APIRouter` subclass overriding `add_api_route` stops seeing included routes. Candidate 3 comes closest, but it covers wrappers on `self.app` in a route subclass `__init__`. Candidates 1, 2, 5 and 12 also concern `APIRoute` subclasses or `get_route_handler`. None of the"
+  }
+ },
+ "find-bugs-fastapi-1--fault": {
+  "b-openapi-schema": {
+   "passed": true,
+   "why": "Candidate 3 reports the behavior the rubric describes. It says `FastAPI.openapi()` now discards a schema assigned to `app.openapi_schema` before the first call, and regenerates it because `_openapi_routes_version` starts as `None`. It also says the base kept the preset schema. The report includes it"
+  },
+  "c-nested-callbacks": {
+   "passed": false,
+   "why": "The report doesn't mention the callback bug. It never says that OpenAPI callbacks are dropped when a callback router includes another router (`callbacks=cb.routes` where `cb` used `include_router`). It also doesn't say that the callback loop only accepts direct `APIRoute` objects. None of the three "
+  },
+  "e-handler-rebuild": {
+   "passed": true,
+   "why": "Candidate 2 reports it: `APIRoute.handle` calls `request_response(self.get_route_handler())` on every request for included routes. It also says `get_request_handler` is rebuilt per request, which is the per-request cost the rubric asks for.\n\nVERDICT: PASS"
+  },
+  "f-unique-id-arg": {
+   "passed": false,
+   "why": "The report doesn't say that a custom `generate_unique_id_function` now receives an internal object (`_EffectiveRouteContext` or similar) instead of an `APIRoute`. Candidate 1 does mention a `generate_unique_id_function` that raises, but that is about deferred errors. The report never describes the t"
+  },
+  "g-mount-timing": {
+   "passed": false,
+   "why": "The report does not mention it. None of the three candidates or the dropped leads says that `mount()`, `host()` or a direct edit of `router.routes` on an already-included router is missed after the first request because the cached route list is not invalidated. Candidate 3 does cover a cached `opena"
+  },
+  "h-subclass-init": {
+   "passed": false,
+   "why": "The report doesn't cover the behavior in the rubric. None of the three candidates says that customizations a custom `APIRoute` subclass makes in its `__init__` (wrapping or replacing `self.app`, or changing `self.dependant`) stop taking effect for routes served through `include_router`. Candidate 2 "
+  },
+  "i-get-openapi-none": {
+   "passed": false,
+   "why": "The report doesn't mention `get_openapi(..., routes=None)` raising `TypeError`, or the change from `list(routes or [])` to `list(routes)`. Its three candidates cover deferred include errors, per-request `get_route_handler`, and `openapi()` discarding a user-set schema. None of the sections or droppe"
+  },
+  "j-include-validation-late": {
+   "passed": true,
+   "why": "Candidate 1 reports that invalid `include_router` arguments are no longer rejected at include time. The examples are `responses={204: {\"model\": M}}`, `dependencies=[Depends()]` and a raising `generate_unique_id_function`. The report says the base raised at `include_router`. At head the app starts, a"
+  },
+  "k1-empty-path-prefix": {
+   "passed": false,
+   "why": "The report doesn't name the nested-include case. It never describes a route with an empty path under an inner `include_router` prefix and a prefix-less outer include, and it never mentions the \"Prefix and path cannot be both empty\" `FastAPIError`. Candidate 1 covers other include-time errors (such a"
+  },
+  "k2-apiroute-tags-typing": {
+   "passed": false,
+   "why": "The report doesn't mention that `APIRoute` no longer declares instance attributes such as `tags` where type checkers can see them. It also doesn't mention that code reading `route.tags`, for example a `generate_unique_id_function`, would fail type checking. Its only reference to `generate_unique_id_"
+  },
+  "k3-cache-rebuild-race": {
+   "passed": false,
+   "why": "The report never identifies the unsynchronized in-place rebuild of the cached route lists in `_IncludedRouter`, so it misses the rubric's defect. It only says a concurrent `url_path_for` and matching race during a rebuild is \"possible in principle\". It doesn't say the list is cleared and refilled in"
+  },
+  "k5-scope-route-path": {
+   "passed": false,
+   "why": "The report doesn't mention that `scope[\"route\"]` for a route reached through an included router now holds the original route object with its local path, so it lacks the include prefixes. It also doesn't mention that metrics, tracing or logging code reading `scope[\"route\"].path` would see a path with"
+  },
+  "n8-plain-route-prefix": {
+   "passed": false,
+   "why": "The report doesn't mention a plain Starlette route added with `add_route` inside an included router getting the including router's prefix, or its URL changing. Its only Starlette-route discussion is the Mount `copy.copy` lead, which it dropped. The \"Host route with an empty prefix\" note is about a d"
+  },
+  "n9-add-api-route-override": {
+   "passed": false,
+   "why": "The report doesn't mention the behavior in the rubric. It never says that an `APIRouter` subclass overriding `add_api_route` loses its override for routes from included routers. Candidate 1 says `include_router` now only appends `_IncludedRouter` and builds the context lazily. Candidate 2 covers `ge"
+  }
+ },
+ "find-bugs-fastapi-1--general": {
+  "b-openapi-schema": {
+   "passed": true,
+   "why": "The report covers it. Candidate 2 says a schema assigned to `app.openapi_schema` is thrown away. On the base, GET `/openapi.json` serves the assigned schema. On the head, `_openapi_routes_version` starts as `None`, so the schema is regenerated. It names `fastapi/applications.py:1083-1084` and a prob"
+  },
+  "c-nested-callbacks": {
+   "passed": true,
+   "why": "Candidate 4 in the report covers this case. It says callbacks vanish from OpenAPI when `cb.include_router(inner)` is followed by `callbacks=cb.routes`. It gives the head result as `callbacks: {}` and names the cause: the loop at `fastapi/openapi/utils.py:325-326` keeps only `isinstance(callback, API"
+  },
+  "e-handler-rebuild": {
+   "passed": true,
+   "why": "Candidate 7 reports that requests to routes in an included router now rebuild the request handler on every request. It says `get_route_handler` ran 5 times for 5 requests at head and 0 times at base. It also gives a measured slowdown of about 50 \u00b5s per request, against 28\u201335 \u00b5s at base.\n\nVERDICT: PA"
+  },
+  "f-unique-id-arg": {
+   "passed": true,
+   "why": "Candidate 3 reports exactly this. A custom `generate_unique_id_function` gets an `_EffectiveRouteContext` instead of an `APIRoute` for routes in included routers. The report gives the base and head behavior, the failing assertion, and a probe.\n\nVERDICT: PASS"
+  },
+  "g-mount-timing": {
+   "passed": false,
+   "why": "The report doesn't mention the case in the rubric. It never says that `mount()`, `host()` or a direct edit of `router.routes` on an already-included router goes unnoticed after the first request because the cached route list isn't invalidated.\n\nCandidate 8 comes closest, since it covers a sub-router"
+  },
+  "h-subclass-init": {
+   "passed": false,
+   "why": "The report doesn't mention that a custom `APIRoute` subclass's `__init__` customizations, such as wrapping `self.app` or changing `self.dependant`, stop taking effect for included routes. Candidate 7 comes closest. It says `get_route_handler` overrides now run once per request, but that is about how"
+  },
+  "i-get-openapi-none": {
+   "passed": false,
+   "why": "The report doesn't mention that `get_openapi(..., routes=None)` now raises `TypeError` after `list(routes or [])` became `list(routes)`. None of the 8 candidates, the inferred race or the dropped leads covers that change.\n\nVERDICT: FAIL"
+  },
+  "j-include-validation-late": {
+   "passed": true,
+   "why": "Candidate 6 reports this behavior. With `app.include_router(r, responses={204: {\"model\": Item}})`, the base raises an `AssertionError` at `include_router`. The head raises nothing at include time, and requests then return HTTP 500. That includes a request to an unknown path, which should be 404. The"
+  },
+  "k1-empty-path-prefix": {
+   "passed": true,
+   "why": "Candidate 5 matches the rubric. It names the empty-path route (`inner` has `@inner.get(\"\")`) and the prefix-less outer include (`outer.include_router(inner, prefix=\"/items\")`, then `app.include_router(outer)` with no prefix). It says this now raises `FastAPIError`, whereas the base included it fine "
+  },
+  "k2-apiroute-tags-typing": {
+   "passed": false,
+   "why": "The report never says that `APIRoute` stopped declaring instance attributes like `tags` where type checkers can see them, or that code reading `route.tags` would fail type checking. Candidate 3 comes closest. It says `generate_unique_id_function` now receives an `_EffectiveRouteContext` instead of a"
+  },
+  "k3-cache-rebuild-race": {
+   "passed": true,
+   "why": "The report does flag the `_IncludedRouter.effective_candidates` race. It says the cached list is set to `[]` and refilled in place, and that a concurrent `url_for` from a sync endpoint can see an empty list and get a 404 or `NoMatchFound`. That covers the unsynchronized in-place rebuild and a concur"
+  },
+  "k5-scope-route-path": {
+   "passed": true,
+   "why": "Candidate 1 covers the rubric item. It says that for a route reached through an included router, `scope[\"route\"]` at head is the original unprefixed route. Its `path` and `path_format` are `/users/{user_id}` where the base gave `/api/users/{user_id}`. It names metrics and tracing middleware that rea"
+  },
+  "n8-plain-route-prefix": {
+   "passed": false,
+   "why": "The report doesn't include this finding. None of the 8 candidates or the dropped leads says that a plain Starlette route added with `add_route` inside an included router now gets the including router's prefix. The nearest item is the dropped lead on `Mount`/`Host` inside included routers, which is a"
+  },
+  "n9-add-api-route-override": {
+   "passed": false,
+   "why": "The report doesn't mention that an `APIRouter` subclass overriding `add_api_route` stops seeing routes from included routers. Candidate 1 says `scope[\"route\"]` is the original route. Candidate 7 says `get_route_handler` overrides run once per request. Neither is about `add_api_route` overrides, and "
+  }
+ },
+ "find-bugs-fastapi-1--inputs": {
+  "b-openapi-schema": {
+   "passed": true,
+   "why": "Candidate 3 reports that a schema assigned to `app.openapi_schema` is discarded. On head, `openapi()` regenerates it because the routes-version check fails on the first call, where base served the custom schema (`title: 'custom'` on base, `'FastAPI'` on head). That is the behavior the rubric asks fo"
+  },
+  "c-nested-callbacks": {
+   "passed": true,
+   "why": "The report's candidate 5 covers this. It says callbacks from a router that includes another router vanish from OpenAPI. The cause it gives is that `get_openapi_path` loops over `route.callbacks` with `isinstance(callback, routing.APIRoute)`, so `_IncludedRouter` entries are skipped. The trigger is `"
+  },
+  "e-handler-rebuild": {
+   "passed": true,
+   "why": "Item 8 reports the slowdown. It says `APIRoute.handle` now rebuilds `request_response(self.get_route_handler())` on every request, and it gives measured per-request slowdowns for included routes: 109/80 \u00b5s on base against 194/130 \u00b5s on head for a one-level include.\n\nVERDICT: PASS"
+  },
+  "f-unique-id-arg": {
+   "passed": false,
+   "why": "The report doesn't mention that a custom `generate_unique_id_function` now receives an internal object (`_EffectiveRouteContext` or similar) instead of an `APIRoute`. The only references to `generate_unique_id_function` are in the dropped leads, where it appears among the options that were tested an"
+  },
+  "g-mount-timing": {
+   "passed": true,
+   "why": "Candidate 9 reports that `mount()` and `host()` never call `_mark_routes_changed`. A mount added to an already-included router after the first request stays unreachable (404), while one added before the first request works (200). It names the `effective_candidates` cache as the cause and frames the "
+  },
+  "h-subclass-init": {
+   "passed": false,
+   "why": "The report doesn't mention the behavior in the rubric. Candidate 6 covers plain Starlette routes in a nested include, and candidate 8 covers rebuilding the handler on each request. Neither says that a custom `APIRoute` subclass's `__init__` customizations, such as wrapping `self.app` or changing `se"
+  },
+  "i-get-openapi-none": {
+   "passed": true,
+   "why": "The report includes the `get_openapi(routes=None)` regression as candidate 7. It says `list(routes or [])` became `list(routes)`, and that base returned `{}` while head raises `TypeError: 'NoneType' object is not iterable`. It adds a note that the break is minor because the parameter is typed as req"
+  },
+  "j-include-validation-late": {
+   "passed": true,
+   "why": "Candidate 4 reports this. With `include_router(r, responses={204: {\"model\": M}})`, base raised an `AssertionError` at include time. On head the include succeeds, and requests that have to try that include return 500, including the unrelated `/later` route. That is the case the rubric describes: the "
+  },
+  "k1-empty-path-prefix": {
+   "passed": true,
+   "why": "Candidate 2 matches the rubric's case. It names the nested include, where router `c` includes `g` with `prefix=\"/g\"` and `g` has `@g.get(\"\")`, and the outer `app.include_router(c)` has no prefix. It gives the head result, `FastAPIError: Prefix and path cannot be both empty`, and says the base return"
+  },
+  "k2-apiroute-tags-typing": {
+   "passed": false,
+   "why": "The report never mentions that `APIRoute` stopped declaring instance attributes such as `tags` where type checkers can see them, or that `route.tags` now fails type checking. Candidate 1 touches `tags`, but only as a runtime difference in `scope[\"route\"]`. Nothing in the report covers the Protocol-t"
+  },
+  "k3-cache-rebuild-race": {
+   "passed": false,
+   "why": "The report doesn't mention the thread-safety problem the rubric asks for. Candidate 9 does discuss the `_IncludedRouter.effective_candidates` cache, but only as a missing invalidation: a mount added after the first request stays unreachable. Nothing in the report says the lazy rebuild assigns an emp"
+  },
+  "k5-scope-route-path": {
+   "passed": true,
+   "why": "Candidate 1 reports that `request.scope[\"route\"]` on head holds the original route with its local path (`/items/{item_id}`), while base gave the full prefixed path (`/api/items/{item_id}`). It names middleware, logging and metrics that label requests by route template as the affected code, and it pr"
+  },
+  "n8-plain-route-prefix": {
+   "passed": true,
+   "why": "Candidate 6 reports it: a plain Starlette route added with `add_route` in a nested include moves to a new URL. Base served `/top/c/plain` and head serves `/top/parent/c/plain`. The report says the route now gets the parent router's prefix. That matches the rubric's base-versus-head behavior change, "
+  },
+  "n9-add-api-route-override": {
+   "passed": false,
+   "why": "The report never identifies that an `APIRouter` subclass overriding `add_api_route` stops seeing routes from routers it includes. Candidate 1 covers `scope[\"route\"]` and candidate 8 covers per-request overhead. Candidate 6 covers plain Starlette routes in nested includes. Candidate 9 covers late mou"
+  }
+ },
+ "find-bugs-fastapi-1--state": {
+  "b-openapi-schema": {
+   "passed": true,
+   "why": "The report does cover this: Candidate 1 says `app.openapi()` overwrites a schema the user assigned to `app.openapi_schema`. The base returned the assigned schema (title `PRESET`), and the head builds a new one on the first call because `_openapi_routes_version` starts as `None`. It cites the file an"
+  },
+  "c-nested-callbacks": {
+   "passed": false,
+   "why": "The report doesn't mention OpenAPI callbacks being dropped when a callback router includes another router (`callbacks=cb.routes` with `include_router`). None of the six candidates or four dropped leads covers it.\n\nVERDICT: FAIL"
+  },
+  "e-handler-rebuild": {
+   "passed": true,
+   "why": "Candidate 4 and the minor observation both report it. Candidate 4 says `get_route_handler` is rebuilt on every request for included routes (0 calls over 100 requests on base, 100 on head). The minor observation also reports a measured per-request slowdown (0.59s on base, 1.20s on head), attributed p"
+  },
+  "f-unique-id-arg": {
+   "passed": false,
+   "why": "The report doesn't mention that a custom `generate_unique_id_function` now receives an internal object (such as `_EffectiveRouteContext`) in place of an `APIRoute` for routes in included routers. Candidate 6 notes a Duplicate Operation ID warning, but that's a different issue. None of the other cand"
+  },
+  "g-mount-timing": {
+   "passed": true,
+   "why": "The report covers this as candidate 6. It says `Router.mount`, `Router.host` and direct `routes.append` don't bump the version, so a change made to an included sub-router after the cache is built isn't picked up. The report gives the 200 (before the first request) versus 404 (after) split. It also n"
+  },
+  "h-subclass-init": {
+   "passed": false,
+   "why": "The report doesn't mention that a custom `APIRoute` subclass's `__init__` customizations (wrapping `self.app` or changing `self.dependant`) stop taking effect for included routes. Candidate 4 is the nearest: it covers `get_route_handler` being rebuilt per request, which is a different mechanism. Can"
+  },
+  "i-get-openapi-none": {
+   "passed": false,
+   "why": "The report never mentions that `get_openapi(..., routes=None)` now raises `TypeError` after `list(routes or [])` became `list(routes)`. None of its six candidates, minor observation or dropped leads covers a `routes=None` regression.\n\nVERDICT: FAIL"
+  },
+  "j-include-validation-late": {
+   "passed": true,
+   "why": "Candidate 2 reports that an include which used to raise at `include_router` time (a 204 route with a response body, via `responses`) is now accepted. It then fails with HTTP 500 on later requests and on `/openapi.json`. That matches the rubric's behavior.\n\nVERDICT: PASS"
+  },
+  "k1-empty-path-prefix": {
+   "passed": false,
+   "why": "The report doesn't include the required finding. None of the six candidates, the minor observation or the dropped leads mention the \"Prefix and path cannot be both empty\" `FastAPIError`. They also don't mention nested includes where an outer include has no prefix and an empty-path route now fails at"
+  },
+  "k2-apiroute-tags-typing": {
+   "passed": false,
+   "why": "The report doesn't mention that `APIRoute` no longer declares instance attributes such as `tags` where type checkers can see them. It also doesn't mention the `_APIRouteLike` Protocol or code like `generate_unique_id_function` failing type checking. Its six candidates are runtime behavior regression"
+  },
+  "k3-cache-rebuild-race": {
+   "passed": true,
+   "why": "Candidate 3 reports the unsynchronized lazy rebuild of `_IncludedRouter._effective_candidates`. The code sets the list to `[]`, appends in place, and stamps the version last, with no lock. It also gives concurrent consequences: a 404 for `/p/r0`, a `NoMatchFound` in one thread, and a cache holding d"
+  },
+  "k5-scope-route-path": {
+   "passed": true,
+   "why": "The report's candidate 5 covers this. It says `scope[\"route\"]` shows the original route rather than the included one. On head, `scope[\"route\"].path` is `/x`, and on base it was `/p/x`. It also says that middleware and metrics that label by `scope[\"route\"].path` see the wrong value. That is the defec"
+  },
+  "n8-plain-route-prefix": {
+   "passed": false,
+   "why": "The report doesn't mention a plain Starlette route added with `add_route` that gets the including router's prefix in the head. Candidate 6 mentions `add_route` only as a mutation the version counter tracks. It says nothing about the route's URL changing, so the report doesn't make the required findi"
+  },
+  "n9-add-api-route-override": {
+   "passed": false,
+   "why": "The report never says that an `APIRouter` subclass overriding `add_api_route` loses its effect for included routes. Candidate 5 and Candidate 4 come closest: they cover included routes that keep the original route state, and `get_route_handler` that is rebuilt for every request. Neither one mentions"
+  }
+ },
+ "find-bugs-fastapi-2--consumers": {
+  "b-openapi-schema": {
+   "passed": true,
+   "why": "C5 reports exactly what the rubric asks for. A schema assigned to `app.openapi_schema` is discarded because `openapi()` always regenerates on the first call (the routes-version check starts as `None`). Base returned the assigned schema (title `custom`), and head regenerates it (title `FastAPI`).\n\nVE"
+  },
+  "c-nested-callbacks": {
+   "passed": true,
+   "why": "C4 reports that callbacks are dropped when the callback router includes another router. It names the cause as the callback loop in `get_openapi_path` only accepting `APIRoute`, so `_IncludedRouter` entries are skipped. It also states the trigger (`callbacks=callback_router.routes` with `include_rout"
+  },
+  "e-handler-rebuild": {
+   "passed": true,
+   "why": "C9 reports that `get_route_handler()` now runs on every request for included routes, with 0 calls at base and 5 calls over five requests at head. The report says the per-request cost is inferred and a timing comparison would settle it. It still reports the extra per-request work, which is what the r"
+  },
+  "f-unique-id-arg": {
+   "passed": true,
+   "why": "C3 states that a custom `generate_unique_id_function` now receives an `_EffectiveRouteContext` instead of the `APIRoute` for routes in included routers. It also gives the base and head behavior and the resulting AttributeError.\n\nVERDICT: PASS"
+  },
+  "g-mount-timing": {
+   "passed": false,
+   "why": "The report doesn't mention that `mount()`, `host()` or a direct edit of `router.routes` on an already-included router is missed once the first request has been served. The closest item is in the dropped leads. It says `router.mount()` after include doesn't bump `_routes_version`, so the cached candi"
+  },
+  "h-subclass-init": {
+   "passed": true,
+   "why": "C7 reports that a route subclass that customizes `self.dependant` or `self.app` in `__init__` loses those customizations for included routes. It says this happens because the included route state is rebuilt from the endpoint and dependencies without the subclass. It includes a probe where a guard de"
+  },
+  "i-get-openapi-none": {
+   "passed": true,
+   "why": "C11 reports that `get_openapi(routes=None)` returns a schema at base but raises `TypeError: 'NoneType' object is not iterable` at head. That matches the rubric's behavior. The message doesn't name the `list(routes or [])` to `list(routes)` change as the cause, but the rubric's core is the `None` reg"
+  },
+  "j-include-validation-late": {
+   "passed": false,
+   "why": "The report never mentions that an invalid `include_router` configuration, such as `responses` with a body for status 204, is no longer rejected at include time. It also doesn't describe such a configuration failing later with HTTP 500 or on first use. C3 comes closest: a failure on the first request"
+  },
+  "k1-empty-path-prefix": {
+   "passed": false,
+   "why": "The report doesn't mention the nested-include case where an outer `include_router` has no prefix and a route with an empty path (`\"\"`) now raises `FastAPIError` \"Prefix and path cannot be both empty\". The dropped leads cover only an empty-path route added after `include_router` without a prefix, and"
+  },
+  "k2-apiroute-tags-typing": {
+   "passed": false,
+   "why": "The report doesn't include this finding. C3 covers a `generate_unique_id_function` receiving an `_EffectiveRouteContext` instead of the `APIRoute`, but it describes that only as a runtime `AttributeError` for custom route attributes. It never says that `APIRoute` stops declaring attributes like `tag"
+  },
+  "k3-cache-rebuild-race": {
+   "passed": false,
+   "why": "The report doesn't mention the lazy rebuild of the cached route lists in `_IncludedRouter`. It also doesn't mention concurrency, partial lists, duplicates, or a missing lock. C9 says `get_route_handler()` runs on every request, and C3 says candidates are built lazily on first request. Neither one sa"
+  },
+  "k5-scope-route-path": {
+   "passed": true,
+   "why": "C1 states that `scope[\"route\"]` for a route reached through an included router now has the unprefixed path (`/{item_id}` at head against `/items/{item_id}` at base). C2 repeats this for Sentry, whose transaction names are built from `scope[\"route\"].path`. That matches the rubric: code that reads the"
+  },
+  "n8-plain-route-prefix": {
+   "passed": false,
+   "why": "The report never mentions a plain Starlette route added with `add_route` inside an included router getting the parent prefix, or its URL changing. C1 and C10 are close, but they cover `scope[\"route\"]` and `app.routes` iteration. Neither covers this case.\n\nVERDICT: FAIL"
+  },
+  "n9-add-api-route-override": {
+   "passed": true,
+   "why": "C6 reports that a parent `APIRouter` subclass's `add_api_route` override no longer runs for included routes. Base re-added each route through `self.add_api_route(...)`, and head appends an `_IncludedRouter` instead. The message gives a probe showing the override's effect (an extra no-slash path) is "
+  }
+ },
+ "find-bugs-fastapi-2--fault": {
+  "b-openapi-schema": {
+   "passed": true,
+   "why": "Candidate 3 in the report says a schema assigned to `app.openapi_schema` is now discarded. `FastAPI.openapi()` regenerates it on the first call, where the base returned the assigned schema. The report gives the location (`fastapi/applications.py:1083-1084`), the trigger, the base and head behavior, "
+  },
+  "c-nested-callbacks": {
+   "passed": false,
+   "why": "The report doesn't mention the callback-router case. Its three candidates cover deferred `include_router` errors, the `generate_unique_id_function` argument type, and a preset `openapi_schema` being overwritten. None of them says that `callbacks=cb.routes` drops callbacks when `cb` uses `include_rou"
+  },
+  "e-handler-rebuild": {
+   "passed": false,
+   "why": "The report doesn't mention the per-request cost the rubric asks for. It covers deferred errors, `generate_unique_id_function` receiving the wrong object, and the `openapi_schema` overwrite. It never says that `get_route_handler()` is rebuilt on each request, and it reports no measured slowdown for i"
+  },
+  "f-unique-id-arg": {
+   "passed": true,
+   "why": "Candidate 2 reports that a custom `generate_unique_id_function` now receives an `_EffectiveRouteContext` instead of the route class instance, and it includes the `AttributeError` that results. It names the `APIRoute` contract and gives a base-versus-head comparison, so it matches the rubric item.\n\nV"
+  },
+  "g-mount-timing": {
+   "passed": false,
+   "why": "The report doesn't mention the stale route cache. None of the three candidates covers `mount()`, `host()` or a direct edit of `router.routes` on an already-included router going unnoticed after the first request. Candidate 3 is about `openapi_schema` being regenerated, which is a different issue. Th"
+  },
+  "h-subclass-init": {
+   "passed": false,
+   "why": "The report doesn't include the specific finding. Candidate 2 comes closest, but it's about `generate_unique_id_function` receiving an `_EffectiveRouteContext` instead of the route instance. It says nothing about customizations a custom `APIRoute` subclass makes in `__init__`, such as wrapping `self."
+  },
+  "i-get-openapi-none": {
+   "passed": false,
+   "why": "The message doesn't report that `get_openapi(..., routes=None)` now raises `TypeError` after `list(routes or [])` became `list(routes)`. Its three candidates cover deferred include errors, the `generate_unique_id_function` argument type, and a preset `openapi_schema` being overwritten. The dropped l"
+  },
+  "j-include-validation-late": {
+   "passed": true,
+   "why": "Candidate 1 meets the rubric. The report says that invalid `include_router` arguments, such as `responses={204: {\"model\": M}}`, used to raise an `AssertionError` at include time. At head, `include_router` succeeds, and the error shows up later as HTTP 500 on requests.\n\nVERDICT: PASS"
+  },
+  "k1-empty-path-prefix": {
+   "passed": false,
+   "why": "The report doesn't meet the rubric. It lists three candidates: deferred include-time errors, the `generate_unique_id_function` receiving a different object, and the preset openapi schema being overwritten. None of them describes the nested-include case. That case is a route with an empty path (`\"\"`)"
+  },
+  "k2-apiroute-tags-typing": {
+   "passed": false,
+   "why": "The report doesn't mention that `APIRoute` no longer declares instance attributes like `tags` in a way static type checkers can see, or that code reading `route.tags` would fail type checking. Candidate 2 comes closest. It covers the `generate_unique_id_function` receiving an `_EffectiveRouteContext"
+  },
+  "k3-cache-rebuild-race": {
+   "passed": false,
+   "why": "The report never mentions the lazy rebuild in `_IncludedRouter` being unsafe under concurrency. It covers deferred errors, the object passed to `generate_unique_id_function` and the `openapi_schema` overwrite. The one nearby remark says a half-filled cache is retried on the next call, and that remar"
+  },
+  "k5-scope-route-path": {
+   "passed": false,
+   "why": "The report doesn't mention the `scope[\"route\"]` path change. It never says that `request.scope[\"route\"].path` or `.path_format` now lacks the include prefixes, or that metrics, tracing or logging middleware would see a different path. None of the three candidates or the dropped leads cover it. Candi"
+  },
+  "n8-plain-route-prefix": {
+   "passed": false,
+   "why": "The report doesn't mention that a plain Starlette route added with `add_route` inside an included router now gets the including router's prefix. The three candidates are deferred include-time errors, the `generate_unique_id_function` argument type, and the preset OpenAPI schema. The dropped leads do"
+  },
+  "n9-add-api-route-override": {
+   "passed": false,
+   "why": "The report doesn't mention the `APIRouter` subclass case. It never says that a subclass overriding `add_api_route` stops seeing the routes of routers it includes. Candidate 1 says `include_router` now stores a lazy `_IncludedRouter` instead of adding each route. It frames that only as errors surfaci"
+  }
+ },
+ "find-bugs-fastapi-2--general": {
+  "b-openapi-schema": {
+   "passed": true,
+   "why": "Candidate 2 in the report covers it. The message says an `openapi_schema` assigned directly to `app.openapi_schema` is thrown away. In p2, base returns the custom schema and head rebuilds it on `/openapi.json`, because `_openapi_routes_version` starts as `None` and never matches.\n\nVERDICT: PASS"
+  },
+  "c-nested-callbacks": {
+   "passed": true,
+   "why": "Candidate 3 reports exactly the rubric's issue. It says a callbacks router that includes a sub-router loses its callbacks in OpenAPI. It names the cause: the callback loop in `fastapi/openapi/utils.py:326` keeps only `isinstance(callback, routing.APIRoute)` entries. It also says the result is `callb"
+  },
+  "e-handler-rebuild": {
+   "passed": false,
+   "why": "Candidate 1 is about `scope[\"route\"]`. Candidate 7 is about URL prefixes. Neither is about per-request work. The report's dropped leads do mention \"Cost of `get_route_handler` per request (routing.py:1180)\", but the report dismisses it as small and doesn't report it as a finding. The rubric requires"
+  },
+  "f-unique-id-arg": {
+   "passed": true,
+   "why": "Candidate 5 reports that a custom `generate_unique_id_function` now receives an `_EffectiveRouteContext` instead of the route-class instance. It cites routing.py:985 and the probe p7, where base saw `XRoute` and head saw `_EffectiveRouteContext`. The rubric asks for an `APIRoute` being replaced by a"
+  },
+  "g-mount-timing": {
+   "passed": false,
+   "why": "The report doesn't flag the cache-invalidation issue the rubric asks for. It never says that `mount()`, `host()` or a direct edit of `router.routes` on an already-included router goes unnoticed after the first request. Candidate 7 and the dropped-leads item \"Mount added after the first request retur"
+  },
+  "h-subclass-init": {
+   "passed": true,
+   "why": "Candidate 4 reports that a custom `APIRoute` subclass's `__init__` customizations are lost for included routes. It covers both cases the rubric names: changes to `self.dependant`, which stop running (p4), and wrapping `self.app`, which is bypassed (p4b). It gives the cause as the included route stat"
+  },
+  "i-get-openapi-none": {
+   "passed": false,
+   "why": "The report doesn't mention `get_openapi(..., routes=None)` raising `TypeError`. Its only reference is the dropped lead \"`get_openapi` dropped `routes or []`\", which it dismissed because `routes` is a required `Sequence` parameter. That treats the change as harmless and doesn't report the behavior ch"
+  },
+  "j-include-validation-late": {
+   "passed": true,
+   "why": "Candidate 6 reports the behavior the rubric describes. Base raised an `AssertionError` at `include_router` for `responses={204: {\"model\": Item}}`. Head's `include_router` succeeds, and the failure comes later as a 500 on the request. It also covers the dependency/path-parameter case, which is anothe"
+  },
+  "k1-empty-path-prefix": {
+   "passed": false,
+   "why": "The report does not include the required finding. None of the seven candidates covers the nested-include case where an outer `include_router` has no prefix and a route's own path is empty (`\"\"`), so the \"Prefix and path cannot be both empty\" `FastAPIError` newly fails at include time. Candidate 6 co"
+  },
+  "k2-apiroute-tags-typing": {
+   "passed": false,
+   "why": "The report doesn't cover the `APIRoute` typing change. None of the seven candidates says that `APIRoute` stopped declaring instance attributes like `tags` where type checkers can see them, or that the assignments moved into a helper typed against `_APIRouteLike`. Candidate 5 does say `generate_uniqu"
+  },
+  "k3-cache-rebuild-race": {
+   "passed": false,
+   "why": "The report doesn't mention the lazy rebuild of `effective_candidates` or `effective_low_priority_routes` being unsafe under concurrency. Candidate 6 only touches the lazy build in the context of errors and retries. It notes that a failed build resets `_effective_candidates` without updating the vers"
+  },
+  "k5-scope-route-path": {
+   "passed": true,
+   "why": "Candidate 1 reports the behavior the rubric asks about. For a route reached through an included router, `scope[\"route\"]` is now the original route with its local path. The report gives base `path='/api/v1/items/{item_id}'` against head `path='/items/{item_id}'`. It names metrics and tracing middlewa"
+  },
+  "n8-plain-route-prefix": {
+   "passed": true,
+   "why": "Candidate 7 reports that a plain Starlette route added with `add_route` in a nested included router now gets the including router's prefix. It says the base served `/inner/plain` and the head serves `/outer/inner/plain`, so the URL changes and the old URL returns 404. This is the behavior the rubric"
+  },
+  "n9-add-api-route-override": {
+   "passed": false,
+   "why": "The report doesn't mention the target behavior. Candidate 4 is the closest: it says a custom `APIRoute` subclass's `__init__` effects are lost for included routes. That is about the route class, not an `APIRouter` subclass that overrides `add_api_route`. No candidate says that included routes no lon"
+  }
+ },
+ "find-bugs-fastapi-2--inputs": {
+  "b-openapi-schema": {
+   "passed": true,
+   "why": "C3 reports that a user-assigned `app.openapi_schema` is now discarded. The report says `app.openapi()` regenerates the schema on its first call because `_openapi_routes_version` starts as `None`. The base served the assigned schema (title \"custom\"), and the head returns the regenerated one (title \"F"
+  },
+  "c-nested-callbacks": {
+   "passed": true,
+   "why": "C5 reports that callbacks from a router nested inside a callback router are dropped from OpenAPI. It names the cause: `isinstance(callback, routing.APIRoute)` keeps only direct routes, so `_IncludedRouter` entries are skipped. It gives the trigger, `cb_router.include_router(inner)` followed by `call"
+  },
+  "e-handler-rebuild": {
+   "passed": true,
+   "why": "C10 reports that included routes cost about 60% more per request (216 \u00b5s at base, 349 \u00b5s at head). It names the cause as `fastapi/routing.py:1180`, which rebuilds the handler on every request. That matches the rubric: the per-request rebuild of `get_route_handler()` and a measured slowdown for inclu"
+  },
+  "f-unique-id-arg": {
+   "passed": true,
+   "why": "C8 reports that `generate_unique_id_function` receives an `_EffectiveRouteContext` dataclass instead of an `APIRoute` for included routes. It cites `fastapi/routing.py:985` and notes that `isinstance(route, APIRoute)` is False at head, so the rubric's finding is reported.\n\nVERDICT: PASS"
+  },
+  "g-mount-timing": {
+   "passed": false,
+   "why": "The report doesn't flag this. Its closest item says routes, routers and mounts added after inclusion are served and documented on head, which it calls the intended feature. It also says `mount()` doesn't bump the routes version, but it dismisses that as \"head is not worse\". It never says a `mount()`"
+  },
+  "h-subclass-init": {
+   "passed": true,
+   "why": "C6 and C7 report this: customizations a custom `APIRoute` subclass makes in `__init__` no longer take effect for routes served through `include_router`. C6 covers wrapping `self.app`, which is bypassed. C7 covers changes to `dependant`, `path_regex` and similar fields, which are lost. Both give the "
+  },
+  "i-get-openapi-none": {
+   "passed": true,
+   "why": "C4 reports that `get_openapi(routes=None)` raises `TypeError: 'NoneType' object is not iterable` on head, where base returned a schema with `paths: {}`. It ties this to `list(routes)` at `fastapi/openapi/utils.py:562` and says base handled `None` with `routes or []`. That matches the rubric.\n\nVERDIC"
+  },
+  "j-include-validation-late": {
+   "passed": false,
+   "why": "The report doesn't say that an invalid `include_router` configuration used to be rejected at include time and now fails later. C2 and C9 are new errors raised at include time, which is the opposite direction. The dropped lead on `include_router` options says base and head output were identical acros"
+  },
+  "k1-empty-path-prefix": {
+   "passed": true,
+   "why": "The report includes the nested empty-path case as C2. It names router B's `@b.get(\"\")` route under `include_router(b, prefix=\"/b\")` and an outer `include_router(a)` with no prefix. It says base accepted the include and served `GET /b` with 200, while head raises `FastAPIError: Prefix and path cannot"
+  },
+  "k2-apiroute-tags-typing": {
+   "passed": false,
+   "why": "The report doesn't mention that `APIRoute` no longer declares instance attributes such as `tags` where static type checkers can see them. It also doesn't mention a Protocol-typed helper (`_APIRouteLike`) or type-checking failures for code that reads `route.tags`. C8 comes closest: it says `generate_"
+  },
+  "k3-cache-rebuild-race": {
+   "passed": false,
+   "why": "The report doesn't mention the lazy rebuild of the cached route lists in `_IncludedRouter` (`effective_candidates` / `effective_low_priority_routes`), or any race where concurrent first requests see a partial or duplicated list. C10 comes closest, but it covers per-request cost and `_get_routes_vers"
+  },
+  "k5-scope-route-path": {
+   "passed": true,
+   "why": "C1 reports exactly this: for included routes, `scope[\"route\"].path` is `/items/{item_id}` on head, where base gave `/api/items/{item_id}`, because the original route object is kept. It says middleware and instrumentation read this for the path template.\n\nVERDICT: PASS"
+  },
+  "n8-plain-route-prefix": {
+   "passed": false,
+   "why": "The report doesn't mention that a plain Starlette route added with `add_route` inside an included router now gets the including router's prefix, so its URL changes. C1 to C10 cover other changes. The dropped leads say Starlette `add_route` behaved identically at base and head. That is the opposite o"
+  },
+  "n9-add-api-route-override": {
+   "passed": false,
+   "why": "The report never states that an `APIRouter` subclass overriding `add_api_route` loses its effect for included routes. C6 and C7 are close. They cover custom `route_class` behavior being bypassed or lost after inclusion. They concern the route class's `__init__` and `self.app`, not an override of `ad"
+  }
+ },
+ "find-bugs-fastapi-2--state": {
+  "b-openapi-schema": {
+   "passed": true,
+   "why": "Candidate 2 reports the behavior the rubric describes. It says `app.openapi()` overwrites a schema the user assigned, because the new `_openapi_routes_version != routes_version` check is always true on the first call. At base the assigned schema was returned, and at head a regenerated schema is retu"
+  },
+  "c-nested-callbacks": {
+   "passed": false,
+   "why": "The report doesn't mention the callback issue. It doesn't say OpenAPI callbacks are dropped when a callback router includes another router, or that the callback loop accepts only direct `APIRoute` objects. None of the six candidates or the dropped leads covers it.\n\nVERDICT: FAIL"
+  },
+  "e-handler-rebuild": {
+   "passed": true,
+   "why": "Candidate 5 reports that, with the change, every request does extra work. It names `APIRoute.handle` rebuilding `request_response(self.get_route_handler())` on every request, and it gives a measured slowdown (299 \u00b5s at base to 920 \u00b5s at head). Those are the per-request handler rebuild and the measur"
+  },
+  "f-unique-id-arg": {
+   "passed": false,
+   "why": "The report doesn't say that a custom `generate_unique_id_function` now receives an internal object instead of an `APIRoute` for routes in included routers. Candidate 6 comes closest, since it covers operationId behavior changing for included routes. But it is about the `route.operation_id = route.na"
+  },
+  "g-mount-timing": {
+   "passed": true,
+   "why": "Candidate 4 reports it: `mount()`, `host()` and a direct `router.routes.append` on an already-included router aren't seen after the first request, because the cached route list isn't invalidated. It also says the result depends on whether the change came before or after the first request (200 before"
+  },
+  "h-subclass-init": {
+   "passed": false,
+   "why": "The report doesn't mention that a custom `APIRoute` subclass's `__init__` customizations (wrapping `self.app`, changing `self.dependant`) stop taking effect for routes served through `include_router`. Candidate 6 comes nearest, but it is about mutating `operation_id` on `app.routes`. Candidate 5 men"
+  },
+  "i-get-openapi-none": {
+   "passed": false,
+   "why": "The report doesn't mention that `get_openapi(..., routes=None)` now raises `TypeError` after `list(routes or [])` became `list(routes)`. None of the six candidates or the dropped leads cover `get_openapi`, `routes=None` or that change.\n\nVERDICT: FAIL"
+  },
+  "j-include-validation-late": {
+   "passed": true,
+   "why": "Candidate 3 reports exactly this. `include_router(router, responses={204: {\"model\": M}})` raised an AssertionError at base. At head it succeeds, and every request to that router then returns 500 and `app.openapi()` raises. The report ran this probe at both revisions.\n\nVERDICT: PASS"
+  },
+  "k1-empty-path-prefix": {
+   "passed": false,
+   "why": "The report doesn't state the required case. None of the six candidates covers nested includes where an outer include has no prefix. It never mentions `FastAPIError` \"Prefix and path cannot be both empty\", an empty-path (`\"\"`) route, or an app construction that now fails at include time. It names no "
+  },
+  "k2-apiroute-tags-typing": {
+   "passed": false,
+   "why": "The report doesn't mention that `APIRoute` no longer declares attributes like `tags` where type checkers can see them, or that code reading `route.tags` would fail type checking. None of the six candidates or the dropped leads raises a Protocol-typed helper (`_APIRouteLike`) or a static-typing regre"
+  },
+  "k3-cache-rebuild-race": {
+   "passed": true,
+   "why": "Candidate 1 covers the rubric item. It names `_IncludedRouter.effective_candidates`, which assigns a fresh empty list, appends in place, and stamps the version only at the end, with no lock. It reports the concurrent consequences: a short list that gives a 404 for an existing route, and duplicate en"
+  },
+  "k5-scope-route-path": {
+   "passed": false,
+   "why": "The report doesn't cover the rubric's finding. It never says that `request.scope[\"route\"]` (its `.path` or `.path_format`) now holds the original route object with only its local path, without the include prefixes. It never says that metrics, tracing or logging middleware reading that path would los"
+  },
+  "n8-plain-route-prefix": {
+   "passed": false,
+   "why": "The report doesn't mention that a plain Starlette route (added with `add_route`) inside an included router now gets the including router's prefix. Candidate 4 covers Starlette `mount`/`host`/`routes.append` timing, not URL changes for plain routes. No other candidate or dropped lead covers the prefi"
+  },
+  "n9-add-api-route-override": {
+   "passed": false,
+   "why": "The report never says that an `APIRouter` subclass overriding `add_api_route` stops seeing routes from routers it includes. The nearest items are candidate 4, on stale caches, and candidate 6, on `app.routes` now holding `_IncludedRouter` entries. Neither mentions the override being bypassed. The dr"
+  }
+ },
+ "find-bugs-filelock-0--consumers": {
+  "f01-dir-mode": {
+   "passed": false,
+   "why": "The message never reports that the strict lock's coordination directories (`<path>.filelock` and its `claims` folder) are created with a plain `mkdir()` that ignores the lock's `mode`. It also never says another OS user cannot acquire or share the lock. Its six candidates cover thread-gate behavior,"
+  },
+  "f02-jitter-noop": {
+   "passed": false,
+   "why": "The message doesn't report that the jittered backoff has no effect at the default `poll_interval` (0.05, equal to the cap). It doesn't report that the async strict lock never uses the backoff either. The \"Dropped leads\" section does say async polling has no jittered backoff, but it calls that a desi"
+  },
+  "f03-lifetime-warning": {
+   "passed": true,
+   "why": "Candidate 5 reports that `StrictSoftFileLock(p, lifetime=5)` now warns with \"a native OS lock cannot be broken safely by file age\" at head, where base gave the strict-specific reason. It says this is the wrong reason for the backend, so it meets the rubric.\n\nVERDICT: PASS"
+  },
+  "f04-eperm-hardlink": {
+   "passed": false,
+   "why": "The message never mentions the EPERM case. It doesn't say that on a filesystem without hard links (vfat or exfat) `link()` fails and the lock raises `PermissionError` instead of the documented `SoftFileLockProtocolError`. None of the six candidates or the dropped leads cover it.\n\nVERDICT: FAIL"
+  },
+  "f05-release-blocks": {
+   "passed": true,
+   "why": "Candidate 1 reports this behavior. On a shared `thread_local=False` instance, a `release()` from another thread blocks while thread A waits in `acquire()`. The message traces the cause to the `_transition_lock` gate, which `release()` takes before its `is_locked` check. The same RLock is held throug"
+  },
+  "f06-bad-path-waits": {
+   "passed": false,
+   "why": "The message never reports that a lock path that can't be opened as a sentinel (a directory, or an unreadable file) now has its `OSError` swallowed, so the caller waits or gets `Timeout`. Its six candidates cover release blocking, non-blocking re-entry, lease lockout, stale docs, the lifetime warning"
+  },
+  "f07-stale-docs": {
+   "passed": true,
+   "why": "Candidate 4 reports that the \"Choose a soft-lock contract\" section of `docs/how-to.rst` still describes the old marker-based strict lock. It quotes \"StrictSoftFileLock never reclaims a marker\", the `MarkerSoftFileLock.force_break` link and \"Both classes publish a protocol 2 record\". It also says the"
+  },
+  "f08-failed-discard-held": {
+   "passed": false,
+   "why": "The message never reports the specific defect: a losing contender that can't remove its own claim leaves the instance marked as holding the lock, so its next `acquire()` falsely succeeds. None of the six candidates describes this. Candidate 1 covers a different release/lock issue, and the dropped le"
+  },
+  "f09-orphan-claim": {
+   "passed": false,
+   "why": "The message doesn't report the specific defect. None of the six candidates, and none of the dropped leads, says that an error while closing or finalizing a claim record after it was linked leaves an orphaned claim that nothing removes and that blocks every contender. The nearest items are the sentin"
+  },
+  "f10-dual-holders": {
+   "passed": false,
+   "why": "Candidate 1 describes a race where `release()` from another thread blocks on the gate and then releases a lock that a waiting thread just acquired. That is a thread-level release/acquire interaction on a shared instance. The rubric asks for two processes that can both hold the strict lock through a "
+  },
+  "f11-reentry-timeout": {
+   "passed": true,
+   "why": "Candidate 2 reports that a non-blocking `acquire(blocking=False)` on an already-held shared instance now raises a spurious `Timeout` (20,000 of 40,000 attempts). It says this happens because a busy gate raises before the code reaches the `is_locked` check that would bump the counter. It also says a "
+  },
+  "f12-hostname-space": {
+   "passed": false,
+   "why": "The message never reports that a host name containing whitespace makes the lock reject its own claim record as malformed, so it can never acquire. None of the six candidates or the dropped leads mention host names, whitespace or malformed claim records.\n\nVERDICT: FAIL"
+  },
+  "f13-pickle": {
+   "passed": false,
+   "why": "The message never reports that a `thread_local=False` lock can no longer be pickled or deep-copied because of the new `RLock` attribute. Its only pickle and copy mention is under dropped leads, and that covers `SoftFileLockProtocolError` and `StrictSoftFileClaim`. Neither of those is a lock.\n\nVERDIC"
+  },
+  "f14-claims-indexerror": {
+   "passed": false,
+   "why": "The message doesn't report that the `claims` property or `force_break` can raise `IndexError` when a release on a shared instance races it. None of the six candidates or the dropped leads mention `IndexError`, `claims` or `force_break` racing a release. `force_break` appears only as a stale doc link"
+  },
+  "f15-dropped-close-error": {
+   "passed": false,
+   "why": "The message doesn't report the dropped close error. It lists six candidates and several dropped leads. None of them says that the close error returned when unlinking the intent claim on the winning path is silently discarded.\n\nVERDICT: FAIL"
+  },
+  "f16-interrupt-gate": {
+   "passed": false,
+   "why": "The message never reports that a `KeyboardInterrupt` between taking the transition lock and entering the `try` leaves the gate held. None of the six candidates or the dropped leads mention it.\n\nVERDICT: FAIL"
+  },
+  "f17-pid-placeholder": {
+   "passed": true,
+   "why": "Candidate 6 reports that `SoftFileLock(path).pid` returns `1` at head once strict mode has used the path, where base returned `None`. It describes the sentinel record parsing as PID 1 and calls it minor, so it meets the rubric.\n\nVERDICT: PASS"
+  },
+  "ka-enotsup-import": {
+   "passed": false,
+   "why": "The message never mentions that `from errno import ENOTSUP` at module scope fails on runtimes like GraalPy whose `errno` lacks that name, or that it breaks `import filelock`. None of its six candidates or its dropped leads touch this.\n\nVERDICT: FAIL"
+  },
+  "kb-private-record-oserror": {
+   "passed": false,
+   "why": "The message never reports that a non-regular node (directory, symlink, FIFO or socket) at the sentinel name makes the first `acquire()` raise a bare `OSError` instead of `SoftFileLockProtocolError`. None of its six candidates or its dropped leads mention it.\n\nVERDICT: FAIL"
+  },
+  "kc-descriptor-leak": {
+   "passed": false,
+   "why": "The message never says that a failed claim unlink on release or discard leaves the sentinel file descriptor open. None of the six candidates or the dropped leads mention a descriptor leak.\n\nVERDICT: FAIL"
+  },
+  "kd-symlink-swap": {
+   "passed": false,
+   "why": "The message never reports that the claims directory is reached by name, so a swapped-in symlink or junction could redirect claim files elsewhere. None of the six candidates covers this, and the dropped leads don't either. The nearest item, the `claim_root` note in the async path, is only about state"
+  }
+ },
+ "find-bugs-filelock-0--fault": {
+  "f01-dir-mode": {
+   "passed": true,
+   "why": "Candidate 1 reports this. The directories `resource.lock.filelock/claims` are created by `_ensure_protocol_directory` calling `directory.mkdir()`. They get umask permissions and ignore the lock's `mode`. The message says another account then can't acquire the lock: uid 1001 gets PermissionError on a"
+  },
+  "f02-jitter-noop": {
+   "passed": false,
+   "why": "The message lists seven candidate defects, but none of them says that the jittered retry backoff has no effect at the default `poll_interval` (0.05, equal to the cap). None says the async strict lock never uses the backoff. The \"Dropped leads\" section doesn't mention it either.\n\nVERDICT: FAIL"
+  },
+  "f03-lifetime-warning": {
+   "passed": false,
+   "why": "The message doesn't report that `StrictSoftFileLock(..., lifetime=...)` warns with the native-lock reason (\"a native OS lock cannot be broken safely by file age\"). None of the seven candidates or the dropped leads mention a `lifetime` warning on a soft lock.\n\nVERDICT: FAIL"
+  },
+  "f04-eperm-hardlink": {
+   "passed": true,
+   "why": "Candidate 4 reports that on a filesystem where `link()` fails with EPERM (e.g. vfat), the lock raises a raw `PermissionError` instead of the documented `SoftFileLockProtocolError`. The message gives the location, the base and head behavior, and the contract.\n\nVERDICT: PASS"
+  },
+  "f05-release-blocks": {
+   "passed": false,
+   "why": "The message never mentions that `release()` on a shared (`thread_local=False`) instance blocks while another thread waits in `acquire()` on the same transition lock. None of its seven candidates or dropped leads covers this.\n\nVERDICT: FAIL"
+  },
+  "f06-bad-path-waits": {
+   "passed": true,
+   "why": "Candidate 6 reports this behavior. A directory at the lock path (`resource.lock`) raised `IsADirectoryError` on base. On head, the sentinel open error is swallowed by `except OSError: return None` and treated as contention. The result is `Timeout` with `timeout=0.3`, or an indefinite wait with the d"
+  },
+  "f07-stale-docs": {
+   "passed": false,
+   "why": "The message never reports that the docs or changelog still describe the old marker-based strict lock and contradict the new text. Its only doc references (docs/concepts.rst and docs/how-to.rst) cite the docs as the contract for behavior, not as stale or conflicting with the new text.\n\nVERDICT: FAIL"
+  },
+  "f08-failed-discard-held": {
+   "passed": false,
+   "why": "The message never reports that a losing contender that fails to remove its own claim stays marked as holding the lock, so its next `acquire()` wrongly succeeds. Candidate 7 comes closest, since it covers an ignored directory-close error after the intent claim is removed. It describes a silently drop"
+  },
+  "f09-orphan-claim": {
+   "passed": false,
+   "why": "The message doesn't report this. Its closest items are the dropped lead about claims left after a directory or private-record close failure, and candidate 7, which covers a dropped close error after removing the intent claim. The dropped lead is the relevant one. It says an orphaned claim after a fa"
+  },
+  "f10-dual-holders": {
+   "passed": false,
+   "why": "The message doesn't report that two processes can both hold the strict lock through a race in the claim scan or final check. Its candidates cover permissions, name length, hard-link errors, orphaned records and swallowed errors. None of them is a mutual-exclusion race. The dropped leads don't mentio"
+  },
+  "f11-reentry-timeout": {
+   "passed": false,
+   "why": "The message doesn't report this. None of the seven candidates says that a non-blocking or short-timeout `acquire()` on a shared instance that already holds the lock can now raise `Timeout` or wait because of the new transition gate. The only `Timeout` mention is candidate 6, where a directory sits a"
+  },
+  "f12-hostname-space": {
+   "passed": false,
+   "why": "The message doesn't report that a host name containing whitespace makes the lock reject its own claim record as malformed. None of the seven candidates or the dropped leads mention host names or whitespace in claim records.\n\nVERDICT: FAIL"
+  },
+  "f13-pickle": {
+   "passed": false,
+   "why": "The message never reports that a `thread_local=False` lock can no longer be pickled or deep-copied because of the new `RLock` attribute. None of the seven candidates or the dropped leads mention pickling, copying, or an `RLock`.\n\nVERDICT: FAIL"
+  },
+  "f14-claims-indexerror": {
+   "passed": false,
+   "why": "The message never mentions `claims` or `force_break` raising `IndexError` when a release races it on a shared instance. Candidate 7 does cover `force_break`, but it describes a dropped close error, not an `IndexError`. The other candidates are unrelated.\n\nVERDICT: FAIL"
+  },
+  "f15-dropped-close-error": {
+   "passed": true,
+   "why": "Candidate 7 reports that the error from unlinking the intent claim on the winning path (`_strict.py:165`, where `_unlink_owner_path(intent_path)` is called and its returned error is ignored) is silently dropped. The report lists it as a defect, though it is marked inferred. It matches the rubric.\n\nV"
+  },
+  "f16-interrupt-gate": {
+   "passed": false,
+   "why": "The message never reports that a `KeyboardInterrupt` between taking the transition lock and entering the `try` leaves the gate held. The only `KeyboardInterrupt` item is between a successful link and recording the path, which is a different window, and the message dropped it as tiny.\n\nVERDICT: FAIL"
+  },
+  "f17-pid-placeholder": {
+   "passed": false,
+   "why": "The message does not report that `SoftFileLock(path).pid` returns `1` (a placeholder) once the strict lock's sentinel exists, where base returned `None`. None of the seven candidates or the dropped leads mention `pid`.\n\nVERDICT: FAIL"
+  },
+  "ka-enotsup-import": {
+   "passed": false,
+   "why": "The message never mentions `ENOTSUP` being imported from `errno` at module scope, or `import filelock` failing on a runtime like GraalPy. Candidate 4 does mention ENOTSUP, but only as an errno that `_raise_if_hard_links_unsupported` maps. That is a different issue.\n\nVERDICT: FAIL"
+  },
+  "kb-private-record-oserror": {
+   "passed": true,
+   "why": "The message reports the plain `OSError(\"... is not a regular private record\")` for a directory or symlink at the sentinel's private-record name, and contrasts it with `SoftFileLockProtocolError` for the same node in the claims directory. That is the minor variant under candidate 6. It does not list "
+  },
+  "kc-descriptor-leak": {
+   "passed": false,
+   "why": "The message doesn't report that a failed claim unlink on release or discard leaves the sentinel file descriptor open. Its \"Dropped leads\" section says failed claim unlinks keep the lock held and are retryable. It also says descriptor leaks on open, fstat or read failure are handled. Neither point co"
+  },
+  "kd-symlink-swap": {
+   "passed": false,
+   "why": "Candidate 1 reports a related problem but not the one in the rubric. It says the claims directory gets umask permissions that ignore the lock's `mode`, so a second account can't use it. The rubric needs a report that the claims directory is reached by name, so a symlink or junction swapped in after "
+  }
+ },
+ "find-bugs-filelock-0--general": {
+  "f01-dir-mode": {
+   "passed": true,
+   "why": "The message reports this as candidate 2. It says `_ensure_protocol_directory` calls `directory.mkdir()` with the default mode and umask and ignores the lock's `mode`. It also says the `.filelock` and `claims` directories end up 0755 and owned by user A, so user B gets `PermissionError` and cannot sh"
+  },
+  "f02-jitter-noop": {
+   "passed": true,
+   "why": "Candidate 1 reports that the new jittered backoff has no effect at the default `poll_interval` of 0.05, which equals the cap. It also says the async path never calls `_poll_delay`.\n\nVERDICT: PASS"
+  },
+  "f03-lifetime-warning": {
+   "passed": true,
+   "why": "Candidate 6 reports that `StrictSoftFileLock(p, lifetime=5)` now warns \"a native OS lock cannot be broken safely by file age\", where base said \"a strict lock never reclaims a marker by age\". It says this is the wrong reason, because the class no longer sets `_lifetime_unsupported_reason` and inherit"
+  },
+  "f04-eperm-hardlink": {
+   "passed": false,
+   "why": "The message never reports that on a filesystem where `link()` fails with `EPERM` (vfat or exfat), the lock raises `PermissionError` instead of the documented `SoftFileLockProtocolError`. Candidate 2 mentions a `PermissionError`, but that one is about multi-user directory modes, not `link()` failing."
+  },
+  "f05-release-blocks": {
+   "passed": true,
+   "why": "Candidate 3 reports the behavior the rubric asks for. On a shared instance (`thread_local=False`), `release()` blocks while another thread waits in `acquire()`, because `_transition_admission` holds the same transition lock (an RLock) for the whole wait. The message gives the timings: 2.74s at head "
+  },
+  "f06-bad-path-waits": {
+   "passed": true,
+   "why": "Candidate 4 reports exactly this case: a lock path that is an existing directory. Base raised `IsADirectoryError`. Head swallows the open error, so the caller gets `Timeout` after 1.01s, or hangs with the default `timeout=-1`.\n\nVERDICT: PASS"
+  },
+  "f07-stale-docs": {
+   "passed": true,
+   "why": "Candidate 5 reports that `docs/how-to.rst` and `docs/changelog/636.feature.rst` still describe the old marker-based strict lock and contradict the new text. It cites the how-to table and the unchanged changelog entry.\n\nVERDICT: PASS"
+  },
+  "f08-failed-discard-held": {
+   "passed": false,
+   "why": "The message does not report that a losing contender that fails to remove its own claim stays marked as holding the lock, so its next `acquire()` returns success while another process holds it. Candidates 1\u20136 cover other issues. The \"failed directory close\" dropped lead is the closest, but it is dism"
+  },
+  "f09-orphan-claim": {
+   "passed": false,
+   "why": "The message doesn't report the specific defect. Its only nearby item is the dropped lead about a failed directory close leaving orphan intent or held claims. That lead is dismissed as intended fail-closed behavior and is not raised as a defect. The message also never says the orphan blocks every con"
+  },
+  "f10-dual-holders": {
+   "passed": false,
+   "why": "The message does not report that two processes can both hold the strict lock through a race in the claim scan or final check. Its \"Dropped leads\" section says that \"Two holders through the doorway\" was reasoned through and ruled out, because at most one holder is admitted under coherent directory re"
+  },
+  "f11-reentry-timeout": {
+   "passed": false,
+   "why": "The message never reports that a non-blocking or short-timeout `acquire()` on a shared instance that already holds the lock can now raise `Timeout` or wait. Candidate 3 is the closest. It covers `release()` blocking behind another thread's pending acquire, which is a different symptom. Nothing in th"
+  },
+  "f12-hostname-space": {
+   "passed": false,
+   "why": "The message never reports that a host name containing whitespace makes the lock reject its own claim record as malformed. None of the six candidates or the dropped leads mention host names, whitespace, or the lock failing to acquire because of a malformed claim record.\n\nVERDICT: FAIL"
+  },
+  "f13-pickle": {
+   "passed": false,
+   "why": "The message never reports that a `thread_local=False` lock can no longer be pickled or deep-copied because of a new `RLock` attribute. Candidate 3 mentions `thread_local=False` and the transition RLock, but only as a release-blocking problem.\n\nVERDICT: FAIL"
+  },
+  "f14-claims-indexerror": {
+   "passed": false,
+   "why": "The message never mentions `IndexError`, the `claims` property, or `force_break` racing a release on a shared instance. Candidate 3 covers a different issue (`release()` blocking behind a pending acquire), and the other items are unrelated.\n\nVERDICT: FAIL"
+  },
+  "f15-dropped-close-error": {
+   "passed": false,
+   "why": "The message doesn't report that the close error from unlinking the intent claim on the winning path is silently dropped. Its closest item, in the dropped leads, covers failed directory-close errors that leave orphan or held claims, and it calls that intended fail-closed behavior. That item doesn't s"
+  },
+  "f16-interrupt-gate": {
+   "passed": false,
+   "why": "The message doesn't report that a `KeyboardInterrupt` between taking the transition lock and entering the `try` leaves the gate held. None of the six candidates or the dropped leads mention it. Candidate 3 covers `release()` blocking behind the transition lock, but that is a different issue.\n\nVERDIC"
+  },
+  "f17-pid-placeholder": {
+   "passed": false,
+   "why": "The message never reports that `SoftFileLock(path).pid` now returns `1` once the strict lock's sentinel exists, where the base returned `None`. Candidate 5 mentions that `SoftFileLock` now times out after a strict hold, but it says nothing about the `pid` value.\n\nVERDICT: FAIL"
+  },
+  "ka-enotsup-import": {
+   "passed": false,
+   "why": "The message does not report that a module-scope `from errno import ENOTSUP` fails on runtimes like GraalPy or that it breaks `import filelock`. None of its six candidates or its dropped leads mention `errno`, `ENOTSUP` or runtime portability.\n\nVERDICT: FAIL"
+  },
+  "kb-private-record-oserror": {
+   "passed": false,
+   "why": "Candidate 4 reports that a lock path that is an existing directory makes the acquire time out instead of raising. It says the source shows the same handling for a symlink or an unreadable sentinel, but those cases were not run. The rubric asks for a non-regular node at a sentinel private-record name"
+  },
+  "kc-descriptor-leak": {
+   "passed": false,
+   "why": "The message doesn't report a descriptor leak from a failed claim unlink on release or discard. None of the six candidates or the dropped leads mention a sentinel file descriptor staying open. The nearest item is the dropped lead on failed directory close leaving claims in place, and that one is abou"
+  },
+  "kd-symlink-swap": {
+   "passed": false,
+   "why": "The message never reports that the claims directory is reached by name, so a symlink or junction swapped in after a check could redirect claim files elsewhere. Its six candidates cover jitter, mode sharing, release blocking, bad lock paths, docs and the lifetime warning. None of them describes this "
+  }
+ },
+ "find-bugs-filelock-0--inputs": {
+  "f01-dir-mode": {
+   "passed": true,
+   "why": "The message reports this as candidate 1. It names `_strict.py:93-95`, where `_ensure_protocol_directory` calls a plain `directory.mkdir()` for `<path>.filelock` and `<path>.filelock/claims`. These are created `0o755` under umask 022 and ignore `mode`. A second user (`nobody`) then gets `PermissionEr"
+  },
+  "f02-jitter-noop": {
+   "passed": true,
+   "why": "The message reports both items: candidate 6 says the jittered backoff does nothing at the default `poll_interval` of 0.05, which equals the cap, and candidate 7 says `AsyncStrictSoftFileLock` never calls `_poll_delay`.\n\nVERDICT: PASS"
+  },
+  "f03-lifetime-warning": {
+   "passed": true,
+   "why": "Candidate 9 reports that the head's `lifetime` warning for a soft lock now says \"a native OS lock cannot be broken safely by file age\". The message calls this the wrong reason, and the base said \"a strict lock never reclaims a marker by age\". That matches the rubric item.\n\nVERDICT: PASS"
+  },
+  "f04-eperm-hardlink": {
+   "passed": true,
+   "why": "Candidate 5 reports that on a filesystem without hard links (vfat, exfat, some FUSE), where `link()` fails with `EPERM`, the lock raises `PermissionError` and not the documented `SoftFileLockProtocolError`. It names `_raise_if_hard_links_unsupported`, which maps only ENOSYS, ENOTSUP and EXDEV, and i"
+  },
+  "f05-release-blocks": {
+   "passed": true,
+   "why": "The message does report it, but under \"Dropped leads\". It says `release()` on a shared (`thread_local=False`) instance blocks while another thread waits in `acquire`, and it cites the probe result of 2.74 s at head against an immediate return at base. The rubric counts a report in any section, so th"
+  },
+  "f06-bad-path-waits": {
+   "passed": true,
+   "why": "Candidate 3 reports that for lock paths `\"\"`, `\".\"` and an existing directory, the base raised `FileNotFoundError` or `IsADirectoryError`. The head now returns `Timeout` for those paths, an endless wait under the default timeout. The open error is swallowed, which is the behavior the rubric describe"
+  },
+  "f07-stale-docs": {
+   "passed": false,
+   "why": "The message never says that the docs or changelog still describe the old marker-based strict lock and contradict the new text. Candidate 5 mentions `docs/how-to.rst`, but it uses that file only to support a different bug, and it doesn't report a stale-docs contradiction.\n\nVERDICT: FAIL"
+  },
+  "f08-failed-discard-held": {
+   "passed": false,
+   "why": "The message doesn't report this. None of the ten candidates or the dropped leads says a losing contender that can't remove its own claim stays marked as holding the lock, so its next `acquire()` returns success while another process holds it.\n\nVERDICT: FAIL"
+  },
+  "f09-orphan-claim": {
+   "passed": false,
+   "why": "The message doesn't report the rubric's defect. None of its ten candidates or its dropped leads describes an error while closing or finalizing a claim record after it was linked that leaves an orphaned claim nothing removes and that blocks every contender.\n\nVERDICT: FAIL"
+  },
+  "f10-dual-holders": {
+   "passed": false,
+   "why": "The message doesn't report that two processes can both hold the strict lock through a race in the claim scan or final check. Its ten candidates cover permissions, error types, backoff, hostname handling and similar issues. The only mention of contention is the inferred \"both lose a round\" scenario, "
+  },
+  "f11-reentry-timeout": {
+   "passed": false,
+   "why": "The message doesn't report the described issue. None of its ten candidates or its dropped leads says that a non-blocking or short-timeout `acquire()` on a shared instance that already holds the lock can now raise `Timeout` or wait because the new transition gate is taken before the re-entrancy check"
+  },
+  "f12-hostname-space": {
+   "passed": true,
+   "why": "Candidate 4 reports exactly this defect. It says the writer `_claim_record` records `socket.gethostname()` unchecked, and the reader `_parse_claim` rejects whitespace, including in the process's own claim. With hostname \"my host\" every attempt raises `SoftFileLockProtocolError ... malformed claim re"
+  },
+  "f13-pickle": {
+   "passed": false,
+   "why": "The message never reports that a lock created with `thread_local=False` can no longer be pickled or deep-copied because of a new `RLock` attribute. Its only `thread_local=False` item is a dropped lead about `release()` blocking, and no candidate mentions pickling or copying.\n\nVERDICT: FAIL"
+  },
+  "f14-claims-indexerror": {
+   "passed": false,
+   "why": "The message doesn't report that the `claims` property or `force_break` can raise `IndexError` when a release on a shared instance races it. The closest item is the dropped lead about `release()` on a shared instance blocking while another thread waits in `acquire`. That lead is about blocking and a "
+  },
+  "f15-dropped-close-error": {
+   "passed": false,
+   "why": "The message never mentions that a close error from unlinking the intent claim on the winning path is silently dropped. None of its ten candidates or dropped leads covers it.\n\nVERDICT: FAIL"
+  },
+  "f16-interrupt-gate": {
+   "passed": false,
+   "why": "The message never mentions a `KeyboardInterrupt` arriving between taking the transition lock and entering the `try`, or a gate left held as a result. None of the ten candidates or the dropped leads describe that.\n\nVERDICT: FAIL"
+  },
+  "f17-pid-placeholder": {
+   "passed": false,
+   "why": "The message never reports that `SoftFileLock(path).pid` now returns `1` once the strict lock's sentinel exists, where the base returned `None`. Its only nearby mention is a dropped lead saying the legacy lock \"reads the sentinel as pid 1 on a foreign host\". That is about a different behavior, and it"
+  },
+  "ka-enotsup-import": {
+   "passed": false,
+   "why": "The message never mentions `ENOTSUP` being imported from `errno` at module scope. It also never mentions an import failure on runtimes like GraalPy. Candidate 5 refers to ENOTSUP, but only as an errno value that a helper maps. It doesn't report that the import breaks `import filelock`.\n\nVERDICT: FAI"
+  },
+  "kb-private-record-oserror": {
+   "passed": false,
+   "why": "The message never mentions that a non-regular node (directory, symlink, FIFO, socket) at a sentinel private-record name makes the first `acquire()` raise a bare `OSError` instead of `SoftFileLockProtocolError`. Candidate 3 covers a directory as the lock path, which is a different case. Candidate 5 c"
+  },
+  "kc-descriptor-leak": {
+   "passed": false,
+   "why": "The message doesn't report that a failed claim unlink on release or discard leaves the sentinel file descriptor open. None of the ten candidates or the dropped leads covers a descriptor leak. Candidate 2 mentions that the sentinel is never removed, but that is about contention and not about an open "
+  },
+  "kd-symlink-swap": {
+   "passed": false,
+   "why": "The message never reports that the claims directory is reached by name, so a symlink or junction swapped in after a check could redirect claim files elsewhere. Candidate 1 covers the permissions of the protocol directories, and the dropped leads mention a symlink-swap check only for the source of a "
+  }
+ },
+ "find-bugs-filelock-0--state": {
+  "f01-dir-mode": {
+   "passed": false,
+   "why": "The message doesn't report that the strict lock's coordination directories (`<path>.filelock` and its `claims` folder) are created with a plain `mkdir()` that ignores the lock's `mode`. Its two candidates are `release()` blocking on the transition lock and the jitter being ineffective at the default"
+  },
+  "f02-jitter-noop": {
+   "passed": true,
+   "why": "Candidate 2 reports the issue directly. The message says the jittered backoff does nothing at the default `poll_interval=0.05`, because the cap is also 0.05 and the delay always equals `poll_interval` (1960 samples gave one distinct delay). It also says the async strict lock never uses `_poll_delay`"
+  },
+  "f03-lifetime-warning": {
+   "passed": false,
+   "why": "The message does not report the native-lock warning. Its two candidates are `release()` blocking on the transition lock and the backoff doing nothing at the default poll interval. None of the dropped leads mention `StrictSoftFileLock(..., lifetime=...)` warning with the \"native OS lock cannot be bro"
+  },
+  "f04-eperm-hardlink": {
+   "passed": false,
+   "why": "The message never mentions a filesystem without hard links, `link()` failing with `EPERM`, or a `PermissionError` being raised instead of `SoftFileLockProtocolError`. Its two candidates concern `release()` blocking and ineffective backoff, and none of its dropped leads covers this case either.\n\nVERD"
+  },
+  "f05-release-blocks": {
+   "passed": true,
+   "why": "The message reports that `release()` on a shared `StrictSoftFileLock` now blocks while another thread waits in `acquire()`. It says both calls take `self._transition_lock`, and it gives the base and head timings (0.0 s against 2.73 s) and a deadlock variant. This matches the rubric.\n\nVERDICT: PASS"
+  },
+  "f06-bad-path-waits": {
+   "passed": false,
+   "why": "The message doesn't report this. Its two candidates are `release()` blocking on the transition lock and a jittered backoff that does nothing at the default poll interval. Neither says that a lock path that can't be opened as a sentinel (a directory, or an unreadable file) no longer raises its `OSErr"
+  },
+  "f07-stale-docs": {
+   "passed": false,
+   "why": "The message doesn't mention docs or a changelog at all. Its two candidates are a `release()` deadlock and a backoff that does nothing at the default poll interval. None of the dropped leads covers documentation that still describes the old marker-based strict lock and contradicts the new text.\n\nVERD"
+  },
+  "f08-failed-discard-held": {
+   "passed": false,
+   "why": "The message doesn't report that a losing contender who can't remove its own claim leaves the instance marked as holding the lock, so a later `acquire()` returns success while another process holds it. Its two candidates are `release()` blocking on the transition lock and a backoff that doesn't jitte"
+  },
+  "f09-orphan-claim": {
+   "passed": false,
+   "why": "The message doesn't report the orphaned-claim bug. Its candidates are a `release()` that blocks on the transition lock and a jittered backoff that does nothing at the default poll interval. Nothing in it covers an error while closing or finalizing a claim after it was linked, which would leave an or"
+  },
+  "f10-dual-holders": {
+   "passed": false,
+   "why": "The message doesn't report that two processes can both hold the strict lock through a race in the claim scan or final check. Candidate 1 is a `release()` blocking or deadlock problem. Candidate 2 is backoff jitter that does nothing at the default poll interval. The dropped leads cover state races on"
+  },
+  "f11-reentry-timeout": {
+   "passed": false,
+   "why": "Candidate 1 reports that `release()` on a lock the caller doesn't hold now blocks, because it takes `_transition_lock` before checking `is_locked`. It also reports that this lock is held for the whole `_poll_until_acquired` wait. That covers the same mechanism the rubric describes: the transition ga"
+  },
+  "f12-hostname-space": {
+   "passed": false,
+   "why": "The message doesn't report that a host name containing whitespace makes the lock reject its own claim record as malformed. Its two candidates are a `release()` that blocks, and a jitter that does nothing at the default poll interval. None of its dropped leads mention host names or malformed claim re"
+  },
+  "f13-pickle": {
+   "passed": false,
+   "why": "The message doesn't report that a lock created with `thread_local=False` can no longer be pickled or deep-copied because of the new `RLock` attribute. Candidate 1 mentions `thread_local=False` and the `RLock`, but only as a `release()` blocking problem. Nothing in the message mentions pickling or de"
+  },
+  "f14-claims-indexerror": {
+   "passed": false,
+   "why": "The message doesn't report that `claims` or `force_break` can raise `IndexError` when a release on a shared instance races it. The two candidates it lists are a `release()` blocking or deadlocking and a jitter that does nothing at the default poll interval. The \"Dropped leads\" section covers other r"
+  },
+  "f15-dropped-close-error": {
+   "passed": false,
+   "why": "The message doesn't report that the close error from unlinking the intent claim on the winning path is silently dropped. Its two candidates are `release()` blocking on the transition lock and a jitter backoff that does nothing at the default poll interval. None of its dropped leads mention a swallow"
+  },
+  "f16-interrupt-gate": {
+   "passed": false,
+   "why": "The message doesn't report that a `KeyboardInterrupt` between taking the transition lock and entering the `try` leaves the gate held. Its two candidates are `release()` blocking on the transition lock and the jitter being ineffective at the default poll interval. None of its dropped leads mention in"
+  },
+  "f17-pid-placeholder": {
+   "passed": false,
+   "why": "The message never reports that `SoftFileLock(path).pid` now returns `1` (a placeholder) once the strict lock's sentinel exists. It covers `release()` blocking and the ineffective jittered backoff, and its dropped leads don't mention `pid` either.\n\nVERDICT: FAIL"
+  },
+  "ka-enotsup-import": {
+   "passed": false,
+   "why": "The message doesn't report that importing `ENOTSUP` from `errno` at module scope fails on runtimes like GraalPy, which would break `import filelock`. It reports a `release()` blocking and deadlock bug and a backoff that has no effect at the default poll interval. The dropped leads mention import-tim"
+  },
+  "kb-private-record-oserror": {
+   "passed": false,
+   "why": "The message doesn't report that a non-regular node (directory, symlink, FIFO or socket) at a sentinel private-record name makes the first `acquire()` raise a bare `OSError` instead of `SoftFileLockProtocolError`. Its two candidates are `release()` blocking on the transition lock and the backoff jitt"
+  },
+  "kc-descriptor-leak": {
+   "passed": false,
+   "why": "The message doesn't report that a failed claim unlink on release or discard leaves the sentinel file descriptor open. Its two candidates are `release()` blocking on the transition lock and the ineffective jittered backoff. None of its dropped leads mention a descriptor leak either.\n\nVERDICT: FAIL"
+  },
+  "kd-symlink-swap": {
+   "passed": false,
+   "why": "The message never says that the claims directory is reached by name, or that a symlink or junction swapped in after a check could redirect claim files. Its two candidates are a `release()` deadlock and ineffective backoff jitter. The \"dropped leads\" mention `_claim_directory` only to say it uses the"
+  }
+ },
+ "find-bugs-filelock-1--consumers": {
+  "f01-dir-mode": {
+   "passed": true,
+   "why": "Candidate 2 reports that the strict lock's `<path>.filelock` directory is created by `directory.mkdir()`, which ignores `mode`. It comes out as `0o40755` and owned by the first user. Another UID then gets a raw `PermissionError` and cannot acquire the lock. That matches the rubric. The message doesn"
+  },
+  "f02-jitter-noop": {
+   "passed": true,
+   "why": "Candidate 7 reports that the jittered backoff does nothing at the default `poll_interval` of 0.05, which equals the cap, and shows exactly 1 distinct delay value. It also says `AsyncStrictSoftFileLock` gets no backoff because the async poll loop never calls `_poll_delay`. That covers both conditions"
+  },
+  "f03-lifetime-warning": {
+   "passed": true,
+   "why": "Candidate 5 reports that `StrictSoftFileLock(p, lifetime=5)` now warns \"a native OS lock cannot be broken safely by file age\". It says base gave a strict-lock reason instead, and it names the dropped `_lifetime_unsupported_reason` override as the cause. That matches the rubric item.\n\nVERDICT: PASS"
+  },
+  "f04-eperm-hardlink": {
+   "passed": false,
+   "why": "The message never reports that on a filesystem without hard-link support, where `link()` fails with `EPERM` (vfat, exfat), the lock raises `PermissionError` instead of the documented `SoftFileLockProtocolError`. Candidate 2 does mention a raw `PermissionError`, but the cause there is directory permi"
+  },
+  "f05-release-blocks": {
+   "passed": true,
+   "why": "Candidate 6 reports that on a shared strict instance (`thread_local=False`), `release()` blocks while another thread waits in `acquire()`. It gives the cause as `release()` taking `_transition_lock` with a blocking acquire while the waiting acquirer holds that same lock for its whole poll. It also g"
+  },
+  "f06-bad-path-waits": {
+   "passed": false,
+   "why": "The message does not report this. None of the seven candidates or the dropped leads says that a lock path that can't be opened as a sentinel (a directory, or an unreadable file) now has its `OSError` swallowed, so the caller waits or gets `Timeout`. The nearest items are the symlinked private record"
+  },
+  "f07-stale-docs": {
+   "passed": true,
+   "why": "Candidate 3 reports that the unchanged `docs/how-to.rst` section \"Choose a soft-lock contract\" still describes the old behavior. That section says strict \"never reclaims a marker\", points to `MarkerSoftFileLock.force_break`, and says both classes publish a protocol 2 record. The message says this co"
+  },
+  "f08-failed-discard-held": {
+   "passed": false,
+   "why": "The message doesn't report this. None of the seven candidates or the dropped leads say that a losing contender, unable to remove its own claim, leaves the instance marked as holding the lock, so that its next `acquire()` returns success while another process holds the lock.\n\nVERDICT: FAIL"
+  },
+  "f09-orphan-claim": {
+   "passed": false,
+   "why": "The message doesn't report the orphaned-claim defect. The closest items are #3, which says the strict sentinel stays after release and locks out legacy contenders, and #2, which covers a permission error in the protocol directory. Neither describes an error while closing or finalizing a claim record"
+  },
+  "f10-dual-holders": {
+   "passed": false,
+   "why": "The message doesn't report that two processes can both hold the strict lock through a race in the claim scan or final check. Its seven candidates cover pickling, multi-user permissions, stale docs, `pid` reporting, a warning message, `release()` blocking and backoff. None of them concerns mutual exc"
+  },
+  "f11-reentry-timeout": {
+   "passed": false,
+   "why": "The message does not report this. Candidate 6 is the closest: it says `release()` blocks on the transition gate while another thread waits in `acquire()`. The dropped lead on \"admission gate changing timeout or `blocking=False` semantics\" says outcomes match base. Neither one reports that a non-bloc"
+  },
+  "f12-hostname-space": {
+   "passed": false,
+   "why": "The message never reports that a host name containing whitespace makes the lock reject its own claim record as malformed. None of the seven candidates or the dropped leads mention host names, whitespace, or a lock failing on its own record, so it is a FAIL.\n\nVERDICT: FAIL"
+  },
+  "f13-pickle": {
+   "passed": true,
+   "why": "Candidate 1 reports that locks created with `thread_local=False` can no longer be pickled or deep-copied. It names the new `RLock` (`self._transition_lock = RLock()`) as the cause, and the error shown is `TypeError: cannot pickle '_thread.RLock' object`. That matches the rubric.\n\nVERDICT: PASS"
+  },
+  "f14-claims-indexerror": {
+   "passed": false,
+   "why": "The message lists seven candidates, and none of them mentions `IndexError`, the `claims` property, or `force_break` raising during a race with a release on a shared instance. Candidate 6 covers `release()` blocking on a shared instance, and the dropped leads mention `force_break` only in the context"
+  },
+  "f15-dropped-close-error": {
+   "passed": false,
+   "why": "The message never reports that a close error from unlinking the intent claim on the winning path is silently dropped. None of the seven candidates or the dropped leads covers that behavior.\n\nVERDICT: FAIL"
+  },
+  "f16-interrupt-gate": {
+   "passed": false,
+   "why": "The message doesn't report that a `KeyboardInterrupt` between taking the transition lock and entering the `try` leaves the gate held. It lists seven candidates and several dropped leads. None of them is about an interrupt at that point. The `__del__` lead was dropped for a different reason.\n\nVERDICT"
+  },
+  "f17-pid-placeholder": {
+   "passed": true,
+   "why": "Candidate 4 reports that `SoftFileLock(path).pid` returns `1` on an activated strict path, where the base returned `None`. It describes the sentinel as parsing as pid=1 even with no holder.\n\nVERDICT: PASS"
+  },
+  "ka-enotsup-import": {
+   "passed": false,
+   "why": "The message doesn't report that importing `ENOTSUP` from `errno` at module scope fails on a runtime whose `errno` lacks that name, such as GraalPy, or that this breaks `import filelock`. None of the seven candidates or the dropped leads mention it.\n\nVERDICT: FAIL"
+  },
+  "kb-private-record-oserror": {
+   "passed": false,
+   "why": "The message doesn't report the case in the rubric. Its only mention is the last \"Dropped leads\" item, which covers a symlinked private record in the claims directory raising a plain `OSError`. That item is a different case: it concerns a private-record name in the claims directory, not a sentinel na"
+  },
+  "kc-descriptor-leak": {
+   "passed": false,
+   "why": "The message doesn't report that a failed claim unlink on release or discard leaves the sentinel file descriptor open. None of the seven candidates or the dropped leads mention a descriptor leak. Candidate 3 covers the sentinel staying after release, but that is a different issue.\n\nVERDICT: FAIL"
+  },
+  "kd-symlink-swap": {
+   "passed": false,
+   "why": "The message doesn't report that the claims directory is reached by name, or that a symlink or junction swapped in after a check could redirect claim files elsewhere. The closest item is a \"Dropped leads\" note about a symlinked private record in the claims directory raising a plain `OSError`. That co"
+  }
+ },
+ "find-bugs-filelock-1--fault": {
+  "f01-dir-mode": {
+   "passed": true,
+   "why": "The message reports C2: the strict lock's permanent sentinel and claims directories are created with a bare `mkdir()` (`_ensure_protocol_directory`, lines 93\u201396). Those directories ignore `mode`, and `mode=0o666` doesn't help. A second OS user then gets `PermissionError` and cannot acquire the share"
+  },
+  "f02-jitter-noop": {
+   "passed": false,
+   "why": "The message never says the jittered retry backoff has no effect at the default `poll_interval` of 0.05, which equals the cap. It never says the async strict lock skips the backoff either. None of C1\u2013C5 or the dropped leads covers it.\n\nVERDICT: FAIL"
+  },
+  "f03-lifetime-warning": {
+   "passed": false,
+   "why": "The message never reports that `StrictSoftFileLock(..., lifetime=...)` now warns with the native-lock reason (\"a native OS lock cannot be broken safely by file age\"). None of the candidates (C1\u2013C5) or the dropped leads mention a `lifetime` warning, so the rubric's finding is missing.\n\nVERDICT: FAIL"
+  },
+  "f04-eperm-hardlink": {
+   "passed": true,
+   "why": "The message reports it in C4: when `link()` returns EPERM, as on vfat and exFAT, the lock raises `PermissionError` and not the documented `SoftFileLockProtocolError`. It also cites the docs and notes that the check was done with an injected fault.\n\nVERDICT: PASS"
+  },
+  "f05-release-blocks": {
+   "passed": false,
+   "why": "The message never reports that `release()` on a shared (`thread_local=False`) instance blocks while another thread waits in `acquire()` because both take the same transition lock. None of C1\u2013C5 or the dropped leads covers it. They cover sentinel-open errors, cross-account use, leaked claims, hard-li"
+  },
+  "f06-bad-path-waits": {
+   "passed": true,
+   "why": "C1 reports it directly. When the lock path is a directory or an unreadable file, the old code raised `IsADirectoryError` or `PermissionError` right away. The new code swallows the sentinel open error (`except OSError: return None`), so the caller gets `Timeout` after the full timeout, or waits forev"
+  },
+  "f07-stale-docs": {
+   "passed": false,
+   "why": "The message doesn't report that the docs or changelog still describe the old marker-based strict lock. C4 cites `docs/how-to.rst` only for the hard-link error contract, and nothing else mentions stale docs or a changelog contradicting the new text.\n\nVERDICT: FAIL"
+  },
+  "f08-failed-discard-held": {
+   "passed": false,
+   "why": "The message never says that a losing contender's failure to remove its own claim leaves the instance marked as holding the lock, so a later `acquire()` returns success while another process holds it. C3 comes closest, but it describes leftover claims that block other contenders with `Timeout`. It re"
+  },
+  "f09-orphan-claim": {
+   "passed": false,
+   "why": "The message does not report the target defect. C3 is the closest: it describes failures after a claim is published, leaving an `intent-\u2026` or `held-\u2026` claim on disk, and every later contender gets a `Timeout`. But C3 covers errors while publishing or recording the claim, such as a directory fd close "
+  },
+  "f10-dual-holders": {
+   "passed": false,
+   "why": "The message doesn't report that two processes can both end up holding the strict lock through a race in the claim scan or final check. Its candidates cover error handling on sentinel open, cross-account permissions, cleanup after injected faults, hard-link errors and a dropped close error. C3 needs "
+  },
+  "f11-reentry-timeout": {
+   "passed": false,
+   "why": "The message doesn't report that a non-blocking or short-timeout `acquire()` on a shared instance that already holds the lock can now raise `Timeout` or wait because of a new transition gate taken before the re-entrancy check. Its candidates cover sentinel open errors, cross-account permissions, unre"
+  },
+  "f12-hostname-space": {
+   "passed": false,
+   "why": "The message never reports that a host name containing whitespace makes the lock reject its own claim record as malformed and so never acquire. None of C1\u2013C5 or the dropped leads mention host names, whitespace, or a self-rejected claim record.\n\nVERDICT: FAIL"
+  },
+  "f13-pickle": {
+   "passed": false,
+   "why": "The message does not report that a lock created with `thread_local=False` can no longer be pickled or deep-copied because of a new `RLock` attribute. None of the candidates (C1\u2013C5) or the dropped leads mention pickling, deep-copying, `thread_local`, or an `RLock`.\n\nVERDICT: FAIL"
+  },
+  "f14-claims-indexerror": {
+   "passed": false,
+   "why": "The message never mentions `IndexError`, and it doesn't report a race between a release and the `claims` property or `force_break` on a shared instance. None of the candidates or dropped leads covers it.\n\nVERDICT: FAIL"
+  },
+  "f15-dropped-close-error": {
+   "passed": true,
+   "why": "C5 reports that line 165 discards the return value of `_unlink_owner_path(intent_path)`. It says a directory-fd close error after the intent unlink is lost while acquire succeeds, which is the silently dropped close error on the winning path.\n\nVERDICT: PASS"
+  },
+  "f16-interrupt-gate": {
+   "passed": false,
+   "why": "The message never reports that a `KeyboardInterrupt` between taking the transition lock and entering the `try` leaves the gate held. C3 does mention a `KeyboardInterrupt` after the link, but that is about a leftover claim file, which is a different spot and a different consequence.\n\nVERDICT: FAIL"
+  },
+  "f17-pid-placeholder": {
+   "passed": false,
+   "why": "The message never reports that `SoftFileLock(path).pid` now returns `1` (a placeholder) once the strict lock's sentinel exists, where the base returned `None`. None of C1\u2013C5 or the dropped leads mention a `pid` property change.\n\nVERDICT: FAIL"
+  },
+  "ka-enotsup-import": {
+   "passed": false,
+   "why": "The message never mentions that importing `ENOTSUP` from `errno` at module scope fails on a runtime like GraalPy, or that this breaks `import filelock`. C4 discusses ENOTSUP only as an error code that `link()` can return, so it is a different issue.\n\nVERDICT: FAIL"
+  },
+  "kb-private-record-oserror": {
+   "passed": false,
+   "why": "The message's C1 reports that a directory at the lock path, among other causes, makes head time out instead of raising immediately. Its \"Dropped leads\" say a non-regular node at a private-record name fails closed as documented. The only flaw it gives there is the unclear error message. It does not s"
+  },
+  "kc-descriptor-leak": {
+   "passed": false,
+   "why": "The message doesn't report that a failed claim unlink on release or discard leaves the sentinel file descriptor open. C3 and C5 cover cleanup failures: unlink and close errors, with leftover claims and a swallowed close error. None of them describes a descriptor leak from a failed claim unlink on re"
+  },
+  "kd-symlink-swap": {
+   "passed": false,
+   "why": "The message never says the claims directory is reached by name, so a symlink or junction swapped in after a check could redirect claim files elsewhere. C2 mentions the claims directory's permissions, and a dropped lead covers the claims directory being replaced by a symlink. That lead is about relea"
+  }
+ },
+ "find-bugs-filelock-1--general": {
+  "f01-dir-mode": {
+   "passed": true,
+   "why": "Candidate 4 reports the problem the rubric describes. `_ensure_protocol_directory` (lines 773\u2013775) calls `directory.mkdir()` with the default mode, so `<lock>.filelock` and `claims/` come out 0755 under umask 022. The message says the `mode` argument is applied only to records, never to those direct"
+  },
+  "f02-jitter-noop": {
+   "passed": true,
+   "why": "Candidate 3 reports that the jittered backoff has no effect at the default `poll_interval` of 0.05, which equals the cap. It also reports that the async strict lock never calls `_poll_delay`, so it never backs off. That covers both parts of the rubric.\n\nVERDICT: PASS"
+  },
+  "f03-lifetime-warning": {
+   "passed": false,
+   "why": "The message doesn't report the issue in the rubric. It never says that `StrictSoftFileLock(..., lifetime=...)` now warns with the native-lock reason. Its only mention of lifetime is in a dropped lead, which says lifetime expiry doesn't delete the sentinel because `_lifetime_supported` defaults to Fa"
+  },
+  "f04-eperm-hardlink": {
+   "passed": true,
+   "why": "Candidate 5 reports that on a filesystem without hard links, where `link()` fails with EPERM (vfat/exfat), the lock raises `PermissionError` instead of the documented `SoftFileLockProtocolError`. It names the cause in `_raise_if_hard_links_unsupported` and cites the `docs/how-to.rst` contract.\n\nVERD"
+  },
+  "f05-release-blocks": {
+   "passed": true,
+   "why": "Candidate 2 reports this: a `StrictSoftFileLock(thread_local=False)` instance's `release()` takes the transition lock before the `not self.is_locked` early return. It then blocks while another thread is in a blocking `acquire()`, because that acquire holds the same gate for its whole poll loop. The "
+  },
+  "f06-bad-path-waits": {
+   "passed": false,
+   "why": "The message doesn't report this. None of its six candidates says a lock path that can't be opened as a sentinel (a directory, or a file the caller can't read) used to raise `OSError` and now has the error swallowed, so the caller waits or gets `Timeout`. Candidates 4 and 5 are the closest, but they "
+  },
+  "f07-stale-docs": {
+   "passed": true,
+   "why": "Candidate 6 reports that `docs/how-to.rst` (lines 625\u2013675) still describes the old marker-based strict lock and now contradicts the new behavior. It says strict \"never reclaims a marker\", that recovery goes through `MarkerSoftFileLock.force_break()`, and that a `SoftFileLock` contender \"evicts\" a st"
+  },
+  "f08-failed-discard-held": {
+   "passed": true,
+   "why": "Candidate 1 reports this. When the doorway discard can't unlink our own intent claim, the instance is left with `is_locked=True` and counter 1, and a retry `acquire(timeout=0)` returns reentrant success while the competitor's held claim is still on disk.\n\nVERDICT: PASS"
+  },
+  "f09-orphan-claim": {
+   "passed": false,
+   "why": "The message doesn't report the described defect. Candidate 1 is the nearest: a failed unlink during doorway cleanup leaves the instance marked locked. But it covers a retry that wrongly succeeds as a reentrant acquire. It doesn't say that an error while closing or finalizing a claim record after lin"
+  },
+  "f10-dual-holders": {
+   "passed": false,
+   "why": "The message doesn't report this. Candidate 1 is about a failed doorway cleanup that leaves the instance \"locked\" after an injected unlink failure, so it needs a fault. Its \"Dropped leads\" say the doorway ordering is safe and that a stress run found 0 overlaps. Nothing reports two processes both hold"
+  },
+  "f11-reentry-timeout": {
+   "passed": false,
+   "why": "The message doesn't report this. Candidate 2 covers `release()` blocking behind another thread's blocking `acquire()` on the transition gate, and candidate 1 covers a re-acquire wrongly succeeding after a failed cleanup. Neither says that a non-blocking or short-timeout `acquire()` on a shared insta"
+  },
+  "f12-hostname-space": {
+   "passed": false,
+   "why": "The message never reports that a host name containing whitespace makes the lock reject its own claim record as malformed, so it can never acquire. None of its six candidates or nine dropped leads covers host name handling or malformed claim records.\n\nVERDICT: FAIL"
+  },
+  "f13-pickle": {
+   "passed": false,
+   "why": "The message never reports that a lock created with `thread_local=False` can no longer be pickled or deep-copied because of a new `RLock` attribute. Its six candidates cover doorway cleanup, release blocking, jitter, shared paths, hard links and docs. `thread_local=False` appears only in the release-"
+  },
+  "f14-claims-indexerror": {
+   "passed": false,
+   "why": "The message never mentions `IndexError` or a `claims` property or `force_break` raising when a release races on a shared instance. Candidate 2 covers a shared-instance `release()` blocking on the gate, and candidate 6 notes that `force_break()` raises `TypeError`. Neither is the required finding.\n\nV"
+  },
+  "f15-dropped-close-error": {
+   "passed": false,
+   "why": "The message doesn't report this. Its last \"dropped lead\" does mention `_unlink_owner_path(intent_path)` being ignored after a win, but it describes that as only dropping an `os.close` error on the directory descriptor. The message dismisses the issue as harmless and doesn't flag it as a defect, obse"
+  },
+  "f16-interrupt-gate": {
+   "passed": false,
+   "why": "The message doesn't report a `KeyboardInterrupt` between taking the transition lock and entering the `try`. None of its six candidates or nine dropped leads mention an interrupt leaving the gate held. Candidate 2 only covers `release()` blocking on the gate.\n\nVERDICT: FAIL"
+  },
+  "f17-pid-placeholder": {
+   "passed": false,
+   "why": "The message never reports that `SoftFileLock(path).pid` now returns `1` (a placeholder) once the strict lock's sentinel exists, where the base returned `None`. None of the six candidates or the dropped leads mention `pid`. The nearest item, the `SoftFileLock` sentinel-equality check, is a different "
+  },
+  "ka-enotsup-import": {
+   "passed": false,
+   "why": "The message doesn't report the `ENOTSUP` import problem. It lists six candidates. Candidate 5 touches `ENOTSUP`, but only as a mapped errno in `_raise_if_hard_links_unsupported`. None of them says that a module-scope `from errno import ENOTSUP` fails on runtimes like GraalPy and breaks `import filel"
+  },
+  "kb-private-record-oserror": {
+   "passed": false,
+   "why": "The message never reports that a non-regular node (directory, symlink, FIFO or socket) at a sentinel private-record name makes the first `acquire()` raise a bare `OSError` instead of `SoftFileLockProtocolError`. The nearest candidates cover other defects: EPERM from a filesystem without hard links, "
+  },
+  "kc-descriptor-leak": {
+   "passed": false,
+   "why": "The message never reports that a failed claim unlink on release or discard leaves the sentinel file descriptor open. Candidate 1 covers a failed unlink during doorway discard, but it describes a stale `is_locked` state and reentrant re-acquire, not a leaked descriptor. The \"Dropped leads\" mention a "
+  },
+  "kd-symlink-swap": {
+   "passed": false,
+   "why": "The message never reports that the claims directory is reached by name, or that a symlink or junction swapped in after a check could redirect claim files. Candidate 4 covers directory permissions in `_ensure_protocol_directory`, and none of the other candidates or dropped leads mention symlinks, jun"
+  }
+ },
+ "find-bugs-filelock-1--inputs": {
+  "f01-dir-mode": {
+   "passed": true,
+   "why": "The message reports that the strict lock's `<path>.filelock/claims` folders are created by `mkdir` using umask modes (`drwxr-xr-x root`) and that `mode=` never applies to them. It also reports that this stops a second OS user (`nobody`) from acquiring the lock. That matches the rubric item.\n\nVERDICT"
+  },
+  "f02-jitter-noop": {
+   "passed": false,
+   "why": "The message never mentions that the new jittered backoff has no effect at the default `poll_interval` (0.05, equal to the cap). It also never says the async strict lock skips the backoff. The \"No backoff in the async poll loop\" lead was dropped as a livelock non-issue, and the overshoot note covers "
+  },
+  "f03-lifetime-warning": {
+   "passed": true,
+   "why": "Candidate 5 reports that `StrictSoftFileLock` with `lifetime=` now warns with the inherited native-lock reason (\"a native OS lock cannot be broken safely by file age\"). It calls this the wrong reason for a strict soft lock and notes that the base message was different.\n\nVERDICT: PASS"
+  },
+  "f04-eperm-hardlink": {
+   "passed": false,
+   "why": "The message does not report the `PermissionError` case on a filesystem without hard links. It lists six candidates plus dropped and unprobed leads. The only `PermissionError` items are the cross-user and umask problems in candidate 1, and none of them mention `link()` failing with `EPERM` on vfat or"
+  },
+  "f05-release-blocks": {
+   "passed": true,
+   "why": "Candidate 3 reports that `release()` on a shared `StrictSoftFileLock(thread_local=False)` instance blocks while another thread waits in `acquire()`. It ties this to `release` taking `with self._transition_lock`, which `_transition_admission` holds for the whole wait in `_poll_until_acquired`. The me"
+  },
+  "f06-bad-path-waits": {
+   "passed": true,
+   "why": "Candidate 2 reports this behavior. With a directory at the lock path, base raised `IsADirectoryError` immediately. Head now swallows the `OSError` in `_open_or_create_sentinel`, so it returns `Timeout` after 0.51 s, or hangs forever with `timeout=-1`. The candidate 1 variant also covers an unreadabl"
+  },
+  "f07-stale-docs": {
+   "passed": true,
+   "why": "Candidate 6 reports that `docs/how-to.rst`, in a section the diff didn't touch, still describes the old marker-based strict lock. It names the \"protocol 2 record\", recovery through `MarkerSoftFileLock.force_break` with no argument, and the lease and soft-lock table entries. It also says this contrad"
+  },
+  "f08-failed-discard-held": {
+   "passed": false,
+   "why": "The message does not report this. None of the six candidates or the dropped leads says that a losing contender which cannot remove its own claim keeps the instance marked as holding the lock, so its next `acquire()` returns success while another process holds the lock. Candidate 3 is a different iss"
+  },
+  "f09-orphan-claim": {
+   "passed": false,
+   "why": "The message doesn't report the specified defect. It reports no error while closing or finalizing a claim record after linking, and it names no orphaned claim that nothing removes and that blocks every contender. The closest items are candidate 1's permission failure on the claims folders and candida"
+  },
+  "f10-dual-holders": {
+   "passed": false,
+   "why": "The message never reports that two processes can both hold the strict lock through a race in the claim scan or final check. Its six candidates are about permissions, a directory at the lock path, release blocking, name length, a warning message and stale docs. The dropped leads mention livelock unde"
+  },
+  "f11-reentry-timeout": {
+   "passed": false,
+   "why": "The message never reports that a non-blocking or short-timeout `acquire()` on a shared instance that already holds the lock can now raise `Timeout` or wait because of the new transition gate. Candidate 3 is the nearest, but it covers `release()` blocking behind a waiting `acquire()`. It does not cov"
+  },
+  "f12-hostname-space": {
+   "passed": false,
+   "why": "The message doesn't report that a host name containing whitespace makes the lock reject its own claim record as malformed. Its six candidates cover cross-user permissions, a lock path that is a folder, shared-instance release, long basenames, a lifetime warning and stale docs. None of them mentions "
+  },
+  "f13-pickle": {
+   "passed": false,
+   "why": "Candidate 3 says that `StrictSoftFileLock(p, thread_local=False)` shared between threads has a changed `release()`. That is a different change from the rubric's. The message never says that a `thread_local=False` lock can no longer be pickled or deep-copied because of the new `RLock` attribute. The "
+  },
+  "f14-claims-indexerror": {
+   "passed": false,
+   "why": "The message never reports that the `claims` property or `force_break` can raise `IndexError` when a release on a shared instance races it. Candidate 3 describes a race between `release()` and a shared instance, but its consequence is blocking and releasing another thread's acquisition, not an `Index"
+  },
+  "f15-dropped-close-error": {
+   "passed": false,
+   "why": "The message never mentions that the close error returned when unlinking the intent claim on the winning path is silently dropped. None of the six candidates, the dropped leads or the unprobed notes covers an ignored close error on that path.\n\nVERDICT: FAIL"
+  },
+  "f16-interrupt-gate": {
+   "passed": false,
+   "why": "The message doesn't report that a `KeyboardInterrupt` between taking the transition lock and entering the `try` leaves the gate held. None of the six candidates or the dropped leads mention a `KeyboardInterrupt` or an asynchronous-exception window around the transition lock. Candidate 3 covers `rele"
+  },
+  "f17-pid-placeholder": {
+   "passed": false,
+   "why": "The message never reports that `SoftFileLock(path).pid` returns `1` (a placeholder) once the strict lock's sentinel exists, where base returned `None`. Candidate 6 says `SoftFileLock` times out after a strict acquire, but it says nothing about `.pid`.\n\nVERDICT: FAIL"
+  },
+  "ka-enotsup-import": {
+   "passed": false,
+   "why": "The message doesn't report that importing `ENOTSUP` from `errno` at module scope fails on a runtime whose `errno` lacks that name, such as GraalPy, or that this breaks `import filelock`. Its only import-time item is the temporary-folder side effect of `_probe_link_follow_symlinks`, which is unrelate"
+  },
+  "kb-private-record-oserror": {
+   "passed": false,
+   "why": "The message never reports that a non-regular node (directory, symlink, FIFO or socket) at a sentinel private-record name makes the first `acquire()` raise a bare `OSError` instead of `SoftFileLockProtocolError`. Candidate 2 covers a directory at the lock path. That path is the sentinel, not a privat"
+  },
+  "kc-descriptor-leak": {
+   "passed": false,
+   "why": "The message doesn't report that a failed claim unlink on release or discard leaves the sentinel file descriptor open. None of the six candidates or the dropped and not-probed leads mention a descriptor leak or an unlink failure.\n\nVERDICT: FAIL"
+  },
+  "kd-symlink-swap": {
+   "passed": false,
+   "why": "The message never reports that the claims directory is reached by name, so a symlink or junction swapped in after a check could redirect claim files elsewhere. Candidate 1 covers permissions on the `<path>.filelock/claims` folders. The \"Dropped leads\" entry on symlinks covers only a symlink at the l"
+  }
+ },
+ "find-bugs-filelock-1--state": {
+  "f01-dir-mode": {
+   "passed": false,
+   "why": "The message doesn't report that the strict lock's coordination directories (`<path>.filelock` and its `claims` folder) are created with a plain `mkdir()` that ignores the lock's `mode`. Its three candidates cover re-entry across threads, `release()` blocking, and async backoff. The dropped leads don"
+  },
+  "f02-jitter-noop": {
+   "passed": true,
+   "why": "C3 reports that `AsyncStrictSoftFileLock` never uses the new jittered backoff: `_async_poll_until_acquired` still sleeps a fixed `poll_interval`, and the probe shows 1 distinct sleep value for async against 13 for sync. The message doesn't report the default-interval point (0.05 equal to the cap), b"
+  },
+  "f03-lifetime-warning": {
+   "passed": false,
+   "why": "The message doesn't report that `StrictSoftFileLock(..., lifetime=...)` now warns with the native-lock reason. Its three candidates cover thread re-entry, `release()` blocking, and the async backoff. None of them mention a lifetime warning, and nothing in its dropped leads covers that either.\n\nVERDI"
+  },
+  "f04-eperm-hardlink": {
+   "passed": false,
+   "why": "The message doesn't report that `link()` failing with `EPERM` on filesystems like vfat or exfat makes the lock raise `PermissionError` instead of `SoftFileLockProtocolError`. Its three candidates cover thread re-entry, `release()` blocking and async backoff. The dropped leads don't touch the `EPERM`"
+  },
+  "f05-release-blocks": {
+   "passed": true,
+   "why": "The message reports C2: `release()` on a shared lock blocks while another thread is in `acquire()`, because `release()` takes the same transition gate that `acquire()` holds during its wait. The rubric asks for `release()` on a shared instance blocking while another thread waits in `acquire()`. C2's"
+  },
+  "f06-bad-path-waits": {
+   "passed": false,
+   "why": "The message doesn't report that a lock path that can't be opened as a sentinel (a directory, or an unreadable file) no longer raises its `OSError`. Its three candidates are re-entry raising `Timeout`, `release()` blocking on an unheld lock, and the async backoff missing. The dropped leads don't ment"
+  },
+  "f07-stale-docs": {
+   "passed": false,
+   "why": "The message doesn't say that the docs or changelog still describe the old marker-based strict lock. It lists three code-level candidates (C1\u2013C3) and a set of dropped leads. None of them covers stale documentation or changelog text that contradicts the new behavior.\n\nVERDICT: FAIL"
+  },
+  "f08-failed-discard-held": {
+   "passed": false,
+   "why": "The message doesn't report this. C1\u2013C3 cover other problems: re-entry timeouts at the gate, `release()` blocking, and the async backoff. The \"dropped leads\" don't cover the case where a losing contender can't remove its own claim and its next `acquire()` wrongly succeeds.\n\nVERDICT: FAIL"
+  },
+  "f09-orphan-claim": {
+   "passed": false,
+   "why": "The message doesn't report the rubric's defect. Its three candidates cover re-entry refusal across threads, `release()` blocking on the gate, and async backoff. None of them says that an error while closing or finalizing a claim record after linking leaves an orphaned claim that nothing removes and "
+  },
+  "f10-dual-holders": {
+   "passed": false,
+   "why": "The message doesn't report the race. Its three candidates cover cross-thread re-entry timeouts, `release()` blocking, and async backoff. None says two processes can both hold the strict lock through a race in the claim scan or final check. The dropped leads don't mention it either.\n\nVERDICT: FAIL"
+  },
+  "f11-reentry-timeout": {
+   "passed": true,
+   "why": "C1 matches the rubric. It reports that a shared, already-held instance's `acquire(blocking=False)` or `timeout=0` now raises `Timeout` at head, because the transition gate is taken first. Base always re-entered. It also covers the `timeout=T` case when the gate is held longer than T.\n\nVERDICT: PASS"
+  },
+  "f12-hostname-space": {
+   "passed": false,
+   "why": "The message doesn't report that a host name containing whitespace makes the lock reject its own claim record as malformed. It lists three candidates (re-entry across threads, `release()` blocking, and async backoff). The dropped leads don't mention host names or malformed claim records either.\n\nVERD"
+  },
+  "f13-pickle": {
+   "passed": false,
+   "why": "The message doesn't report that a `thread_local=False` lock can no longer be pickled or deep-copied because of the new `RLock` attribute. It mentions the `RLock` only as the gate in other contexts. Its three candidates are about re-entry refusal, `release()` blocking, and the missing async backoff. "
+  },
+  "f14-claims-indexerror": {
+   "passed": false,
+   "why": "The message doesn't report that the `claims` property or `force_break` can raise `IndexError` when a release on a shared instance races it. Its three candidates cover re-entry `Timeout`, `release()` blocking, and the missing async backoff. The dropped leads don't cover it either. The nearest one, `f"
+  },
+  "f15-dropped-close-error": {
+   "passed": false,
+   "why": "The message doesn't report that the close error from unlinking the intent claim on the winning path is silently dropped. Its three candidates (C1\u2013C3) cover thread re-entry, `release()` blocking, and the async backoff. None of them mentions a dropped close or unlink error. The \"Dropped leads\" section"
+  },
+  "f16-interrupt-gate": {
+   "passed": false,
+   "why": "The message reports three candidates (re-entry refusal, `release()` blocking, async backoff) and a list of dropped leads. None of them mentions a `KeyboardInterrupt` between taking the transition lock and entering the `try`, or a gate left held as a result.\n\nVERDICT: FAIL"
+  },
+  "f17-pid-placeholder": {
+   "passed": false,
+   "why": "The message doesn't report that `SoftFileLock(path).pid` now returns `1` (a placeholder) once the strict lock's sentinel exists, where the base returned `None`. Its three candidates cover re-entry refusal, `release()` blocking, and the async backoff. None of them mentions `pid`. The \"dropped leads\" "
+  },
+  "ka-enotsup-import": {
+   "passed": false,
+   "why": "The message doesn't mention an `ENOTSUP` import from `errno`. It also doesn't mention GraalPy, or any failure of `import filelock` on a runtime whose `errno` lacks that name. Its three candidates cover thread re-entry, `release()` blocking and async backoff. None of its dropped leads touches the imp"
+  },
+  "kb-private-record-oserror": {
+   "passed": false,
+   "why": "The message doesn't report that a non-regular node (directory, symlink, FIFO or socket) at a sentinel private-record name makes the first `acquire()` raise a bare `OSError` instead of `SoftFileLockProtocolError`. Its three candidates and its dropped leads cover other topics, and none touches this.\n\n"
+  },
+  "kc-descriptor-leak": {
+   "passed": false,
+   "why": "The message lists three candidates (re-entry timeouts, release blocking, and async backoff) and a set of dropped leads. None of them mentions a failed claim unlink on release or discard leaving the sentinel file descriptor open. No descriptor leak is reported anywhere.\n\nVERDICT: FAIL"
+  },
+  "kd-symlink-swap": {
+   "passed": false,
+   "why": "The message doesn't report that the claims directory is reached by name, so a symlink or junction swapped in after a check could redirect claim files elsewhere. Its three candidates cover re-entry across threads, a blocking `release()` and the async backoff. The dropped leads include a `_claim_direc"
+  }
+ },
+ "find-bugs-filelock-2--consumers": {
+  "f01-dir-mode": {
+   "passed": false,
+   "why": "The message never reports that the strict lock's coordination directories (`<path>.filelock` and its `claims` folder) are created with a plain `mkdir()` that ignores the lock's `mode`. It also doesn't say that another OS user therefore can't acquire or share the lock. Its six candidates cover pickli"
+  },
+  "f02-jitter-noop": {
+   "passed": true,
+   "why": "Item 5 reports that the jittered backoff does nothing at the default `poll_interval` of 0.05. It says the window is capped at 0.05, so the delay is always exactly 0.05, and a probe showed one distinct delay across 980 samples. It also notes that `AsyncStrictSoftFileLock`'s poll loop sleeps a fixed `"
+  },
+  "f03-lifetime-warning": {
+   "passed": true,
+   "why": "The message reports it in the closing \"Minor\" note: `StrictSoftFileLock(lifetime=...)` now warns \"a native OS lock cannot be broken safely by file age\", which it calls wrong for this class. It also explains the cause: the class sets no `_lifetime_unsupported_reason`, so it inherits the native-lock t"
+  },
+  "f04-eperm-hardlink": {
+   "passed": true,
+   "why": "The message reports this: candidate 3 says that when `link()` fails with EPERM, as on vfat or exFAT, acquire raises a plain `PermissionError` and not the documented `SoftFileLockProtocolError`. It also covers the docs contradiction and the probe, so it meets the rubric.\n\nVERDICT: PASS"
+  },
+  "f05-release-blocks": {
+   "passed": true,
+   "why": "Candidate 2 reports this behavior. On a `StrictSoftFileLock(thread_local=False)` shared between threads, `release()` takes `_transition_lock` before its early return, and `acquire` holds that lock for the whole poll. In the probe, `release()` blocked for 1.82s until the other thread's 2s acquire tim"
+  },
+  "f06-bad-path-waits": {
+   "passed": false,
+   "why": "The message doesn't report that a lock path that can't be opened as a sentinel (a directory, or an unreadable file) no longer raises its `OSError`, or that the error is swallowed so the caller waits or gets `Timeout`. None of the six candidates, the minor note or the dropped leads covers it. The nea"
+  },
+  "f07-stale-docs": {
+   "passed": true,
+   "why": "Candidate 4 reports that `docs/how-to.rst` and the `636.feature.rst` changelog fragment still describe the old marker-based strict lock (\"never reclaims a marker\", `MarkerSoftFileLock.force_break`, \"protocol 2 record\"). It also says they contradict the new section in the same file, `concepts.rst`, a"
+  },
+  "f08-failed-discard-held": {
+   "passed": false,
+   "why": "The message doesn't report that a losing contender whose own claim can't be removed leaves the instance marked as holding the lock, so a later `acquire()` returns success while another process holds the lock. None of the six candidates or the minor note covers it. The closest items concern release b"
+  },
+  "f09-orphan-claim": {
+   "passed": false,
+   "why": "The message doesn't report the orphaned-claim defect. None of its six candidates, the minor note or the dropped leads says that an error while closing or finalizing a claim record after it was linked leaves an orphaned claim that nothing removes and that blocks every contender. Candidate 6 covers a "
+  },
+  "f10-dual-holders": {
+   "passed": false,
+   "why": "The message does not report a race that lets two processes both hold the strict lock. Its six candidates cover pickling, release blocking, EPERM handling, stale docs, a no-op backoff and an unhelpful error. The \"Dropped leads\" section doesn't mention a claim-scan or final-check race either.\n\nVERDICT"
+  },
+  "f11-reentry-timeout": {
+   "passed": false,
+   "why": "Item 2 is the nearest match, but it doesn't report the required behavior. It says `release()` on a shared instance can block while another thread is in `acquire(timeout=T)`, because the transition gate is held for the whole poll. The rubric asks for a different case: an `acquire()` on an instance th"
+  },
+  "f12-hostname-space": {
+   "passed": false,
+   "why": "The message never reports that a host name containing whitespace makes the lock reject its own claim record as malformed and so prevents acquisition. None of the six candidates or the minor note mentions host names, whitespace or malformed claim records.\n\nVERDICT: FAIL"
+  },
+  "f13-pickle": {
+   "passed": true,
+   "why": "Candidate 1 reports the rubric's finding. It says every lock class built with `thread_local=False` can no longer be pickled or deep-copied. At head, `pickle.dumps` and `copy.deepcopy` raise `TypeError: cannot pickle '_thread.RLock' object`, and the cause is the new `self._transition_lock = RLock()` "
+  },
+  "f14-claims-indexerror": {
+   "passed": false,
+   "why": "The message never reports that the `claims` property or `force_break` can raise `IndexError` when a release races it on a shared instance. Candidate 6 covers `lock.claims` raising `SoftFileLockProtocolError` for a damaged record, and candidate 4 mentions `force_break()` raising `TypeError`. Neither "
+  },
+  "f15-dropped-close-error": {
+   "passed": false,
+   "why": "The message never reports that a close error from unlinking the intent claim on the winning path is silently dropped. None of the six candidates, the minor note or the dropped leads covers it. Candidate 6 concerns damaged private records and error detail, which is a different issue.\n\nVERDICT: FAIL"
+  },
+  "f16-interrupt-gate": {
+   "passed": false,
+   "why": "The message does not report that a `KeyboardInterrupt` between taking the transition lock and entering the `try` leaves the gate held. None of the six candidates, the minor note or the dropped leads mention it. Candidate 2 only covers `release()` blocking on the transition lock.\n\nVERDICT: FAIL"
+  },
+  "f17-pid-placeholder": {
+   "passed": false,
+   "why": "The message doesn't report that `SoftFileLock(path).pid` now returns `1` (a placeholder) once the strict lock's sentinel exists. Item 4 only says that `pid`, `owner`, `is_lock_held_by_us` and `break_lock` are gone from the strict class. It never mentions `SoftFileLock.pid` changing from `None` to `1"
+  },
+  "ka-enotsup-import": {
+   "passed": false,
+   "why": "The message doesn't report that a module-scope `from errno import ENOTSUP` fails on runtimes like GraalPy and breaks `import filelock`. Candidate 3 mentions ENOTSUP only as an error code the code recognizes. The message doesn't say that importing the name can fail.\n\nVERDICT: FAIL"
+  },
+  "kb-private-record-oserror": {
+   "passed": false,
+   "why": "Candidate 6 reports that a directory or other non-file entry at a private-record name in `claims/` makes `acquire` raise `SoftFileLockProtocolError` with `reason='cannot list claim directory: OSError'`. It says the error comes from `_reclaim_private_record` raising a bare `OSError(msg)`. The message"
+  },
+  "kc-descriptor-leak": {
+   "passed": false,
+   "why": "The message never mentions a descriptor leak. It doesn't say that a failed claim unlink on release or discard leaves the sentinel file descriptor open. None of its six candidates or dropped leads covers this.\n\nVERDICT: FAIL"
+  },
+  "kd-symlink-swap": {
+   "passed": false,
+   "why": "The message does not report that the claims directory is reached by name, so a symlink or junction swapped in after a check could redirect claim files elsewhere. None of the six candidates or the dropped leads covers a symlink, junction or path-swap race on the claims directory. Candidate 6 only cov"
+  }
+ },
+ "find-bugs-filelock-2--fault": {
+  "f01-dir-mode": {
+   "passed": true,
+   "why": "The message reports the mkdir problem in C3. It says `directory.mkdir()` in `_ensure_protocol_directory` (`_strict.py:775`) \"uses the default 0o777 minus umask and ignores the lock's `mode`\", and that the folders it creates (`.filelock/` and `claims/`) get mode 0o755. As a result, a second account g"
+  },
+  "f02-jitter-noop": {
+   "passed": false,
+   "why": "The message never reports that the new jittered retry backoff has no effect at the default `poll_interval` (0.05, equal to the cap), and it never says the async strict lock skips the backoff. None of C1\u2013C7 or the dropped leads covers it.\n\nVERDICT: FAIL"
+  },
+  "f03-lifetime-warning": {
+   "passed": false,
+   "why": "The message never reports that `StrictSoftFileLock(..., lifetime=...)` now warns with the native-lock reason (\"a native OS lock cannot be broken safely by file age\"). None of C1\u2013C7 or the dropped leads mention a `lifetime` warning.\n\nVERDICT: FAIL"
+  },
+  "f04-eperm-hardlink": {
+   "passed": true,
+   "why": "C6 reports that on vfat or exFAT, where `link()` fails with EPERM, the head raises plain `PermissionError` and not the documented `SoftFileLockProtocolError`. It names the EPERM-to-`PermissionError` behavior and cites the docs promising `SoftFileLockProtocolError`. It says the claim was inferred fro"
+  },
+  "f05-release-blocks": {
+   "passed": false,
+   "why": "The message doesn't report that `release()` on a shared (`thread_local=False`) instance blocks while another thread waits in `acquire()` because both take the same transition lock. None of C1\u2013C7 or the dropped leads covers shared-instance threading, `thread_local=False`, or a transition lock.\n\nVERDI"
+  },
+  "f06-bad-path-waits": {
+   "passed": true,
+   "why": "C4 reports that a directory or read-only file at the lock path no longer raises its immediate `OSError` (`IsADirectoryError` or `PermissionError`). The head swallows the open error in `_open_or_create_sentinel` and the caller gets `Timeout` after 1 s, or waits forever with the default timeout. That "
+  },
+  "f07-stale-docs": {
+   "passed": false,
+   "why": "The message never says that the docs or changelog still describe the old marker-based strict lock. It does cite docs (`docs/how-to.rst`, `docs/concepts.rst`) as contracts, but only for the hard-link and `SoftFileLockProtocolError` claim in C6, which is a code-versus-docs mismatch. None of that is ab"
+  },
+  "f08-failed-discard-held": {
+   "passed": false,
+   "why": "The message doesn't report this. C1 and C2 cover orphaned claims after a failed close or lstat. C7 covers a swallowed error after a win. None of them says that a losing contender who can't remove its own claim stays marked as holding the lock, so its next `acquire()` returns success while another pr"
+  },
+  "f09-orphan-claim": {
+   "passed": true,
+   "why": "The message reports it. C1 says a close error on the directory descriptor after a successful hard link leaves orphaned claims (intent, or intent plus held claim) that nothing removes, and a fresh contender times out. C2 covers a related failure after the intent link that leaves an orphaned intent.\n\n"
+  },
+  "f10-dual-holders": {
+   "passed": false,
+   "why": "The message doesn't report that two processes can both hold the strict lock through a race in the claim scan or final check. Its candidates are cleanup leaks, permission problems, error-handling gaps and unsupported-filesystem behavior. Its \"Dropped leads\" don't mention a mutual-exclusion race eithe"
+  },
+  "f11-reentry-timeout": {
+   "passed": false,
+   "why": "The message doesn't report the specific issue. None of C1\u2013C7 says that a non-blocking or short-timeout `acquire()` on a shared instance that already holds the lock can now raise `Timeout` or wait because the new transition gate is taken before the re-entrancy check. The candidates cover cleanup afte"
+  },
+  "f12-hostname-space": {
+   "passed": false,
+   "why": "The message never reports that a host name containing whitespace makes the lock reject its own claim record as malformed. None of C1\u2013C7 or the dropped leads mention host names or whitespace in claim records.\n\nVERDICT: FAIL"
+  },
+  "f13-pickle": {
+   "passed": false,
+   "why": "The message does not report that a lock created with `thread_local=False` can no longer be pickled or deep-copied because of a new `RLock` attribute. None of the candidates C1\u2013C7 or the dropped leads mention pickling, deep-copying, `thread_local`, or `RLock`.\n\nVERDICT: FAIL"
+  },
+  "f14-claims-indexerror": {
+   "passed": false,
+   "why": "The message doesn't report that the `claims` property or `force_break` can raise `IndexError` when a release on a shared instance races it. None of C1\u2013C7 or the dropped leads mention `IndexError`, the `claims` property, or `force_break`.\n\nVERDICT: FAIL"
+  },
+  "f15-dropped-close-error": {
+   "passed": true,
+   "why": "The message reports C7: after a win, the return value of `_unlink_owner_path(intent_path)` at `src/filelock/_strict.py:165` is ignored. It says this drops the error from removing the intent, including a close failure on the directory descriptor and `KeyboardInterrupt`. That matches the rubric's sile"
+  },
+  "f16-interrupt-gate": {
+   "passed": false,
+   "why": "The message never reports that a KeyboardInterrupt between taking the transition lock and entering the `try` leaves the gate held. Its KeyboardInterrupt findings (C1, C2, C7) concern interrupts during directory-descriptor close, the post-link `lstat`, and intent removal. None concern the transition-"
+  },
+  "f17-pid-placeholder": {
+   "passed": false,
+   "why": "The message never mentions `SoftFileLock(path).pid` returning `1` as a placeholder once the strict lock's sentinel exists, where the base returned `None`. None of C1\u2013C7 or the dropped leads report a change to the `pid` behavior.\n\nVERDICT: FAIL"
+  },
+  "ka-enotsup-import": {
+   "passed": false,
+   "why": "The message doesn't report that a module-scope `from errno import ENOTSUP` fails on runtimes like GraalPy and breaks `import filelock`. C6 mentions ENOTSUP, but only as one of the codes `_raise_if_hard_links_unsupported` recognises. It says nothing about an import-time failure on a runtime that lack"
+  },
+  "kb-private-record-oserror": {
+   "passed": false,
+   "why": "The message never reports that a non-regular node (directory, symlink, FIFO or socket) at a sentinel private-record name makes the first `acquire()` raise a bare `OSError` instead of `SoftFileLockProtocolError`. The nearest item is under \"Dropped leads\". It says a non-regular node at a private-recor"
+  },
+  "kc-descriptor-leak": {
+   "passed": false,
+   "why": "The message doesn't report that a failed claim unlink on release or discard leaves the sentinel file descriptor open. Its closest items are C7, which covers an ignored intent-removal error, and the \"Release fails to remove the held claim\" dropped lead, which says release can be retried. Neither ment"
+  },
+  "kd-symlink-swap": {
+   "passed": false,
+   "why": "The message never reports that the claims directory is reached by name, so a symlink or junction swapped in after a check redirects claim files elsewhere. C1\u2013C7 are about error cleanup, permissions, and error types. The only symlink item says symlinked `.filelock`/`claims` folders are rejected by an"
+  }
+ },
+ "find-bugs-filelock-2--general": {
+  "f01-dir-mode": {
+   "passed": true,
+   "why": "The message reports C2: `_ensure_protocol_directory` uses a plain `mkdir()`, so `<path>.filelock` and `claims` get umask permissions (0755) and ignore the lock's `mode`. User B then hits PermissionError when acquiring the shared lock, which matches the rubric item.\n\nVERDICT: PASS"
+  },
+  "f02-jitter-noop": {
+   "passed": false,
+   "why": "The message doesn't report the target finding. Its only mention of backoff is the dropped lead \"Async strict has no jittered backoff\", which says `_async_poll_until_acquired` never calls `_poll_delay`. That lead is about the async strict lock having no jitter, and it is framed as a possible Windows-"
+  },
+  "f03-lifetime-warning": {
+   "passed": true,
+   "why": "The message reports it as C5: `StrictSoftFileLock(p, lifetime=5)` on head now warns \"a native OS lock cannot be broken safely by file age\", where base said \"a strict lock never reclaims a marker by age\". It attributes this to the class subclassing `BaseFileLock` without setting `_lifetime_unsupporte"
+  },
+  "f04-eperm-hardlink": {
+   "passed": false,
+   "why": "The message doesn't report that on a filesystem without hard links, where `link()` fails with `EPERM` (such as vfat or exfat), the lock raises `PermissionError` instead of `SoftFileLockProtocolError`. None of the five candidates or the dropped leads cover this. C2 does mention a `PermissionError`, b"
+  },
+  "f05-release-blocks": {
+   "passed": true,
+   "why": "C4 reports exactly the behavior the rubric requires. It says `release()` on a shared (`thread_local=False`) instance blocks while another thread waits in `acquire()`. It also names the cause: `release()` takes `_transition_lock`, which `_transition_admission` holds for the whole poll wait.\n\nVERDICT:"
+  },
+  "f06-bad-path-waits": {
+   "passed": false,
+   "why": "The message does not report that a lock path which can't be opened as a sentinel (a directory, or an unreadable file) now has its `OSError` swallowed, so the caller waits or gets `Timeout`. Its five candidates cover a stuck intent claim, directory permissions, the lease lock-out, `release()` blockin"
+  },
+  "f07-stale-docs": {
+   "passed": true,
+   "why": "The message reports in C3 that `docs/how-to.rst` and `docs/changelog/636.feature.rst` still describe the old marker-based strict lock (it \"never reclaims a marker\", points to `MarkerSoftFileLock.force_break`, and describes legacy evicting the protocol 2 marker). It says this contradicts the new beha"
+  },
+  "f08-failed-discard-held": {
+   "passed": true,
+   "why": "C1 reports this: a losing contender whose own claim can't be removed is left with `is_locked` True. Its retry `acquire()` then takes the reentrant path and returns success while another instance holds the lock. That is the rubric's behavior.\n\nVERDICT: PASS"
+  },
+  "f09-orphan-claim": {
+   "passed": false,
+   "why": "The message doesn't report the rubric's issue. C1 is the closest: it covers a failed removal of the instance's own intent claim, which leaves a stale claim and a false \"locked\" state. But that is a failure to unlink an intent claim during back-off. The rubric asks for an error while closing or final"
+  },
+  "f10-dual-holders": {
+   "passed": false,
+   "why": "The message doesn't report that two processes can both hold the strict lock through a race in the claim scan or final check with no fault injected. C1 is an overlap, but it needs an injected unlink failure and goes through the reentrant retry path, not a scan or final-check race. The \"Dropped leads\""
+  },
+  "f11-reentry-timeout": {
+   "passed": false,
+   "why": "The message never reports that a non-blocking or short-timeout `acquire()` on an already-held shared instance can now raise `Timeout` or wait. C1 covers a retry `acquire()` that succeeds through the reentrant path, and C4 covers `release()` blocking on the gate. The last dropped lead is about a non-"
+  },
+  "f12-hostname-space": {
+   "passed": false,
+   "why": "The message does not report that a host name containing whitespace makes the lock reject its own claim record as malformed. None of the five candidates (C1\u2013C5) or the dropped leads covers it. The closest items concern claim cleanup, permissions, and the sentinel, and none involves host-name parsing."
+  },
+  "f13-pickle": {
+   "passed": false,
+   "why": "The message doesn't report that a lock created with `thread_local=False` can no longer be pickled or deep-copied because of the new `RLock` attribute. `thread_local=False` appears only in C4's trigger, and that item is about `release()` blocking. Nothing in the five candidates or the dropped leads m"
+  },
+  "f14-claims-indexerror": {
+   "passed": false,
+   "why": "The message never mentions that the `claims` property or `force_break` can raise `IndexError` when a release on a shared instance races it. Its closest items are C4 (release blocking on `_transition_lock`) and the dropped lead about unreadable claims. Neither names an `IndexError` or that race.\n\nVER"
+  },
+  "f15-dropped-close-error": {
+   "passed": false,
+   "why": "The message doesn't report that a close error from unlinking the intent claim on the winning path is silently dropped. C1 covers a failed unlink of the intent claim, but only on the backoff path, and it describes that as an error that leaves state behind, not a swallowed close error. The \"Dropped le"
+  },
+  "f16-interrupt-gate": {
+   "passed": false,
+   "why": "The message does not report that a `KeyboardInterrupt` between taking the transition lock and entering the `try` leaves the gate held. None of the five candidates or the dropped leads mention this. C4 touches the transition lock, but only as `release()` blocking, not as a leaked gate.\n\nVERDICT: FAIL"
+  },
+  "f17-pid-placeholder": {
+   "passed": false,
+   "why": "The message never reports that `SoftFileLock(path).pid` now returns `1` (a placeholder) once the strict sentinel exists, where base returned `None`. The nearest items are the sentinel parsing as pid 1 on a non-matching host (in a dropped lead) and the removal of the public `pid` API. Neither says th"
+  },
+  "ka-enotsup-import": {
+   "passed": false,
+   "why": "The message doesn't report that importing `ENOTSUP` from `errno` at module scope fails on a runtime whose `errno` lacks that name, such as GraalPy, or that this breaks `import filelock`. None of the five candidates or the dropped leads mention `ENOTSUP` or the `errno` import.\n\nVERDICT: FAIL"
+  },
+  "kb-private-record-oserror": {
+   "passed": false,
+   "why": "The message never reports that a non-regular node (directory, symlink, FIFO or socket) at a sentinel private-record name makes the first `acquire()` raise a bare `OSError` instead of `SoftFileLockProtocolError`. None of its five candidates or its dropped leads mention this.\n\nVERDICT: FAIL"
+  },
+  "kc-descriptor-leak": {
+   "passed": false,
+   "why": "The message never reports that a failed claim unlink on release or discard leaves the sentinel file descriptor open. C1 covers a failed unlink of the intent claim in `_discard_doorway`, but it describes that as a stuck claim and a reentrant retry. It says nothing about a leaked descriptor. The dropp"
+  },
+  "kd-symlink-swap": {
+   "passed": false,
+   "why": "The message never reports that the claims directory is reached by name, so a symlink or junction swapped in after a check could redirect claim files elsewhere. C2 covers the directory's permissions and C3 covers the sentinel. The dropped leads don't mention symlink or junction swapping either.\n\nVERD"
+  }
+ },
+ "find-bugs-filelock-2--inputs": {
+  "f01-dir-mode": {
+   "passed": true,
+   "why": "The message reports that the lock's coordination directories (`.filelock` and `claims`) are created by `directory.mkdir()` with no mode, so `mode` reaches only the record files. It also shows that a second OS user gets a PermissionError on a shared lock (candidate 1).\n\nVERDICT: PASS"
+  },
+  "f02-jitter-noop": {
+   "passed": true,
+   "why": "Candidate 6 reports that the jitter does nothing at the default `poll_interval` of 0.05, which equals the cap (`_poll_backoff_cap = 0.05`). It shows only one distinct delay over 199 attempts. It also notes that the async poll loop never calls `_poll_delay`, so the async path doesn't use the backoff."
+  },
+  "f03-lifetime-warning": {
+   "passed": true,
+   "why": "The message reports that `StrictSoftFileLock(..., lifetime=5)` on head warns \"a native OS lock cannot be broken safely by file age\". It explains that the class no longer sets `_lifetime_unsupported_reason`, so it inherits the native-lock reason, which misdescribes a soft lock. This appears under \"Mi"
+  },
+  "f04-eperm-hardlink": {
+   "passed": false,
+   "why": "The message doesn't report this. Its \"Dropped leads\" section only mentions that no hard-link support raises `SoftFileLockProtocolError` as documented intent. It never says that `link()` failing with `EPERM` on vfat or exfat makes the lock raise `PermissionError` instead of the documented `SoftFileLo"
+  },
+  "f05-release-blocks": {
+   "passed": true,
+   "why": "Candidate 3 reports that `release()` on a `thread_local=False` strict lock blocks while another thread waits in `acquire()`. The message gives the cause: `release` takes `_transition_lock` before the `not self.is_locked` early return, and `acquire` holds that same lock for its whole poll loop. It al"
+  },
+  "f06-bad-path-waits": {
+   "passed": true,
+   "why": "Candidate 2 reports that a lock path that is an existing directory used to raise `IsADirectoryError` on base. On head it now gets `Timeout` after 1.01s, or waits forever with `timeout=-1`, because the open error is turned into `None` and read as contention. It also says the same path hides permissio"
+  },
+  "f07-stale-docs": {
+   "passed": false,
+   "why": "The message never says that docs or a changelog still describe the old marker-based strict lock and contradict the new text. Candidate 4 says \"Nothing in the docs mentions the new limit,\" and the dropped leads mention a changelog fragment, but neither one reports a docs-versus-new-behavior contradic"
+  },
+  "f08-failed-discard-held": {
+   "passed": false,
+   "why": "The message never reports that a losing contender that fails to remove its own claim leaves the instance marked as holding the lock, so that its next `acquire()` returns success while another process holds the lock. None of the six candidates or the minor item describes this, and the dropped leads d"
+  },
+  "f09-orphan-claim": {
+   "passed": false,
+   "why": "The message doesn't report the specific defect. The rubric needs an error while closing or finalizing a claim record, after it was linked, that leaves an orphaned claim that nothing removes and that blocks every contender. None of the six candidates, the minor note or the dropped leads describes tha"
+  },
+  "f10-dual-holders": {
+   "passed": false,
+   "why": "The message lists six candidates, but none reports that two processes can both hold the strict lock through a race in the claim scan or final check. It also doesn't report this as a minor observation or a question. The \"Two contenders both entering the doorway\" lead is listed under dropped leads. It"
+  },
+  "f11-reentry-timeout": {
+   "passed": false,
+   "why": "The message never reports that a non-blocking or short-timeout `acquire()` on a shared instance that already holds the lock can now raise `Timeout` or wait because the new transition gate is taken before the re-entrancy check. Candidate 3 is the nearest, but it covers `release()` blocking on an unlo"
+  },
+  "f12-hostname-space": {
+   "passed": true,
+   "why": "The message reports candidate 5: a hostname containing whitespace (such as \"my host\" or \"tab\\there\") makes `_parse_claim` reject the claim record that `_claim_record` wrote. That raises `SoftFileLockProtocolError ... malformed claim record` on every acquire, so the lock is permanently unusable on su"
+  },
+  "f13-pickle": {
+   "passed": false,
+   "why": "The message never reports that a `thread_local=False` lock can no longer be pickled or deep-copied because of a new `RLock` attribute. None of the six candidates, the minor note or the dropped leads mentions pickling, deep-copying or an `RLock` attribute.\n\nVERDICT: FAIL"
+  },
+  "f14-claims-indexerror": {
+   "passed": false,
+   "why": "The message never mentions that `claims` or `force_break` can raise `IndexError` when a release races it on a shared instance. The closest items are the `release()` blocking candidate and the `force_break()` claim_name note, and neither describes an IndexError.\n\nVERDICT: FAIL"
+  },
+  "f15-dropped-close-error": {
+   "passed": false,
+   "why": "The message never mentions a dropped or ignored close error when unlinking the intent claim on the winning path. None of the six candidates, the minor note or the dropped leads covers it.\n\nVERDICT: FAIL"
+  },
+  "f16-interrupt-gate": {
+   "passed": false,
+   "why": "The message doesn't report that a `KeyboardInterrupt` between taking the transition lock and entering the `try` leaves the gate held. Candidate 3 covers `release()` blocking on the transition lock, and no candidate covers an interrupt in that window.\n\nVERDICT: FAIL"
+  },
+  "f17-pid-placeholder": {
+   "passed": false,
+   "why": "The message never reports that `SoftFileLock(path).pid` returns `1` (a placeholder) once the strict lock's sentinel exists, where base returned `None`. None of the six candidates, the minor note or the dropped leads mention `pid`.\n\nVERDICT: FAIL"
+  },
+  "ka-enotsup-import": {
+   "passed": false,
+   "why": "The message never mentions that importing `ENOTSUP` from `errno` at module scope fails on a runtime like GraalPy, which breaks `import filelock`. None of the six candidates, the minor item or the dropped leads covers it.\n\nVERDICT: FAIL"
+  },
+  "kb-private-record-oserror": {
+   "passed": false,
+   "why": "The message never reports that a non-regular node (directory, symlink, FIFO or socket) at the sentinel private-record name makes the first `acquire()` raise a bare `OSError` instead of `SoftFileLockProtocolError`. Candidate 2 comes closest, but it covers a directory at the lock path, which gives `Ti"
+  },
+  "kc-descriptor-leak": {
+   "passed": false,
+   "why": "The message doesn't report that a failed claim unlink on release or discard leaves the sentinel file descriptor open. None of the six candidates, the minor item or the dropped leads mentions a descriptor leak of any kind.\n\nVERDICT: FAIL"
+  },
+  "kd-symlink-swap": {
+   "passed": false,
+   "why": "The message never reports that the claims directory is reached by name, so a swapped symlink or junction could redirect claim files elsewhere. Candidate 1 mentions the `claims/` directory only as a permissions problem. The \"Dropped leads\" don't cover symlink or junction swapping, and the Windows and"
+  }
+ },
+ "find-bugs-filelock-2--state": {
+  "f01-dir-mode": {
+   "passed": false,
+   "why": "The message doesn't report that the strict lock's coordination directories (`<path>.filelock` and its `claims` folder) are created with a plain `mkdir()` that ignores the lock's `mode`. It reports two concurrency problems instead: spurious `Timeout`s on non-blocking re-entry, and `release()` blockin"
+  },
+  "f02-jitter-noop": {
+   "passed": false,
+   "why": "The message doesn't report that the jittered backoff has no effect at the default `poll_interval` (0.05, equal to the cap). It also doesn't report that the async strict lock never uses the backoff. The candidates and dropped leads cover gate contention and `release()` blocking. The one backoff-relat"
+  },
+  "f03-lifetime-warning": {
+   "passed": false,
+   "why": "The message doesn't report that `StrictSoftFileLock(..., lifetime=...)` warns with the native-lock reason. Its two candidates are spurious `Timeout`s on non-blocking re-entry and `release()` blocking on the gate. The dropped leads don't mention a `lifetime` warning either.\n\nVERDICT: FAIL"
+  },
+  "f04-eperm-hardlink": {
+   "passed": false,
+   "why": "The message doesn't report that the lock raises `PermissionError` instead of `SoftFileLockProtocolError` when `link()` fails with `EPERM` on a filesystem without hard links, such as vfat or exfat. Both of its candidates are about thread-gate behavior, and none of its dropped leads covers this case.\n"
+  },
+  "f05-release-blocks": {
+   "passed": true,
+   "why": "Candidate 2 reports that `release()` on an unheld shared (`thread_local=False`) strict instance now blocks while another thread waits in `acquire()`. It says `release()` takes `_transition_lock`, the same gate `acquire()` holds during its wait. The base version returned immediately and the head vers"
+  },
+  "f06-bad-path-waits": {
+   "passed": false,
+   "why": "The message doesn't report that a lock path which can't be opened as a sentinel (a directory, or an unreadable file) now has its `OSError` swallowed, so the caller waits or gets `Timeout`. Its two candidates are spurious `Timeout`s on re-entry and `release()` blocking on the gate. Its dropped leads "
+  },
+  "f07-stale-docs": {
+   "passed": false,
+   "why": "The message doesn't mention that the docs or changelog still describe the old marker-based strict lock. Its two candidates are about re-entry timeouts and `release()` blocking, and none of its dropped leads cover a docs or changelog contradiction.\n\nVERDICT: FAIL"
+  },
+  "f08-failed-discard-held": {
+   "passed": false,
+   "why": "The message doesn't report the defect. It lists two candidates: spurious `Timeout`s on non-blocking re-entry, and `release()` blocking on the gate. It also lists dropped leads. None of these says that a losing contender who can't remove its own claim leaves the instance marked as holding the lock, s"
+  },
+  "f09-orphan-claim": {
+   "passed": false,
+   "why": "The message doesn't report the required defect. Its two findings are about the transition gate: spurious `Timeout`s on non-blocking re-entry, and `release()` blocking on an unheld lock. Its dropped leads don't cover an error while closing or finalizing a claim record after linking that leaves an orp"
+  },
+  "f10-dual-holders": {
+   "passed": false,
+   "why": "The message doesn't report that two processes can both hold the strict lock through a race in the claim scan or final check. It reports two other problems: spurious `Timeout`s on non-blocking re-entry, and `release()` blocking on an unheld shared instance. Its dropped leads don't mention a double-ho"
+  },
+  "f11-reentry-timeout": {
+   "passed": true,
+   "why": "Candidate 1 reports what the rubric asks for. A shared `StrictSoftFileLock` that is already held now raises spurious `Timeout`s on `acquire(blocking=False)` re-entry, and blocking re-entry sleeps a full `poll_interval`. The cause is the transition gate being taken before the re-entrancy check (base "
+  },
+  "f12-hostname-space": {
+   "passed": false,
+   "why": "The message doesn't mention a host name containing whitespace or a claim record rejected as malformed. Its two reported defects are spurious `Timeout`s on non-blocking re-entry and `release()` blocking on an unheld lock. None of its dropped leads cover the whitespace issue either.\n\nVERDICT: FAIL"
+  },
+  "f13-pickle": {
+   "passed": false,
+   "why": "The message doesn't report that a `thread_local=False` lock can no longer be pickled or deep-copied because of a new `RLock` attribute. Its two candidates are spurious `Timeout`s on non-blocking re-entry and `release()` blocking on the gate. Neither is about pickling or copying, and none of the drop"
+  },
+  "f14-claims-indexerror": {
+   "passed": false,
+   "why": "The message never mentions `IndexError` or any race between `claims`/`force_break` and a release. Its two reported candidates are spurious `Timeout`s on non-blocking re-entry and `release()` blocking on the gate. The only nearby item, the dropped lead about `claims` or `force_break` reading `owner_c"
+  },
+  "f15-dropped-close-error": {
+   "passed": false,
+   "why": "The message never mentions a dropped close error when unlinking the intent claim on the winning path. Its two candidates are about gate contention and `release()` blocking, and none of its dropped leads cover a swallowed close error.\n\nVERDICT: FAIL"
+  },
+  "f16-interrupt-gate": {
+   "passed": false,
+   "why": "The message doesn't report that a `KeyboardInterrupt` between taking the transition lock and entering the `try` leaves the gate held. Its two candidates cover spurious `Timeout`s on non-blocking re-entry and `release()` blocking on an unheld instance. No dropped lead mentions an asynchronous interru"
+  },
+  "f17-pid-placeholder": {
+   "passed": false,
+   "why": "The message doesn't report that `SoftFileLock(path).pid` now returns `1` as a placeholder once the strict lock's sentinel exists. Its two candidates are about non-blocking re-entry timeouts and `release()` blocking. Nothing in the dropped leads mentions `pid` either.\n\nVERDICT: FAIL"
+  },
+  "ka-enotsup-import": {
+   "passed": false,
+   "why": "The message doesn't mention an `ENOTSUP` import from `errno` or any failure on runtimes like GraalPy. Its two candidates are about reentrancy and `release()` blocking, and the dropped leads don't cover it either.\n\nVERDICT: FAIL"
+  },
+  "kb-private-record-oserror": {
+   "passed": false,
+   "why": "The message never mentions a non-regular node (directory, symlink, FIFO or socket) at a sentinel private-record name, or a bare `OSError` from the first `acquire()`. Its two candidates are about gate contention and `release()` blocking, and none of its dropped leads cover this case.\n\nVERDICT: FAIL"
+  },
+  "kc-descriptor-leak": {
+   "passed": false,
+   "why": "The message doesn't report a descriptor leak from a failed claim unlink on release or discard. Its two candidates are spurious `Timeout`s on non-blocking re-entry and `release()` blocking on an unheld lock. None of its dropped leads mention a sentinel file descriptor left open.\n\nVERDICT: FAIL"
+  },
+  "kd-symlink-swap": {
+   "passed": false,
+   "why": "The message doesn't report this. Its two candidates are spurious `Timeout`s on non-blocking re-entry and `release()` blocking on the gate. The dropped leads don't cover it either. None of the sections say that the claims directory is reached by name, so a symlink or junction swapped in after a check"
+  }
+ }
+}

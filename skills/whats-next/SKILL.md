@@ -55,6 +55,7 @@ context window: a new session in the host, or its clear command.
 | A rework map with unanswered questions for the user | `untangle` on the same map, with the answers | A new session; the map holds the earlier answers |
 | An understanding note, and no plan | `plan-change`, with the note path | The same session |
 | A change with consequences beyond its own function, and no note or plan | `explain` for one concrete question about today's behavior, or `plan-change` when the flow is already known | Start the planning session here |
+| A change to existing code about to be written, and the question where it belongs or whether to refactor first | `fit-change`, with the request | The current session, before the code is written |
 | Existing code that has become hard to follow or change, and no change in hand | `untangle`, with the component and what hurts | A new session, kept open through its checkpoints |
 | A contained change in familiar code | No skill: the host's normal coding workflow, with `find-bugs` when a defect search would help | The current session |
 | Investigation work ahead, and no local tool record | `setup-tools`, naming the skills to run | Any |

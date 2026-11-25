@@ -8,8 +8,10 @@ suppressed check. Each is a line to account for, not a defect: many are correct.
 are left out, and a comment gives a lead only for a compatibility path or a suppressed check.
 A parameter that one caller sets, and a clamp, have no pattern: reading finds those. Patterns
 cover common Python, JavaScript, TypeScript, Java, Kotlin, Go, Ruby, Rust, and C# idioms and
-find leads, not every case. Run from the repository root, or pass --repo. Exit 2 for invalid
-inputs or failed Git operations. No files are written.
+find leads, not every case. With --base, only the lines a change adds are listed: from that
+commit to --head, or to the working tree with its untracked files when --head is not given.
+Run from the repository root, or pass --repo. Exit 2 for invalid inputs or failed Git
+operations. No files are written.
 """
 import argparse
 from collections import Counter, defaultdict
@@ -91,32 +93,71 @@ def leads(lines):
     return found
 
 
+HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
+
+
+def added_lines(diff):
+    """Path -> the line numbers a unified diff with no context adds."""
+    added, path = defaultdict(set), None
+    for line in diff.splitlines():
+        if line.startswith("+++ "):
+            path = None if line == "+++ /dev/null" else line[4:].removeprefix("b/")
+            continue
+        match = HUNK.match(line)
+        if match and path:
+            start, count = int(match.group(1)), int(match.group(2) or 1)
+            added[path].update(range(start, start + count))
+    return added
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("paths", nargs="*", help="limit to these paths; default is the whole repository")
     parser.add_argument("--repo", default=".")
     parser.add_argument("--tests", action="store_true", help="include test files, which are left out by default")
     parser.add_argument("--summary", action="store_true", help="print only the counts per kind and per file")
+    parser.add_argument("--base", help="list only the lines added since this commit")
+    parser.add_argument("--head", help="with --base: the commit that holds the change; default is the working tree")
     args = parser.parse_args()
+    if args.head and not args.base:
+        parser.error("--head needs --base")
+    added = None
     try:
         files = git(args.repo, "ls-files", "--", *args.paths).splitlines()
+        if args.base:
+            revisions = [args.base, args.head] if args.head else [args.base]
+            added = added_lines(git(args.repo, "diff", "-U0", "--no-color", "--no-ext-diff", *revisions, "--", *args.paths))
+            if args.head:
+                files = git(args.repo, "ls-tree", "-r", "--name-only", args.head, "--", *args.paths).splitlines()
+            else:  # a file Git does not track yet is added as a whole
+                files += git(args.repo, "ls-files", "--others", "--exclude-standard", "--", *args.paths).splitlines()
     except ValueError as error:
         print(f"special_cases: {error}", file=sys.stderr)
         return 2
+    # A file the base does not hold is new: every line of it is added.
+    tracked_at_base = set(git(args.repo, "ls-tree", "-r", "--name-only", args.base).splitlines()) if args.base else set()
     by_kind, by_file, rows = Counter(), defaultdict(Counter), []
     for path in files:
         if PurePosixPath(path).suffix not in SOURCE or (not args.tests and TEST_FILE.search(path)):
             continue
+        if added is not None and path in tracked_at_base and path not in added:
+            continue
         try:
-            with open(os.path.join(args.repo, path), encoding="utf-8", errors="replace") as handle:
-                lines = handle.read().splitlines()
-        except OSError:
+            if args.head:
+                lines = git(args.repo, "show", f"{args.head}:{path}").splitlines()
+            else:
+                with open(os.path.join(args.repo, path), encoding="utf-8", errors="replace") as handle:
+                    lines = handle.read().splitlines()
+        except (OSError, ValueError):
             continue
         for number, kind, text in leads(lines):
+            if added is not None and path in tracked_at_base and number not in added[path]:
+                continue
             by_kind[kind] += 1
             by_file[path][kind] += 1
             rows.append((kind, path, number, text))
-    print(f"Leads to special cases: {sum(by_kind.values())} lines in {len(by_file)} files. Each is a line to account for, not a defect.\n")
+    scope = f" on lines added since {args.base}" if args.base else ""
+    print(f"Leads to special cases{scope}: {sum(by_kind.values())} lines in {len(by_file)} files. Each is a line to account for, not a defect.\n")
     for kind in ORDER:
         print(f"{by_kind[kind]}\t{kind}")
     print("\nPer file (most leads first):\n")

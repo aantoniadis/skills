@@ -227,6 +227,23 @@ class SpecialCasesTests(Repository):
         self.assertIn("tests/test_load.py", self.run_script("special_cases", "--tests"))
         self.assertNotIn("## broad error handler", self.run_script("special_cases", "--summary"))
 
+    def test_with_a_base_only_added_lines_are_listed_in_a_commit_or_the_working_tree(self):
+        self.commit({"app/load.py": "def load(x):\n    try:\n        return read(x)\n    except Exception:\n        return None\n"})
+        base = self.git("rev-parse", "HEAD")
+        self.commit({"app/load.py": "def load(x, opts):\n    limit = opts.get('limit') or []\n    try:\n        return read(x)\n"
+                                    "    except Exception:\n        return None\n",
+                     "app/new.py": "import time\ntime.sleep(1)\n"})
+        out = self.run_script("special_cases", "--base", base, "--head", "HEAD")
+        self.assertIn(f"on lines added since {base}: 2 lines in 2 files", out)
+        self.assertIn("app/load.py:2\tlimit = opts.get('limit') or []", out)
+        self.assertIn("app/new.py:2\ttime.sleep(1)", out)
+        self.assertNotIn("except Exception", out, "the handler was there before the change")
+        self.write({"app/untracked.py": "value = a or {}\n", "app/load.py": "def load(x, opts):\n    return opts.get('k', DEFAULT)\n"})
+        out = self.run_script("special_cases", "--base", "HEAD")
+        self.assertIn("app/untracked.py:1\tvalue = a or {}", out)
+        self.assertIn("app/load.py:2\treturn opts.get('k', DEFAULT)", out)
+        self.assertNotIn("time.sleep", out)
+
 
 class TestsForLineTests(unittest.TestCase):
     def data(self, directory, contexts=True):

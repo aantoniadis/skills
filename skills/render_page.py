@@ -87,7 +87,7 @@ def raise_all(problems):
         raise Failures(problems)
 
 
-NOTE_KINDS = ("understanding-note", "plan", "diagnosis-note", "pr-review-guide", "acceptance-report")
+NOTE_KINDS = ("understanding-note", "plan", "diagnosis-note", "pr-review-guide", "acceptance-report", "rework-map")
 
 
 def check_front_matter(front, review=False, kind=None):
@@ -242,6 +242,19 @@ VERIFICATION_COLUMNS = ("Check or scenario", "Result", "Evidence origin", "Revis
 FULFILLMENT = ("Met", "Partial", "Unmet", "Not verified", "Needs clarification", "Not applicable")
 CHECK_RESULTS = ("Passed", "Failed", "Mixed", "Not run", "Blocked")
 CHECK_ORIGINS = ("Executed here", "Recorded run", "Source inspected", "Proposed")
+# A rework map (untangle): the stated design against the code, the special cases, and the findings.
+DESIGN_COLUMNS = ("Relationship", "Result", "Evidence", "What the user said")
+DESIGN_RESULTS = ("as stated", "not stated", "not found")
+SPECIAL_CASE_COLUMNS = ("Special case", "Kind", "Reach", "Why it exists", "Points to")
+REACH_STATUSES = ("reached", "not reached", "unknown")
+FINDING_COLUMNS = ("Finding", "Kind", "Where", "Cost today", "Removed by")
+FINDING_KINDS = ("scattered rule", "misplaced logic", "needless link", "surplus", "unjustified special case")
+# columns -> (section label, index of the status cell, its values); the cell starts with its status.
+MAP_TABLES = {
+    DESIGN_COLUMNS: ("Stated design and the code", 1, DESIGN_RESULTS),
+    SPECIAL_CASE_COLUMNS: ("Special cases", 2, REACH_STATUSES),
+    FINDING_COLUMNS: ("Findings", 1, FINDING_KINDS),
+}
 STATUS_TABLES = {
     REQUIREMENT_COLUMNS: ("requirements", FULFILLMENT),
     VERIFICATION_COLUMNS: ("verification", CHECK_RESULTS),
@@ -256,6 +269,9 @@ TABLE_LABELS = {
     DECISION_COLUMNS: ("decisions",),
     CONTRACT_COLUMNS: ("contract",),
     QUESTION_COLUMNS: ("questions",),
+    DESIGN_COLUMNS: ("design-results",),
+    SPECIAL_CASE_COLUMNS: ("special-case-reach",),
+    FINDING_COLUMNS: ("structure-findings",),
 }
 
 
@@ -1829,6 +1845,30 @@ def check_learning_plan(source):
     raise_all(problems)
 
 
+def check_rework_map(source):
+    """A rework map's status cells use the shared words: a relationship's result, a special case's reach,
+    and a finding's kind. Checks the declared rows, not whether the map found everything."""
+    document = parse(MARKDOWN.render(source))
+    problems = []
+    for table in document.find_all("table"):
+        columns = tuple(th.get_text(" ", strip=True) for th in table.select("thead th"))
+        if columns not in MAP_TABLES:
+            continue
+        label, index, values = MAP_TABLES[columns]
+        if not table.select("tbody tr"):
+            problems.append(f"{label}: add rows or remove the unused table.")
+        for row in table.select("tbody tr"):
+            cells = row.find_all("td")
+            if len(cells) != len(columns) or any(cell.get_text(strip=True) in ("", "-", "—", "TODO", "TBD") for cell in cells):
+                problems.append(f"{label}: fill every table cell; state unknowns and their limits explicitly.")
+                continue
+            status = cells[index].get_text(" ", strip=True).lower()
+            # The longest value first: "not reached" must not read as "reached".
+            if not any(re.match(rf"{re.escape(value)}\b", status) for value in sorted(values, key=len, reverse=True)):
+                problems.append(f"{label}: start the {columns[index]} cell with one of: {', '.join(values)}.")
+    raise_all(problems)
+
+
 def check_review_tables(source, html):
     """Keep structured comparisons, decisions, fulfillment, and results faithful to Markdown."""
     def owner_of(element):
@@ -1943,7 +1983,7 @@ def markdown_problems(source, note):
     """The checks a Markdown note passes with or without its page."""
     problems = []
     for check_one, *args in ((check_prompts, source), (check_claims, source), (check_names, source), (check_attention, source),
-                             (check_opening, source), (check_learning_plan, source), (check_verification, source), (check_diagrams, source, note)):
+                             (check_opening, source), (check_learning_plan, source), (check_rework_map, source), (check_verification, source), (check_diagrams, source, note)):
         keep(problems, check_one, *args)
     keep(problems, check_bug_cards, source, note, required=False)
     return problems

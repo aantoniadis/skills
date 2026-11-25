@@ -1,10 +1,10 @@
 # skills
 
 Skills for coding agents, shipped as the **`aantoniadis-skills`** plugin for
-Claude Code, Codex, and OpenCode. Eight skills cover the work around a change:
+Claude Code, Codex, and OpenCode. Nine skills cover the work around a change:
 set a project up for evidence, understand the code, plan the behavior, fix a
 reported bug, find the defects, review the PR, check delivered work
-against its requirements, and name the next step. Matt Pocock's and HumanLayer's originals, installed
+against its requirements, untangle code that has degraded, and name the next step. Matt Pocock's and HumanLayer's originals, installed
 separately, carry a plan through spec, tickets, implementation, and the PR.
 
 ```bash
@@ -104,6 +104,7 @@ workflow, unchanged.
 | [`pr-review-guide`](skills/pr-review-guide/SKILL.md) | You have to review a PR you did not write | A guide to a pinned snapshot: what the change means, where to look, what to skim, what to ask the author | [docs/pr-review-guide.md](docs/pr-review-guide.md) |
 | [`whats-next`](skills/whats-next/SKILL.md) | You are not sure which skill to run next, or whether to start a new session | The next step, its command for your host, and the session to run it in, from the checkout and the notes already written | [docs/whats-next.md](docs/whats-next.md) |
 | [`check-acceptance`](skills/check-acceptance/SKILL.md) | You need to know whether a set of issues, an epic, tickets, or a spec is delivered | Per-requirement status at a pinned revision with evidence, delivered behavior nobody asked for, and a search for bugs when selected | [docs/check-acceptance.md](docs/check-acceptance.md) |
+| [`untangle`](skills/untangle/SKILL.md) | Existing code has become hard to follow or change, or you no longer trust that you know how a component is built | A map of the component as it is, checked against its documented design, with the scattered rules, unexplained guards and fallbacks, your questions answered in it, and a rework you choose | [docs/untangle.md](docs/untangle.md) |
 
 The skills start from context and settled choices, and ask only about open
 preferences or consequential decisions. Every claim sits next to its evidence:
@@ -117,7 +118,8 @@ and `to-tickets`, Matt's `implement` builds an unblocked ticket and
 `fix-bug` takes a reported symptom to a fixed, recorded cause, `find-bugs` runs before
 HumanLayer's `visual-pr` opens the PR, `pr-review-guide` serves the PR's
 human reviewer, and `check-acceptance` checks the built result against the
-requirements across a set of issues. `whats-next` names the next step and
+requirements across a set of issues. `untangle` maps a component that has
+degraded and hands the chosen rework to `plan-change`. `whats-next` names the next step and
 its session when you are not sure. An original you run keeps its own
 behavior, such as committing or pushing, including after one of our handoffs;
 `grilling`, which `plan-change` invokes, works within that skill's scope.

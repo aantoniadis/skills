@@ -29,6 +29,8 @@ to you, on evidence, before the code is written.
 4. **Decide.** A change that does not fit becomes a choice for you,
    recommendation first: reshape first, with behavior-preserving steps and
    the test that pins each, or patch, with what the next change will cost.
+   Where the existing sites disagree, which result is right is asked as its
+   own question, and until you answer every site keeps its present result.
 5. **Settle failure behavior:** what the request says a consumer sees on each
    failure, or a question for you. Until it is answered, the error propagates.
 6. **Write the placement** into the plan or ticket, or as `placement.md`:

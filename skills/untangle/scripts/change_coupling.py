@@ -2,9 +2,10 @@
 """List the files that change most, and the pairs of files that change in the same commits.
 
 Leads, not findings: a pair that changes together with no dependency between its files often
-holds one rule in two places, and a file that changes often is where a rework pays back. Squash
-merges, bulk commits, renames, and a short history all distort the counts, so read both files
-of a pair before recording anything. Run from the repository root, or pass --repo. Exit 2 for
+holds one rule in two places, and a file that changes often is where a rework pays back. With
+paths given, the pairs still include partners outside them, marked as such: the other half of
+a rule often lives outside the component. Squash merges, bulk commits, renames, and a short
+history all distort the counts, so read both files of a pair before recording anything. Run from the repository root, or pass --repo. Exit 2 for
 invalid inputs or failed Git operations. No files are written.
 """
 import argparse
@@ -16,6 +17,8 @@ import re
 import subprocess
 import sys
 
+TEST_FILE = re.compile(r"(^|/)(tests?|__tests__|spec|testdata|fixtures)/|(^|/)test_[^/]+$|[._-](test|spec)\.\w+$|Tests?\.\w+$")
+DOCUMENT = re.compile(r"\.(md|mdx|rst|txt|adoc)$", re.I)
 NOISE = re.compile(r"(^|/)(node_modules|vendor|dist|build|target|\.venv|__pycache__)/|\.lock$|(^|/)package-lock\.json$"
                    r"|(^|/)(pnpm-lock|yarn)\.\w+$|\.min\.(js|css)$|\.(png|jpe?g|gif|svg|ico|pdf|woff2?|snap)$")
 
@@ -43,18 +46,32 @@ def commits(log):
         yield current
 
 
-def analyze(changes, keep, max_files=30):
+def analyze(changes, keep, max_files=30, scoped=lambda path: True):
     """Change counts per file and shared-commit counts per pair, over the files `keep` accepts.
-    A commit that touches more than max_files kept files is a bulk change: it counts for no pair."""
+    A pair counts when at least one of its files is in scope. A bulk change counts for no pair:
+    more than max_files files in scope for a pair inside it, more than max_files files in all
+    for a pair with a partner outside."""
     revisions, shared, bulk = Counter(), Counter(), 0
     for files in changes:
         files = sorted({path for path in files if keep(path)})
+        inside = [path for path in files if scoped(path)]
+        if not inside:
+            continue
         revisions.update(files)
-        if len(files) > max_files:
+        if len(inside) > max_files:
             bulk += 1
             continue
-        shared.update(combinations(files, 2))
+        shared.update(combinations(inside, 2))
+        if len(files) <= max_files:
+            shared.update(tuple(sorted((a, b))) for a in inside for b in files if not scoped(b))
     return revisions, shared, bulk
+
+
+def kind(a, b):
+    """What a pair is made of, so the reader can discount the expected ones: a test changes with its code."""
+    if TEST_FILE.search(a) or TEST_FILE.search(b):
+        return "test"
+    return "document" if DOCUMENT.search(a) or DOCUMENT.search(b) else "code"
 
 
 def pairs(revisions, shared, min_shared=3):
@@ -90,35 +107,43 @@ def main():
     try:
         exclude = [re.compile(pattern) for pattern in args.exclude]
         shallow = git(args.repo, "rev-parse", "--is-shallow-repository").strip() == "true"
-        tracked = set(git(args.repo, "ls-files", "--", *args.paths).splitlines())
-        log = git(args.repo, "log", f"--since={args.since}", "--no-merges", "--format=@%H", "--name-only", "--", *args.paths)
+        tracked = set(git(args.repo, "ls-files").splitlines())
+        in_scope = set(git(args.repo, "ls-files", "--", *args.paths).splitlines()) if args.paths else tracked
+        log = git(args.repo, "log", f"--since={args.since}", "--no-merges", "--format=@%H", "--name-only")
         edges = read_edges(args.edges) if args.edges else None
     except (ValueError, OSError, re.error) as error:
         print(f"change_coupling: {error}", file=sys.stderr)
         return 2
     # A file that no longer exists cannot be reworked; its history stays out of the tables.
     keep = lambda path: path in tracked and not NOISE.search(path) and not any(p.search(path) for p in exclude)
-    changes = list(commits(log))
-    revisions, shared, bulk = analyze(changes, keep, args.max_files)
-    print(f"History: {len(changes)} commits since {args.since}; {bulk} bulk commits (more than {args.max_files} files) count for no pair.")
+    revisions, shared, bulk = analyze(commits(log), keep, args.max_files, scoped=in_scope.__contains__)
+    touched = sum(1 for files in commits(log) if any(path in in_scope and keep(path) for path in files))
+    print(f"History: {touched} commits since {args.since} changed the scope; {bulk} bulk commits (more than {args.max_files} files in scope) count for no pair.")
     if shallow:
         print("WARNING: this clone is shallow, so the counts cover only the fetched commits. "
               "Deepen it (git fetch --depth=<n>) or state the limit beside every count.")
-    if not revisions:
+    inside = [(path, count) for path, count in revisions.most_common() if path in in_scope]
+    if not inside:
         print("No changed files in this window and scope.")
         return 0
-    print(f"\nMost changed files (top {args.top}):\n\nchanges\tfile")
-    for path, count in revisions.most_common(args.top):
+    print(f"\nMost changed files in scope (top {args.top}):\n\nchanges\tfile")
+    for path, count in inside[:args.top]:
         print(f"{count}\t{path}")
     rows = pairs(revisions, shared, args.min_shared)
-    print(f"\nFiles that change together ({len(rows)} pairs with at least {args.min_shared} shared commits; top {args.top}):\n")
-    print("shared\tdegree\tdirectories\tdependency\tpair")
+    print(f"\nFiles that change together ({len(rows)} pairs with at least {args.min_shared} shared commits; top {args.top}).")
+    print("degree: the share of the pair's changes that touched both files. kind: test and document pairs are often expected.")
+    print("dependency: whether --edges holds an edge between the two; 'none found' with kind 'code' is the lead to one rule in two places.\n")
+    print("shared\tdegree\tkind\tdirectories\tscope\tdependency\tpair")
     for count, degree, a, b in rows[:args.top]:
         across = "different" if PurePosixPath(a).parent != PurePosixPath(b).parent else "same"
+        scope = "inside" if a in in_scope and b in in_scope else "one outside"
         linked = "not given" if edges is None else ("yes" if frozenset((a, b)) in edges else "none found")
-        print(f"{count}\t{degree}%\t{across}\t{linked}\t{a}  <->  {b}")
+        print(f"{count}\t{degree}%\t{kind(a, b)}\t{across}\t{scope}\t{linked}\t{a}  <->  {b}")
     return 0
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except BrokenPipeError:  # the reader, such as `head`, closed the pipe
+        sys.exit(0)

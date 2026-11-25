@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
 """List the lines that handle one situation apart from the main path: leads to special cases.
 
-A special case is code that exists for one situation: a broad or swallowed error handler, a
-default used when a value is missing, an early return on a missing value, a retry or a sleep,
-a compatibility path, a suppressed check. Each is a line to account for, not a defect: many
-are correct. Patterns cover common Python, JavaScript, TypeScript, Java, Kotlin, Go, Ruby,
-Rust, and C# idioms and find leads, not every case; reading the code finds the rest. Run
-from the repository root, or pass --repo. Exit 2 for invalid inputs or failed Git operations.
-No files are written.
+A special case is code that exists for one situation: a broad error handler, an error turned
+into a value or dropped, a default used when a value is missing, an early return on a missing
+value, a retry or a sleep, a branch on a status code or version, a compatibility path, a
+suppressed check. Each is a line to account for, not a defect: many are correct. Docstrings
+are left out, and a comment gives a lead only for a compatibility path or a suppressed check.
+A parameter that one caller sets, and a clamp, have no pattern: reading finds those. Patterns
+cover common Python, JavaScript, TypeScript, Java, Kotlin, Go, Ruby, Rust, and C# idioms and
+find leads, not every case. Run from the repository root, or pass --repo. Exit 2 for invalid
+inputs or failed Git operations. No files are written.
 """
 import argparse
 from collections import Counter, defaultdict
@@ -18,24 +20,36 @@ import subprocess
 import sys
 
 SOURCE = {".py", ".js", ".jsx", ".ts", ".tsx", ".mjs", ".cjs", ".java", ".kt", ".go", ".rb", ".rs", ".cs", ".php", ".swift", ".scala"}
+TEST_FILE = re.compile(r"(^|/)(tests?|__tests__|spec|testdata|fixtures)/|(^|/)test_[^/]+$|[._-](test|spec)\.\w+$|Tests?\.\w+$")
+TRIPLE = ('"' * 3, "'" * 3)
+COMMENT = re.compile(r"^\s*(?:#|//|\*|/\*|--)")
 HANDLER = re.compile(r"^\s*(?:\}\s*)?(?:except\b|catch\b|rescue\b)")
-BROAD = re.compile(r"^\s*(?:\}\s*)?(?:except\s*:|except\s+\(?\s*(?:Base)?Exception\b|catch\s*\{|catch\s*\(\s*(?:final\s+)?(?:Exception|Throwable|RuntimeException|Error|e|err|error|ex|_)\b[^)]*\)"
+BROAD = re.compile(r"^\s*(?:\}\s*)?(?:except\s*:|except\s+\(?\s*(?:Base)?Exception\b|catch\s*\{"
+                   r"|catch\s*\(\s*(?:final\s+)?(?:Exception|Throwable|RuntimeException|Error|e|err|error|ex|_)\b[^)]*\)"
                    r"|rescue\s*(?:$|=>|StandardError|Exception))|\brecover\(\)|\.catch\(\s*\(\s*\)\s*=>")
-# The first statement of a handler that drops the failure: nothing, a constant, or a log line alone.
-DROPS = re.compile(r"^\s*(?:pass\b|continue\b|\}\s*$|return\s*(?:None|null|nil|undefined|false|False|true|True|\[\]|\{\}|\"\"|''|0|Optional\.empty\(\))?\s*;?\s*$"
-                   r"|(?:log(?:ger)?|console|LOG|log)\.\w+\(.*\)\s*;?\s*$|print\w*\(.*\)\s*;?\s*$)")
+# The first statement of a handler that turns the failure into a value or drops it: nothing, a return, or a log line alone.
+DROPS = re.compile(r"^\s*(?:pass\b|continue\b|\}\s*$|return\b|(?:log(?:ger)?|console|LOG)\.\w+\(.*\)\s*;?\s*$|print\w*\(.*\)\s*;?\s*$)")
+MISSING = re.compile(r"^\s*(?:\}\s*)?(?:if|elif|else if)\b.*(?:\bis None\b|==\s*None\b|===?\s*(?:null|undefined)\b|==\s*nil\b"
+                     r"|\bnot\s+\w[\w.]*\s*:|\(\s*!\w[\w.]*\s*\))")
+LEAVES = re.compile(r"(?:return|continue)\b")
+EMPTY = r"(?:\[\]|\{\}|''|\"\"|0\b|null\b|undefined\b|false\b|False\b|None\b)"
 PATTERNS = {
-    "default when missing": re.compile(r"\?\?(?!=)|\|\|\s*(?:\[\]|\{\}|''|\"\"|0\b|null\b|undefined\b|false\b)|\bor\s+(?:\[\]|\{\}|None\b|''|\"\"|0\b)"
-                                       r"|\.get\(\s*[^(),]+,\s*[^)]+\)|\bgetattr\([^()]*,[^()]*,|\bgetOrDefault\(|\borElse(?:Get)?\(|\bunwrap_or(?:_default|_else)?\("
-                                       r"|\.fetch\([^()]*,[^()]*\)|\bOptional\.ofNullable\("),
-    "early return on missing": re.compile(r"^\s*if\s*\(?.*(?:\bis None\b|==\s*None\b|===?\s*(?:null|undefined)\b|==\s*nil\b|\bnot\s+\w[\w.]*\s*:|!\w[\w.]*\s*\))"
-                                          r".*(?::\s*(?:return|continue)\b|\)\s*(?:return|continue)\b|\{\s*(?:return|continue)\b)"),
-    "retry or sleep": re.compile(r"\b(?:retry|retries|retrying|backoff|max_attempts|maxAttempts)\b|\b(?:time\.)?sleep\(|\bThread\.sleep\(|\bsetTimeout\(", re.I),
-    "compatibility path": re.compile(r"\b(?:legacy|backwards?[- ]?compat\w*|compat(?:ibility)?\b|deprecated|fallback|fall back|workaround|shim|for now|temporar\w+|hack)\b", re.I),
-    "suppressed check": re.compile(r"@ts-ignore|@ts-expect-error|eslint-disable|biome-ignore|#\s*noqa|#\s*type:\s*ignore|pylint:\s*disable|rubocop:disable"
-                                   r"|//\s*nolint|@SuppressWarnings|#\s*pragma:\s*no cover|#\[allow\("),
+    "default to an empty value": re.compile(rf"\?\?(?!=)\s*{EMPTY}|\|\|\s*{EMPTY}|\bor\s+{EMPTY}|\.get\(\s*[^(),]+,\s*{EMPTY}\s*\)"
+                                            r"|\bunwrap_or_default\(|\bOptional\.ofNullable\("),
+    "default to a named value": re.compile(rf"\?\?(?!=)\s*(?!{EMPTY})[\w\"']|\|\|\s*(?!{EMPTY})[A-Za-z_][\w.]*\s*[;,)]"
+                                           rf"|=.*\bor\s+(?!{EMPTY})(?:self\.|this\.)?\w+(?:\.\w+)*\s*$|\.get\(\s*[^(),]+,\s*(?!{EMPTY})[^)]+\)"
+                                           r"|\bgetattr\([^()]*,[^()]*,|\bgetOrDefault\(|\borElse(?:Get)?\(|\bunwrap_or(?:_else)?\(|\.fetch\([^()]*,[^()]*\)"),
+    "retry or sleep": re.compile(r"\b(?:time\.)?sleep\(|\bThread\.sleep\(|\bsetTimeout\(|@retry\b|\bretry\("
+                                 r"|\b(?:max_?(?:retries|attempts)|retries|attempts|backoff)\w*\s*(?:=|:|<|>)", re.I),
+    "branch on a status code or version": re.compile(r"\bstatus(?:_?code)?\s*(?:===?|!==?|>=|<=|>|<|\bin\b)\s*\(?\s*[1-5]\d\d\b"
+                                                     r"|version\w*[\"')\]]*\s*(?:===?|!==?|>=|<=|>|<)\s*[\"']?\d", re.I),
+    "compatibility path": re.compile(r"\b(?:legacy|backwards?[- ]?compat\w*|compat(?:ibility)?\b|deprecated|fallback|fall back|workaround|shim"
+                                     r"|for now|temporar\w+|hack)\b", re.I),
+    "suppressed check": re.compile(r"@ts-ignore|@ts-expect-error|eslint-disable|biome-ignore|#\s*noqa|#\s*type:\s*ignore|pylint:\s*disable"
+                                   r"|rubocop:disable|//\s*nolint|@SuppressWarnings|#\s*pragma:\s*no cover|#\[allow\("),
 }
-ORDER = ("broad error handler", "swallowed error", *PATTERNS)
+IN_COMMENTS_TOO = {"compatibility path", "suppressed check"}  # elsewhere a word in a comment is not the construct
+ORDER = ("broad error handler", "error turned into a value or dropped", "early return on missing", *PATTERNS)
 
 
 def git(repo, *args):
@@ -48,20 +62,31 @@ def git(repo, *args):
 
 
 def leads(lines):
-    """(line number, kind, text) for each lead in one file's lines."""
-    found = []
+    """(line number, kind, text) for each lead in one file's lines. Text inside a triple-quoted
+    string is documentation or a prompt, not code, and gives no lead."""
+    found, quoted = [], None
     for index, line in enumerate(lines):
         number, text = index + 1, line.strip()
-        if not text:
+        marks = [mark for mark in TRIPLE if line.count(mark) % 2]
+        if quoted:
+            quoted = None if quoted in marks else quoted
             continue
-        if HANDLER.match(line) or BROAD.search(line):
-            if BROAD.search(line):
-                found.append((number, "broad error handler", text))
-            body = next((other for other in lines[index + 1:index + 4] if other.strip()), "")
-            if HANDLER.match(line) and DROPS.match(body):
-                found.append((number, "swallowed error", f"{text}  ->  {body.strip()}"))
+        if marks:
+            quoted = marks[0]
+            continue
+        if not text or any(line.count(mark) for mark in TRIPLE):  # a one-line docstring
+            continue
+        following = next((other for other in lines[index + 1:index + 4] if other.strip()), "")
+        if BROAD.search(line):
+            found.append((number, "broad error handler", text))
+        if HANDLER.match(line) and DROPS.match(following):
+            found.append((number, "error turned into a value or dropped", f"{text}  ->  {following.strip()}"))
+        condition = MISSING.match(line)
+        if condition and (LEAVES.search(line[condition.end():]) or LEAVES.match(following.strip().lstrip("{ "))):
+            found.append((number, "early return on missing", text))
+        comment = bool(COMMENT.match(line))
         for kind, pattern in PATTERNS.items():
-            if pattern.search(line):
+            if (not comment or kind in IN_COMMENTS_TOO) and pattern.search(line):
                 found.append((number, kind, text))
     return found
 
@@ -78,10 +103,9 @@ def main():
     except ValueError as error:
         print(f"special_cases: {error}", file=sys.stderr)
         return 2
-    test_file = re.compile(r"(^|/)(tests?|__tests__|spec|testdata|fixtures)/|(^|/)test_[^/]+$|[._-](test|spec)\.\w+$|Tests?\.\w+$")
     by_kind, by_file, rows = Counter(), defaultdict(Counter), []
     for path in files:
-        if PurePosixPath(path).suffix not in SOURCE or (not args.tests and test_file.search(path)):
+        if PurePosixPath(path).suffix not in SOURCE or (not args.tests and TEST_FILE.search(path)):
             continue
         try:
             with open(os.path.join(args.repo, path), encoding="utf-8", errors="replace") as handle:
@@ -110,4 +134,7 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except BrokenPipeError:  # the reader, such as `head`, closed the pipe
+        sys.exit(0)

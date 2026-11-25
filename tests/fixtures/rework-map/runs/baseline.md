@@ -12,3 +12,5 @@ Fictional record for the rework-map fixture.
 - `runs/probe_loyalty.py`: a gold customer with a 40.00 basket through `POST /checkout` and through `POST /quotes`.
   Checkout total `36.00`; quote total `38.00`.
 - Removal probe: `apply_legacy_rounding` deleted in a scratch worktree; 42 passed.
+- Break: quote rate for gold changed from 5% to 50% in `shop/quotes/builder.py`; 42 passed.
+- Break: checkout rate for gold changed in `shop/pricing/discounts.py`; 3 failed, 39 passed.

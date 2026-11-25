@@ -242,9 +242,11 @@ VERIFICATION_COLUMNS = ("Check or scenario", "Result", "Evidence origin", "Revis
 FULFILLMENT = ("Met", "Partial", "Unmet", "Not verified", "Needs clarification", "Not applicable")
 CHECK_RESULTS = ("Passed", "Failed", "Mixed", "Not run", "Blocked")
 CHECK_ORIGINS = ("Executed here", "Recorded run", "Source inspected", "Proposed")
-# A rework map (untangle): the stated design against the code, the special cases, and the findings.
+# A rework map (untangle): the stated dependencies and rules against the code, the special cases, and the findings.
 DESIGN_COLUMNS = ("Relationship", "Result", "Evidence", "What the user said")
 DESIGN_RESULTS = ("as stated", "not stated", "not found")
+RULE_COLUMNS = ("Stated rule", "Result", "Evidence", "What the user said")
+RULE_RESULTS = ("holds", "broken", "not checked")
 SPECIAL_CASE_COLUMNS = ("Special case", "Kind", "Reach", "Why it exists", "Points to")
 REACH_STATUSES = ("reached", "not reached", "unknown")
 FINDING_COLUMNS = ("Finding", "Kind", "Where", "Cost today", "Removed by")
@@ -252,6 +254,7 @@ FINDING_KINDS = ("scattered rule", "misplaced logic", "needless link", "surplus"
 # columns -> (section label, index of the status cell, its values); the cell starts with its status.
 MAP_TABLES = {
     DESIGN_COLUMNS: ("Stated design and the code", 1, DESIGN_RESULTS),
+    RULE_COLUMNS: ("Stated rules", 1, RULE_RESULTS),
     SPECIAL_CASE_COLUMNS: ("Special cases", 2, REACH_STATUSES),
     FINDING_COLUMNS: ("Findings", 1, FINDING_KINDS),
 }
@@ -270,6 +273,7 @@ TABLE_LABELS = {
     CONTRACT_COLUMNS: ("contract",),
     QUESTION_COLUMNS: ("questions",),
     DESIGN_COLUMNS: ("design-results",),
+    RULE_COLUMNS: ("rule-results",),
     SPECIAL_CASE_COLUMNS: ("special-case-reach",),
     FINDING_COLUMNS: ("structure-findings",),
 }
@@ -1846,8 +1850,8 @@ def check_learning_plan(source):
 
 
 def check_rework_map(source):
-    """A rework map's status cells use the shared words: a relationship's result, a special case's reach,
-    and a finding's kind. Checks the declared rows, not whether the map found everything."""
+    """A rework map's status cells use the shared words: a relationship's or a stated rule's result,
+    a special case's reach, and a finding's kind. Checks the declared rows, not whether the map found everything."""
     document = parse(MARKDOWN.render(source))
     problems = []
     for table in document.find_all("table"):

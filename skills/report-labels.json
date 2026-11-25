@@ -147,11 +147,19 @@
     }
   },
   "design-results": {
-    "title": "Stated design against the code",
+    "title": "Stated dependencies against the code",
     "options": {
       "as stated": "The design allows the relationship and the extracted dependencies show it. The result is as complete as the dependency source named beside it.",
       "not stated": "The code has the relationship and the stated design does not allow it. It is drift or an intended relationship the design never recorded; the user's answer says which.",
       "not found": "The design names the relationship and no extracted dependency shows it. The dependency may run through something the source of the edges cannot see."
+    }
+  },
+  "rule-results": {
+    "title": "Stated rules against the code",
+    "options": {
+      "holds": "The search or run named beside the rule found nothing that breaks it. It holds as far as that check reaches.",
+      "broken": "A pinned line or a run shows the code doing what the stated rule excludes. It is drift, or the rule is out of date; the user's answer says which.",
+      "not checked": "The rule was recorded and not compared with the code."
     }
   },
   "special-case-reach": {

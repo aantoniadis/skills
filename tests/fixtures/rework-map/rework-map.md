@@ -5,20 +5,26 @@ kind: rework-map
 
 **What it does:** Pricing turns a basket into a total for checkout and for quotes: it applies the loyalty discount, applies a coupon, and rounds to the currency (observed in the [baseline run](runs/baseline.md)).
 
-**What differs from the stated design:** 2 of 4 stated relationships differ. The API layer decides the loyalty discount itself, and checkout and quotes give different totals for the same basket (observed, [probe](runs/probe_loyalty.py)).
+**What differs from the stated design:** 2 of 4 stated dependencies differ and 1 of 2 stated rules is broken: the API layer decides the loyalty discount itself (source, pinned below; observed in the [probe](runs/probe_loyalty.py)).
 
-**Recommended rework:** *Pricing owns discounts*: one function decides the loyalty discount, and both entry points call it. It is proposed because the discount files changed 14 times in the fetched history.
+**Recommended rework:** *Pricing owns discounts*: one function decides the loyalty discount, and both entry points call it. It is proposed because the rate changed 4 times in the fetched history and its three sites already disagree.
 
 **Scope:** `shop/pricing/` and the serializers and views that call it; tax is excluded. **Inspected source:** commit `ddddddd` of the fictional `acme/shop`, no local changes. **What ran:** `python -m pytest tests/pricing -q`, 42 passed ([baseline run](runs/baseline.md)).
 
 > **Fictional example.** This note demonstrates the rework-map template. Its shop, files, and runs are invented.
+
+## Behavior to decide
+
+| What happens | Evidence | Handoff |
+| --- | --- | --- |
+| A gold customer pays 36.00 at checkout and is quoted 38.00 for the same 40.00 basket. | [discounts.py:12](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/discounts.py#L12), [builder.py:27](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L27); we ran both ([probe](runs/probe_loyalty.py)) | fix-bug, once the user says which rate is right |
 
 ## Questions for the user
 
 | Question | Why it matters | Default until answered | Answer |
 | --- | --- | --- | --- |
 | Which loyalty discount is right for gold customers, 10% or 5%? | The two sites disagree; the rework keeps one. | Keep both as they are; the rework is blocked on this rule. | "10%. The quote path was never updated." (2 June) |
-| Is `apply_legacy_rounding` still needed for any currency? | It decides whether the function is removed. | It stays. | not answered |
+| Is `apply_legacy_rounding` still needed for any currency? | It decides whether the function is removed. | It stays. | open |
 
 ## Capabilities
 
@@ -37,6 +43,12 @@ A gold or silver customer gets a percentage off the subtotal at checkout and in 
 
 The three sites disagree. For a gold customer with a 40.00 basket, checkout charges 36.00 and a quote shows 38.00; we ran both ([probe](runs/probe_loyalty.py)).
 
+## Behavior no test protects
+
+- The quote rate for gold customers: with [builder.py:27](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L27) changed from 5% to 50% in a scratch worktree, all 42 tests stayed green; we ran it ([baseline run](runs/baseline.md)).
+
+The break of the checkout rate at `discounts.py:12` turned 3 tests red, so that behavior is pinned ([baseline run](runs/baseline.md)).
+
 ## Stated design and the code
 
 The design is stated in the project's architecture page: "The API layer only translates requests; every price is decided in `pricing`" ([architecture.md](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/docs/architecture.md#L18)).
@@ -48,6 +60,11 @@ The design is stated in the project's architecture page: "The API layer only tra
 | `api` to `storage` | not stated | [serializers.py:9](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L9) imports the tier table | drift |
 | `pricing` to `storage` | as stated | `import_edges.py`; [discounts.py:3](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/discounts.py#L3) | intended |
 
+| Stated rule | Result | Evidence | What the user said |
+| --- | --- | --- | --- |
+| "The API layer only translates requests; every price is decided in `pricing`" ([architecture.md](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/docs/architecture.md#L18)) | broken | [serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44) computes the discount; [builder.py:27](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L27) does too | drift |
+| "Totals are rounded to the currency once, in `pricing`" ([architecture.md](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/docs/architecture.md#L21)) | holds | search for `quantize` and `round(` in `shop/`: one site, [rounding.py:3](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/rounding.py#L3) | intended |
+
 ## State and its writers
 
 | State | Written by | Read by | Evidence |
@@ -56,7 +73,7 @@ The design is stated in the project's architecture page: "The API layer only tra
 
 ## Main flows
 
-Checkout and quotes reach the discount by different paths, observed in the [probe](runs/probe_loyalty.py):
+Checkout and quotes reach the discount by different paths (source; the [probe](runs/probe_loyalty.py) executed both paths end to end):
 
 ```mermaid
 flowchart LR
@@ -88,7 +105,7 @@ Source map:
 
 | Finding | Kind | Where | Cost today | Removed by |
 | --- | --- | --- | --- | --- |
-| [Loyalty discount decided in three places](#loyalty-discount-decided-in-three-places) | scattered rule | [discounts.py:12](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/discounts.py#L12), [serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44), [builder.py:27](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L27) | 14 changes to these files, 3 sites per change, from `change_coupling.py` | [Pricing owns discounts](#pricing-owns-discounts) |
+| [Loyalty discount decided in three places](#loyalty-discount-decided-in-three-places) | scattered rule | [discounts.py:12](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/discounts.py#L12), [serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44), [builder.py:27](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L27) | 3 sites per change; the rate changed 4 times, from `git log -S` on the rate constants | [Pricing owns discounts](#pricing-owns-discounts) |
 | [Legacy rounding has no caller](#legacy-rounding-has-no-caller) | unjustified special case | [rounding.py:8](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/rounding.py#L8) | no action: the file changed once | kept until the user answers |
 
 ### Loyalty discount decided in three places
@@ -121,15 +138,17 @@ def discount_for(customer, subtotal):
 
 **Guarantees at the boundary:** proposed: none new; the guest default stays where it is.
 
-**Failure behavior:** proposed: unchanged for checkout. The quote total for gold customers changes from 5% to 10% off, which is a behavior change the user decided.
+**Failure behavior:** proposed: unchanged. No fallback is in scope.
 
 **Cost and risk:** proposed: 3 files, 2 call sites, 1 pin to write for quotes.
 
-**Measure:** decision sites for the loyalty rate go from 3 to 1, and `quotes` to `pricing` becomes *as stated* (proposed).
+**Measure:** decision sites for the loyalty rate go from 3 to 2 with these steps, and to 1 once the quote rate is decided; the broken rule then holds (proposed).
 
 ### Leave it as it is
 
-Each rate change keeps touching three files, 14 changes in the fetched history, and the two totals stay different until someone notices again (inferred from the history and the probe).
+Each rate change keeps touching three files, 4 times in the fetched history, and the two totals stay different until someone notices again (inferred from the history and the probe). Still worth doing under this choice: the pin for the quote rate.
+
+A shared rate table that the three sites read is the smaller alternative (proposed). It removes the disagreement and leaves three places that apply the rate, so it is not recommended.
 
 ## Rework steps
 
@@ -137,7 +156,7 @@ Each rate change keeps touching three files, 14 changes in the fetched history, 
 2. Gather, proposed, structural: make `serializers.py` call `loyalty_discount` in place of its own condition; 1 call site; proof is the pins green and the same checkout total, 36.00.
 3. Lock in, proposed, structural: add `quotes` to `pricing` to the stated design file and run `design_conformance.py` in the project's checks.
 
-Decision for the user, not a rework step: moving `builder.py` to `loyalty_discount` changes the quote total from 38.00 to 36.00. The user agreed; it goes to plan-change as a behavior change.
+Waiting for a decision, not a rework step: moving `builder.py` to `loyalty_discount` changes the quote total from 38.00 to 36.00. It is listed under [behavior to decide](#behavior-to-decide) and proposed for fix-bug.
 
 ## Limits and open questions
 
@@ -151,13 +170,21 @@ The baseline, the probe outputs, and the script commands are in the [baseline ru
 
 These labels describe separate judgments. Read each against its stated scope and evidence; no label alone establishes overall readiness or approval.
 
-### Key: Stated design against the code
+### Key: Stated dependencies against the code
 
 | Option | Meaning |
 | --- | --- |
 | as stated | The design allows the relationship and the extracted dependencies show it. The result is as complete as the dependency source named beside it. |
 | not stated | The code has the relationship and the stated design does not allow it. It is drift or an intended relationship the design never recorded; the user's answer says which. |
 | not found | The design names the relationship and no extracted dependency shows it. The dependency may run through something the source of the edges cannot see. |
+
+### Key: Stated rules against the code
+
+| Option | Meaning |
+| --- | --- |
+| holds | The search or run named beside the rule found nothing that breaks it. It holds as far as that check reaches. |
+| broken | A pinned line or a run shows the code doing what the stated rule excludes. It is drift, or the rule is out of date; the user's answer says which. |
+| not checked | The rule was recorded and not compared with the code. |
 
 ### Key: Special-case reach
 

@@ -1,7 +1,8 @@
 # Special cases
 
-Read when classifying a guard, default, swallowed error, retry, compatibility
-path, or single-caller parameter, and before proposing to remove one. Two
+Read when classifying a guard, default, error turned into a value, retry,
+compatibility path, or single-caller parameter, and before proposing to remove
+one. Two
 facts decide each case: whether anything reaches it, and why it exists. An
 unexplained special case is evidence about the design before it is a line to
 delete.
@@ -9,17 +10,21 @@ delete.
 ## Which ones to account for
 
 Start from the list [`special_cases.py`](../scripts/special_cases.py) prints,
-and add what reading finds:
+and add what reading finds: the script has no pattern for a clamp, for a
+parameter one caller sets, or for a retry written without the word.
 
 ```bash
-python3 <package>/skills/untangle/scripts/special_cases.py <scope>
+python3 <package>/skills/untangle/scripts/special_cases.py --summary <scope>   # counts per kind and file
+python3 <package>/skills/untangle/scripts/special_cases.py <scope>             # every line
 ```
 
-Give a row in the map to every broad error handler, swallowed error, retry or
-sleep, and compatibility path in scope: they are few and they hide failures.
-Give a row to every default and every early return on a missing value that
-sits on a decision site of the census. Count the remaining defaults and early
-returns per file, and label them *not inspected* one by one.
+Give a row in the map to every broad error handler, retry or sleep, and
+compatibility path in scope, and to every error turned into a value, default,
+early return, and status or version branch that sits on a decision site of
+the census: those decide what a consumer sees. Count the rest per kind and
+file, and label them *not inspected* one by one. In code whose job is to
+translate errors, such as a client for another service, most handlers are the
+main path; say so once and classify the ones that differ from the pattern.
 
 ## Reach
 
@@ -34,13 +39,8 @@ in a known way:
 | Production signal | A log line, metric, or error report from the branch, when the project has one. | Anything outside the retained window. |
 | History | `git blame -w -C` on the line, then `git log -S'<its text>'`: the commit, ticket, or incident that added it. | Whether the reason still holds. |
 
-Run a removal probe in a disposable worktree, and remove it afterwards:
-
-```bash
-wt="$(mktemp -d)/probe" && git worktree add --detach "$wt" HEAD
-# delete the case in "$wt", then run the baseline command there and keep its output under runs/
-git worktree remove --force "$wt"
-```
+Run a removal probe as [a deliberate break](census.md#a-deliberate-break): in
+a disposable worktree, delete the case and run the baseline.
 
 Record each case with one reach status:
 

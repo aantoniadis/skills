@@ -114,4 +114,7 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except BrokenPipeError:  # the reader, such as `head`, closed the pipe
+        sys.exit(0)

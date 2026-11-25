@@ -331,8 +331,9 @@ it. Name what hurts when you know:
 /aantoniadis-skills:untangle The pricing component. Agents have changed it for months; the same discount rule seems to live in several places. Map it and propose a rework.
 ```
 
-The skill runs the code, reads its tests and history, and compares what it
-finds with the design your documentation states. It stops at three
+The skill runs the code, reads its tests and history, breaks decisions on
+purpose in a scratch copy to see whether any test notices, and compares what
+it finds with the design your documentation states. It stops at three
 checkpoints: the capability list and stated design, the differences it found,
 and the choice between rework targets. It asks you only what a person knows:
 why something exists, whether a behavior is intended, and which design you

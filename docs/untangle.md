@@ -14,42 +14,53 @@ behavior nobody documented, guards and fallbacks nobody can explain.
 1. **Scope and baseline.** A kickoff round asks the choices the prompt leaves
    open: the component or flow, the map alone or with a rework proposal, HTML
    or text, and checkpoints or a guided walk through the code together. The
-   skill runs the scope's tests once and keeps the result: every later probe
-   is compared with it. When the code cannot run, the map says so, claims only
-   what the source shows, and proposes no removal.
+   skill runs the scope's tests once as they are and once with coverage
+   recorded per test: every later probe is compared with that baseline. When
+   the code cannot run, the map says so, claims only what the source shows,
+   and proposes no removal.
 2. **Stated design.** Before reading internals, it lists what the component
    does for its consumers, in your domain words, and the design your
-   documentation, decision records, and layout state. **Checkpoint:** you
-   correct both, and say which flows matter and which oddities are deliberate.
+   documentation, decision records, and layout state: the dependencies they
+   allow, and the rules they quote, such as "the API layer decides nothing
+   about money". **Checkpoint:** you correct these, and say which flows matter
+   and which oddities are deliberate.
 3. **Census.** For each capability it lists every place that decides something
-   about it, from four kinds of evidence: text search, references, execution,
-   and history. Where they disagree is the finding: code a run executes that
-   no search for the capability's words found is a hidden part of it; files
-   that change together with no dependency between them often hold one rule
-   twice. It also lists the scope's special cases: guards, defaults, swallowed
-   errors, retries, compatibility paths.
+   about it, from five kinds of evidence: text search, references, execution,
+   history, and a deliberate break. Where they disagree is the lead: code a
+   run executes that no search for the capability's words found is a hidden
+   part of it; files that change together with no dependency between them
+   often hold one rule twice; a decision broken on purpose while every test
+   stays green is behavior no test protects. It also lists the scope's
+   special cases: guards, defaults, errors turned into values, retries,
+   compatibility paths.
 4. **Map and comparison.** Dependencies come from a resolver or from
-   `import_edges.py`, and `design_conformance.py` marks each relationship *as
-   stated*, *not stated*, or *not found*. The map lists who writes each piece
-   of state and draws the main flows as the runs showed them.
+   `import_edges.py`, and `design_conformance.py` marks each one *as stated*,
+   *not stated*, or *not found*. Each stated rule is marked *holds*, *broken*,
+   or *not checked*. The map lists who writes each piece of state and draws
+   the main flows from the source, marking the steps a run executed.
    **Checkpoint:** you see the differences first, and say for each whether it
    is intended or drift.
-5. **Findings.** Each problem gets one of five names: scattered rule,
-   misplaced logic, needless link, surplus, unjustified special case. A
-   special case is classified by whether anything reaches it and by what it
-   points to: a missing requirement, a producer emitting a state it should
-   not, an implicit boundary, or a real outcome. Findings are ranked by what
-   they cost at the present rate of change. What looked wrong and is fine is
-   recorded, so the next run does not raise it again.
+5. **Findings.** What may be wrong or unwanted in what the component does, a
+   possible defect or two sites that disagree, goes near the top of the map
+   as behavior to decide, with its run and its handoff. Each structure
+   problem gets one of five names: scattered rule, misplaced logic, needless
+   link, surplus, unjustified special case. A special case is classified by
+   whether anything reaches it and by what it points to: a missing
+   requirement, a producer emitting a state it should not, an implicit
+   boundary, or a real outcome. What looked wrong and is fine is recorded, so
+   the next run does not raise it again.
 6. **Rework.** Findings are grouped under the change that removes them. The
-   map offers two or three targets, one of which leaves the code as it is,
-   and recommends one. **Checkpoint:** you choose. The chosen target gets
-   ordered steps: pin the behavior with a test seen to fail, subtract, gather
-   each rule at its owner, reshape, then lock the design in with a check. A
-   behavior change found on the way is a separate decision.
-7. **Record and handoff.** The map passes `render_page.py --check`. The skill
-   hands over the `plan-change` command with the map path and the chosen
-   target, or the step text for one contained step.
+   map describes one recommended target in full and each alternative in a few
+   sentences; one alternative always leaves the structure as it is. When the
+   findings do not justify a restructuring, the recommendation is to leave it,
+   and the proposal is the tests to write and the check that keeps the stated
+   design true. **Checkpoint:** you choose. The chosen target gets ordered
+   steps: pin the behavior with a test seen to fail, subtract, gather each
+   rule at its owner, reshape, then lock the design in with a check.
+7. **Record and handoff.** The map passes `render_page.py --check`, and every
+   pinned line is printed beside its source and read against the map. The
+   skill hands over the `plan-change` command with the map path and the
+   chosen target, or the step text for one contained step.
 
 Prompt shape:
 
@@ -65,11 +76,12 @@ intended, which flows matter, and which design you want. Each answer is
 written into the map beside the claim it settles, so a later session reads it
 there.
 
-In an unattended run nobody answers. Every question about intent then takes
-its conservative default (the behavior is intended, the special case stays,
-the stated design stands), marked as a default, and the questions wait for you
-in the map's question table. Answer them in a follow-up and the skill updates
-the findings, targets, and steps they change.
+In an unattended run nobody answers, so the skill holds no checkpoint and
+delivers once. A difference between the code and the stated design is then
+marked *open*, neither drift nor intended; every special case stays; and the
+rework steps include only moves that hold under either answer. The questions
+wait for you in the map's question table. Answer them in a follow-up and the
+skill updates the findings, targets, and steps they change.
 
 ## What a removal needs
 
@@ -82,14 +94,16 @@ stays unless an adversarial probe that fails without it has been written.
 
 ## The scripts
 
-All four print leads to read, not findings, and write no files.
+The first four print leads to read, not findings. None writes a file.
 
 | Script | Prints |
 | --- | --- |
-| `change_coupling.py` | The most changed files, and the pairs of files that change in the same commits, marked when no dependency links them. It warns on a shallow clone. |
+| `change_coupling.py` | The most changed files in scope, and the pairs of files that change in the same commits, including partners outside the scope, marked when no dependency links them. It warns on a shallow clone. |
 | `import_edges.py` | Static import edges between tracked files in Python, JavaScript, TypeScript, and Java, as `from<TAB>to`. A floor: use the ecosystem's own resolver when there is one. |
-| `design_conformance.py` | Each relationship of a stated design, given as JSON, against those edges: *as stated*, *not stated*, or *not found*. |
-| `special_cases.py` | Lines that handle one situation apart from the main path: broad or swallowed error handlers, defaults for missing values, early returns, retries, compatibility paths, suppressed checks. |
+| `design_conformance.py` | Each dependency of a stated design, given as JSON, against those edges: *as stated*, *not stated*, or *not found*. |
+| `special_cases.py` | Lines that handle one situation apart from the main path: broad error handlers, errors turned into values, defaults for missing values, early returns, retries, status and version branches, compatibility paths, suppressed checks. |
+| `tests_for_line.py` | The tests that execute a source line, from coverage.py data recorded per test. |
+| `pinned_lines.py` | The source text behind every pinned line of a note, to read against what the note says. |
 
 ## Beside other architecture skills
 
@@ -108,6 +122,12 @@ change; `untangle` fits code that has already degraded.
 - The map proposes; it does not carry out the rework.
 - Edges from static imports miss dependency injection, reflection, and
   lookups by string. The map names its edge source beside each result.
+- `special_cases.py` has no pattern for a clamp, a parameter one caller sets,
+  or a retry written without the word. In code whose job is to translate
+  errors, most of its leads are the main path.
+- The page checker confirms that a pinned line exists and that a claim carries
+  an evidence word. It cannot tell whether the line supports the sentence;
+  `pinned_lines.py` and a reader do that.
 - History counts depend on the fetched history and on how the project
   commits; squash merges and bulk commits distort them.
 

@@ -3,9 +3,10 @@
 
 A floor for the dependency map when no compiler, language server, or dependency tool gives
 edges: it reads static import statements in Python, JavaScript, TypeScript, and Java, and
-keeps the ones that resolve to a tracked file. It misses dynamic imports, dependency
-injection, reflection, and string-keyed lookups, and every other language, so an absent edge
-proves nothing. Confirm an edge that decides a conclusion at its source line. Run from the
+keeps the ones that resolve to a tracked file. Edges that start in a test file are left out
+unless --tests is given. It misses dynamic imports, dependency injection, reflection, and
+string-keyed lookups, and every other language, so an absent edge proves nothing; and it
+reports an import used only for type checking as an ordinary edge. Confirm an edge that decides a conclusion at its source line. Run from the
 repository root, or pass --repo. Exit 2 for invalid inputs or failed Git operations. Output
 goes to stdout; no files are written.
 """
@@ -20,6 +21,7 @@ PYTHON = re.compile(r"^\s*(?:from\s+(\.*[\w.]*)\s+import\s+(.+)|import\s+([\w., 
 SCRIPT = re.compile(r"""(?:\bfrom\s+|\bimport\s*\(\s*|\brequire\s*\(\s*|^\s*import\s+)['"]([^'"]+)['"]""")
 JAVA = re.compile(r"^\s*import\s+(?:static\s+)?([\w.]+?)(?:\.\*)?\s*;")
 SCRIPT_SUFFIXES = (".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs")
+TEST_FILE = re.compile(r"(^|/)(tests?|__tests__|spec|testdata|fixtures)/|(^|/)test_[^/]+$|[._-](test|spec)\.\w+$|Tests?\.\w+$")
 
 
 def git(repo, *args):
@@ -140,13 +142,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
     parser.add_argument("paths", nargs="*", help="limit to these paths; default is the whole repository")
     parser.add_argument("--repo", default=".")
+    parser.add_argument("--tests", action="store_true", help="include edges that start in a test file, which are left out by default")
     args = parser.parse_args()
     try:
         files = git(args.repo, "ls-files", "--", *args.paths).splitlines()
     except ValueError as error:
         print(f"import_edges: {error}", file=sys.stderr)
         return 2
-    rows = edges(args.repo, files)
+    rows = [(source, target) for source, target in edges(args.repo, files) if args.tests or not TEST_FILE.search(source)]
     print("# from\tto  (static imports that resolve to a tracked file; an absent edge proves nothing)")
     for source, target in rows:
         print(f"{source}\t{target}")
@@ -155,4 +158,7 @@ def main():
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except BrokenPipeError:  # the reader, such as `head`, closed the pipe
+        sys.exit(0)

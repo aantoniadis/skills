@@ -1,9 +1,11 @@
-"""The four untangle scripts: change coupling from history, import edges, the stated design against the
-edges, and the leads to special cases. Each prints leads; the tests pin what they find and what they leave out."""
+"""The untangle scripts: change coupling from history, import edges, the stated design against the edges,
+the leads to special cases, the tests that execute a line, and the source behind a note's pinned lines.
+The first four print leads; the tests pin what they find and what they leave out."""
 import importlib.util
 import json
 import os
 from pathlib import Path
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -19,8 +21,8 @@ def load(name):
     return module
 
 
-coupling, imports, conformance, cases = (load(name) for name in
-                                         ("change_coupling", "import_edges", "design_conformance", "special_cases"))
+coupling, imports, conformance, cases, tests_for_line, pinned = (load(name) for name in (
+    "change_coupling", "import_edges", "design_conformance", "special_cases", "tests_for_line", "pinned_lines"))
 
 
 class Repository(unittest.TestCase):
@@ -61,6 +63,14 @@ class ChangeCouplingTests(Repository):
         self.assertEqual((revisions["a.py"], revisions["b.py"], bulk), (5, 4, 1))
         self.assertEqual(coupling.pairs(revisions, shared, min_shared=3), [(3, 67, "a.py", "b.py")])
 
+    def test_a_partner_outside_the_scope_counts_and_a_commit_outside_it_does_not(self):
+        changes = [["svc/a.py", "docs/a.md"], ["svc/a.py", "docs/a.md"], ["docs/a.md", "docs/b.md"], ["other/x.py", "other/y.py"]]
+        revisions, shared, _ = coupling.analyze(changes, keep=lambda path: True, scoped=lambda path: path.startswith("svc/"))
+        self.assertEqual(dict(shared), {("docs/a.md", "svc/a.py"): 2})
+        self.assertEqual((revisions["svc/a.py"], revisions["docs/a.md"], revisions["other/x.py"]), (2, 2, 0))
+        self.assertEqual([coupling.kind("svc/a.py", "docs/a.md"), coupling.kind("svc/a.py", "tests/test_a.py"), coupling.kind("a.py", "b.py")],
+                         ["document", "test", "code"])
+
     def test_report_marks_pairs_without_a_dependency_and_leaves_out_deleted_and_generated_files(self):
         for round_ in range(3):
             self.commit({"shop/pricing/discounts.py": f"RATE = {round_}\n", "shop/quotes/builder.py": f"RATE = {round_}\n",
@@ -70,9 +80,12 @@ class ChangeCouplingTests(Repository):
         self.git("commit", "-q", "-m", "remove")
         (self.repo / "edges.tsv").write_text("# from\tto\nshop/api/views.py\tshop/pricing/discounts.py\n")
         out = self.run_script("change_coupling", "--edges", "edges.tsv", "--since", "10 years ago")
-        self.assertIn("History: 4 commits", out)
-        self.assertIn("3\t100%\tdifferent\tnone found\tshop/pricing/discounts.py  <->  shop/quotes/builder.py", out)
-        self.assertIn("3\t100%\tdifferent\tyes\tshop/api/views.py  <->  shop/pricing/discounts.py", out)
+        self.assertIn("History: 3 commits since 10 years ago changed the scope", out)
+        self.assertIn("3\t100%\tcode\tdifferent\tinside\tnone found\tshop/pricing/discounts.py  <->  shop/quotes/builder.py", out)
+        self.assertIn("3\t100%\tcode\tdifferent\tinside\tyes\tshop/api/views.py  <->  shop/pricing/discounts.py", out)
+        scoped = self.run_script("change_coupling", "--since", "10 years ago", "shop/quotes")
+        self.assertIn("3\t100%\tcode\tdifferent\tone outside\tnot given\tshop/pricing/discounts.py  <->  shop/quotes/builder.py", scoped)
+        self.assertNotIn("shop/api/views.py  <->  shop/pricing/discounts.py", scoped)
         self.assertNotIn("gone.py", out)
         self.assertNotIn("package-lock.json", out)
         self.assertNotIn("WARNING", out)
@@ -108,7 +121,10 @@ class ImportEdgesTests(Repository):
             "web/src/util.ts": "export default 1;\n",
             "engine/src/main/java/com/acme/Order.java": "package com.acme;\nimport com.acme.price.Rule;\nimport java.util.List;\n",
             "engine/src/main/java/com/acme/price/Rule.java": "package com.acme.price;\n",
+            "svc/tests/test_views.py": "from shop.api import views\n",
         })
+        with_tests = self.run_script("import_edges", "--tests")
+        self.assertIn("svc/tests/test_views.py\tsvc/src/shop/api/views.py", with_tests)
         out = self.run_script("import_edges")
         edges = {tuple(line.split("\t")) for line in out.splitlines() if line and not line.startswith("#")}
         self.assertEqual(edges, {
@@ -158,28 +174,48 @@ class DesignConformanceTests(unittest.TestCase):
 
 
 class SpecialCasesTests(Repository):
+    def kinds(self, text):
+        return {(number, kind) for number, kind, _ in cases.leads(text.splitlines())}
+
     def test_each_kind_of_lead_is_found_with_its_line(self):
-        python = ("def load(path, options):\n"
-                  "    try:\n"
-                  "        data = read(path)\n"
-                  "    except Exception:\n"
-                  "        return None\n"
-                  "    limit = options.get('limit', 10)\n"
-                  "    if data is None: return\n"
-                  "    time.sleep(2)  # retry once\n"
-                  "    # legacy path kept for old clients\n"
-                  "    return data  # type: ignore\n")
-        found = {(number, kind) for number, kind, _ in cases.leads(python.splitlines())}
-        self.assertEqual(found, {(4, "broad error handler"), (4, "swallowed error"), (6, "default when missing"),
-                                 (7, "early return on missing"), (8, "retry or sleep"), (9, "compatibility path"),
-                                 (10, "suppressed check")})
+        python = ("def load(path, options):\n"                                       # 1
+                  "    try:\n"                                                        # 2
+                  "        data = read(path)\n"                                       # 3
+                  "    except Exception:\n"                                           # 4
+                  "        return {'total': '0.00'}\n"                                # 5
+                  "    limit = options.get('limit', 10)\n"                            # 6
+                  "    rows = options.get('rows') or []\n"                            # 7
+                  "    owner = current.get() or self._default_owner\n"                # 8
+                  "    if data is None:\n"                                            # 9
+                  "        return\n"                                                  # 10
+                  "    if tier is None: return 0\n"                                   # 11
+                  "    time.sleep(2)\n"                                               # 12
+                  "    if response.status_code == 409:\n"                             # 13
+                  "        pass\n"                                                    # 14
+                  "    if spec.get('spec_version') == 2:\n"                           # 15
+                  "        pass\n"                                                    # 16
+                  "    # legacy path kept for old clients\n"                          # 17
+                  "    return data  # type: ignore\n")                                # 18
+        self.assertEqual(self.kinds(python), {
+            (4, "broad error handler"), (4, "error turned into a value or dropped"), (6, "default to a named value"),
+            (7, "default to an empty value"), (8, "default to a named value"), (9, "early return on missing"),
+            (11, "early return on missing"), (12, "retry or sleep"), (13, "branch on a status code or version"),
+            (15, "branch on a status code or version"), (17, "compatibility path"), (18, "suppressed check")})
+
+    def test_words_in_docstrings_and_comments_are_not_the_construct(self):
+        quotes = '"' * 3
+        python = (f"def f():\n    {quotes}Retry with sleep(2) on the legacy fallback.{quotes}\n"
+                  f"    {quotes}\n    status == 404 and a fallback\n    {quotes}\n"
+                  "    # we retry once: sleep(1), status == 500\n    return 1\n")
+        self.assertEqual(self.kinds(python), set())
+        self.assertEqual(self.kinds("if not found:\n    raise Missing()\n"), set(), "failing loudly is not an early return")
 
     def test_a_narrow_handler_that_reraises_is_not_a_lead(self):
-        python = "try:\n    run()\nexcept KeyError as error:\n    raise Missing(error) from error\n"
-        self.assertEqual(cases.leads(python.splitlines()), [])
-        script = "try {\n  run();\n} catch (e) {\n  console.error(e);\n}\nconst n = input ?? 0;\n"
-        self.assertEqual({(number, kind) for number, kind, _ in cases.leads(script.splitlines())},
-                         {(3, "broad error handler"), (3, "swallowed error"), (6, "default when missing")})
+        self.assertEqual(self.kinds("try:\n    run()\nexcept KeyError as error:\n    raise Missing(error) from error\n"), set())
+        script = "try {\n  run();\n} catch (e) {\n  console.error(e);\n}\nconst n = input ?? 0;\nconst m = input ?? other;\nif (!user) { return; }\n"
+        self.assertEqual(self.kinds(script), {(3, "broad error handler"), (3, "error turned into a value or dropped"),
+                                              (6, "default to an empty value"), (7, "default to a named value"),
+                                              (8, "early return on missing")})
 
     def test_report_counts_per_kind_and_leaves_tests_out_by_default(self):
         self.commit({"app/load.py": "try:\n    x()\nexcept:\n    pass\n", "tests/test_load.py": "try:\n    x()\nexcept:\n    pass\n",
@@ -189,6 +225,67 @@ class SpecialCasesTests(Repository):
         self.assertIn("app/load.py:3\texcept:", out)
         self.assertNotIn("tests/test_load.py", out)
         self.assertIn("tests/test_load.py", self.run_script("special_cases", "--tests"))
+        self.assertNotIn("## broad error handler", self.run_script("special_cases", "--summary"))
+
+
+class TestsForLineTests(unittest.TestCase):
+    def data(self, directory, contexts=True):
+        """A coverage.py data file with the three tables the script reads."""
+        path = Path(directory) / ".coverage"
+        database = sqlite3.connect(path)
+        database.executescript("create table file (id integer primary key, path text);"
+                               "create table context (id integer primary key, context text);"
+                               "create table line_bits (file_id integer, context_id integer, numbits blob);"
+                               "create table arc (file_id integer, context_id integer, fromno integer, tono integer);")
+        database.execute("insert into file values (1, '/repo/shop/pricing/discounts.py')")
+        database.executemany("insert into context values (?, ?)", [(1, ""), (2, "tests/test_a.py::test_gold|run"), (3, "tests/test_a.py::test_guest|run")]
+                             if contexts else [(1, "")])
+        bits = lambda *lines: bytes(sum(1 << (line % 8) for line in lines if line // 8 == index) for index in range(max(lines) // 8 + 1))
+        database.executemany("insert into line_bits values (1, ?, ?)", [(1, bits(1, 12, 20)), (2, bits(12, 13)), (3, bits(20))]
+                             if contexts else [(1, bits(12))])
+        database.commit()
+        database.close()
+        return path
+
+    def test_lines_come_out_of_the_numbits_blob(self):
+        self.assertEqual(tests_for_line.lines_of(bytes([0b00000010, 0b00010000])), {1, 12})
+
+    def test_tests_are_listed_per_line_and_an_unexecuted_line_has_none(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = subprocess.run([sys.executable, str(SCRIPTS / "tests_for_line.py"), str(self.data(directory)),
+                                     "pricing/discounts.py:12", "discounts.py:20", "discounts.py:99"], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertIn("pricing/discounts.py:12\t1 tests\n\ttests/test_a.py::test_gold|run", result.stdout)
+            self.assertIn("discounts.py:20\t1 tests\n\ttests/test_a.py::test_guest|run", result.stdout)
+            self.assertIn("discounts.py:99\t0 tests", result.stdout)
+
+    def test_data_without_per_test_contexts_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            result = subprocess.run([sys.executable, str(SCRIPTS / "tests_for_line.py"), str(self.data(directory, contexts=False)),
+                                     "discounts.py:12"], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("no per-test contexts", result.stderr)
+
+
+class PinnedLinesTests(Repository):
+    def test_each_pin_prints_its_source_and_a_wrong_pin_is_missing(self):
+        self.commit({"shop/pricing.py": "RATES = {}\n\ndef total(amount):\n    return amount\n"})
+        sha = self.git("rev-parse", "HEAD")
+        note = self.repo / "notes" / "map.md"
+        note.parent.mkdir()
+        note.write_text("# Map\n\n"
+                        "The total is decided at [pricing.py:3](../shop/pricing.py#L3-L4).\n"
+                        f"Rates live at [pricing.py:1](https://example.invalid/acme/shop/blob/{sha}/shop/pricing.py#L1).\n"
+                        "```text\n[ignored](../shop/pricing.py#L1)\n```\n"
+                        "A wrong pin: [pricing.py:40](../shop/pricing.py#L40).\n")
+        result = subprocess.run([sys.executable, str(SCRIPTS / "pinned_lines.py"), str(note), "--repo", str(self.repo)],
+                                capture_output=True, text=True)
+        self.assertEqual(result.returncode, 1, result.stderr)
+        self.assertIn("note:3\t[pricing.py:3]\tpricing.py:3-4\tdef total(amount): ⏎ return amount", result.stdout)
+        self.assertIn("note:4\t[pricing.py:1]\tpricing.py:1\tRATES = {}", result.stdout)
+        self.assertIn("note:8\t[pricing.py:40]\tpricing.py:40\tMISSING", result.stdout)
+        self.assertNotIn("ignored", result.stdout)
+        self.assertIn("3 pins, 1 missing", result.stderr)
 
 
 if __name__ == "__main__":

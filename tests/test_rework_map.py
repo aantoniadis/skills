@@ -36,21 +36,24 @@ class ReworkMapTests(unittest.TestCase):
         rendered = run(self.note, "--sync-labels")
         self.assertEqual(rendered.returncode, 0, rendered.stderr)
         html = self.note.with_suffix(".html").read_text()
-        for fragment in ('id="questions-for-the-user"', 'id="stated-design-and-the-code"', 'id="special-cases"', 'id="rework-steps"'):
+        for fragment in ('id="behavior-to-decide"', 'id="questions-for-the-user"', 'id="behavior-no-test-protects"',
+                         'id="stated-design-and-the-code"', 'id="special-cases"', 'id="rework-steps"'):
             self.assertIn(fragment, html, fragment)
         checked = run(self.note, "--check", "--sync-labels")
         self.assertEqual(checked.returncode, 0, checked.stderr)
 
-    def test_label_key_defines_the_three_map_vocabularies(self):
+    def test_label_key_defines_the_four_map_vocabularies(self):
         self.assertEqual([group for group in page.label_groups(self.source) if group != "diagram-evidence"],
-                         ["design-results", "special-case-reach", "structure-findings"])
-        for group, values in (("design-results", page.DESIGN_RESULTS), ("special-case-reach", page.REACH_STATUSES),
+                         ["design-results", "rule-results", "special-case-reach", "structure-findings"])
+        for group, values in (("design-results", page.DESIGN_RESULTS), ("rule-results", page.RULE_RESULTS),
+                              ("special-case-reach", page.REACH_STATUSES),
                               ("structure-findings", page.FINDING_KINDS)):
             self.assertEqual(tuple(page.LABELS[group]["options"]), tuple(values))
 
     def test_status_cells_start_with_a_known_word(self):
         for old, new, message in (
                 ("| `quotes` to `pricing` | not found |", "| `quotes` to `pricing` | missing |", "Stated design and the code: start the Result cell"),
+                ("| holds | search for `quantize`", "| fine | search for `quantize`", "Stated rules: start the Result cell"),
                 ("| compatibility path | unknown: no caller", "| compatibility path | probably dead: no caller", "Special cases: start the Reach cell"),
                 ("| unjustified special case | [rounding.py:8]", "| dead code | [rounding.py:8]", "Findings: start the Kind cell")):
             with self.subTest(new=new):

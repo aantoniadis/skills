@@ -75,6 +75,16 @@ class ReworkMapTests(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0)
                 self.assertIn(message, result.stderr + result.stdout)
 
+    def test_behavior_to_decide_is_ranked_last(self):
+        problems = self.source.index("## Problems")
+        bug = self.source.index("### 3. A gold customer")
+        plan = self.source.index("## The plan")
+        moved = self.source[:problems] + "## Problems\n\n" + self.source[bug:plan] + self.source[problems + len("## Problems\n\n"):bug] + self.source[plan:]
+        self.note.write_text(moved)
+        result = run(self.note, "--check", "--markdown-only")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Problems: behavior to decide comes last; move '1. Changing a loyalty rate takes three edits' (scattered rule)", result.stderr + result.stdout)
+
     def test_not_reached_is_not_read_as_reached_and_empty_cells_fail(self):
         page.check_rework_map("| Special case | Kind | Reach | Why it exists | Points to |\n| --- | --- | --- | --- | --- |\n"
                               "| `a.py:3` | default | not reached: callers enumerated, probe failed | none found | nothing found |\n")

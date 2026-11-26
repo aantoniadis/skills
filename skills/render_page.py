@@ -1983,7 +1983,15 @@ def check_rework_map(source):
         missing = [p for p in PRINCIPLES if p not in labels]
         if missing:
             problems.append(f"The plan: list under ### Design principles today's result and the proposed one for: {', '.join(missing)}.")
-    for heading, elements in problem_sections(document):
+    sections = problem_sections(document)
+    kinds = [problem_fields(elements).get("Kind", "").lower() for _, elements in sections]
+    first_bug = next((i for i, kind in enumerate(kinds) if kind.startswith("behavior to decide")), None)
+    if first_bug is not None:
+        for (heading, _), kind in list(zip(sections, kinds))[first_bug + 1:]:
+            if kind and not kind.startswith("behavior to decide"):
+                problems.append(f"Problems: behavior to decide comes last; move {heading.get_text(' ', strip=True)!r} "
+                                f"({kind.split(' ·')[0]}) above {sections[first_bug][0].get_text(' ', strip=True)!r}.")
+    for heading, elements in sections:
         name = f"Problem {heading.get_text(' ', strip=True)!r}"
         fields = problem_fields(elements)
         missing = [label for label in PROBLEM_FIELDS if label not in fields]

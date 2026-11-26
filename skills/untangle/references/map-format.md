@@ -111,7 +111,7 @@ never assembles one from several sections. Rank them by what they cost
 the people who change the code: structure problems and corner cases first,
 by how many places one change must touch times how often the rule changes;
 problems of the kind *behavior to decide*, possible bugs, last, because this
-map is for restructuring and each of them goes to fix-bug or plan-change. Number them in their
+map is for restructuring and each of them goes to fix-bug or plan-change. The checker rejects any other kind placed after the first behavior to decide. Number them in their
 headings, `### 1. <title>`, and refer to them as *problem 1*.
 
 The title states the consequence a lead understands, such as *Changing a

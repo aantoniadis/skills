@@ -369,8 +369,8 @@ it finds with the design your documentation states. It stops at three
 checkpoints: the capability list and stated design, the differences it found,
 and the choice between rework targets. It asks you only what a person knows:
 why something exists, whether a behavior is intended, and which design you
-want. It writes the lock tests you choose, so the rework cannot change
-behavior unnoticed, and changes no application code. The chosen rework goes
+want. With a rework proposal it writes lock tests, so the rework cannot
+change behavior unnoticed, and changes no application code. The chosen rework goes
 to `plan-change`
 with the map path, or straight to implementation for one contained step.
 [How it works](untangle.md).
@@ -380,7 +380,7 @@ with the map path, or straight to implementation for one contained step.
 | Owner | Artifact convention |
 | --- | --- |
 | Our investigation and report skills | Recorded `Investigations:` location, else `.scratch/<topic>/`, kept out of commits; HTML is an optional companion |
-| Our `fit-change` | A `## Placement` section in the plan or ticket, else `placement.md`; `structure.md` for a check, at the investigation location |
+| Our `fit-change` | A `## Placement` section in the plan or ticket, else `change-card.md` at the investigation location, which a check also writes |
 | Our `untangle` | One `rework-map.md` at the investigation location, with probes and run records under `runs/`; HTML is an optional companion |
 | Our planning workflow | One authoritative plan/spec, material revision notes, and self-contained tickets at the selected project/tracker locations |
 | Matt's original local ticket workflow | One file per ticket under `.scratch/<feature-slug>/issues/`, in dependency order |

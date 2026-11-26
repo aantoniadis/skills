@@ -34,7 +34,7 @@ to you, on evidence, before the code is written.
    own question, and until you answer every site keeps its present result.
 5. **Settle failure behavior:** what the request says a consumer sees on each
    failure, or a question for you. Until it is answered, the error propagates.
-6. **Write the placement** into the plan or ticket, or as `placement.md`:
+6. **Write the placement** into the plan or ticket, or as a change card:
    rules and owners, reuse, reshape steps, what is in and out of scope,
    failure behavior, and the check to run afterwards.
 

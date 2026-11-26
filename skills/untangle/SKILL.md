@@ -10,7 +10,7 @@ bounded by its [evidence](../EVIDENCE.md).
 
 # Untangle
 
-Produce the **rework map** of one component: what it does, how it is built today, where that differs from what people believe, and a rework the user can choose. In the target, every rule and every piece of state has one **owner**: the module that decides the rule or writes the state. Application code stays as it is. The only change to the project is the **lock tests** of step 7, when the user chose them: tests that record what the code does today, so the rework that follows cannot change it unnoticed. Probes and scratch copies live in the investigation location.
+Produce the **rework map** of one component: what it does, how it is built today, where that differs from what people believe, and a rework the user can choose. In the target, every rule and every piece of state has one **owner**: the module that decides the rule or writes the state. Application code stays as it is. The only change to the project is the **lock tests** of step 7, which come with every rework proposal: tests that record what the code does today, so the rework that follows cannot change it unnoticed. Probes and scratch copies live in the investigation location.
 
 Three rules hold for the whole task:
 
@@ -24,7 +24,7 @@ Steps 2 to 4 describe the component. Judgment starts at step 5, so the user corr
 
 Before the kickoff, look at the target's size and its history, because the scope recommendation reads both: `git rev-parse --is-shallow-repository`. Deepen a shallow clone within existing authorization, or state the number of commits every history count rests on.
 
-Hold the kickoff round from [asking](../ASKING.md), with the questions the request leaves open: the scope, one component or flow with a proposed starting path (when the user names none, recommend the place where change is paid most, from the most changed files that [`change_coupling.py`](scripts/change_coupling.py) prints); the deliverable, the map alone, the map with a rework proposal, or the proposal with its lock tests written into the project (recommend the lock tests, because a rework without them changes behavior unnoticed); an HTML companion or text only (recommend HTML when the scope has more than one flow); and how to work together, a checkpoint after steps 2, 4, and 6 (recommend it) or a guided walk through the code, where you step through one flow with excerpts and run results and the user directs the depth, following the trace loop of [explain](../explain/SKILL.md) as a helper run.
+Hold the kickoff round from [asking](../ASKING.md), with the questions the request leaves open: the scope, one component or flow with a proposed starting path (when the user names none, recommend the place where change is paid most, from the most changed files that [`change_coupling.py`](scripts/change_coupling.py) prints); the deliverable, the map alone or the map with a rework proposal (recommend the proposal); a proposal includes its lock tests written into the project, because a rework without them changes behavior unnoticed, and leaves them out only when the user says the project must not change; an HTML companion or text only (recommend HTML when the scope has more than one flow); and how to work together, a checkpoint after steps 2, 4, and 6 (recommend it) or a guided walk through the code, where you step through one flow with excerpts and run results and the user directs the depth, following the trace loop of [explain](../explain/SKILL.md) as a helper run.
 
 Then establish the ground, using [CODE-TOOLS.md](../CODE-TOOLS.md) to select capabilities and reuse local preparation. Create the investigation location and its run records first, under the topic `untangle-<component>`, where a follow-up looks for the map:
 
@@ -123,7 +123,7 @@ Done when the user has chosen a target, or the choice is listed as open with the
 
 ## 7. Lock the behavior
 
-When the user chose lock tests, write them now, before anyone moves code. When nobody answers, write them, because they change no behavior and the rework is unsafe without them. Follow [lock tests](references/lock-tests.md):
+With a rework proposal, write the lock tests into the project's tests now, before anyone moves code. A request for a rework, or no answer, does not stop them: they change no behavior, and the rework is unsafe without them. Only when the user said the project must not change, write them at the investigation location and say in the delivery that they are not in the project. Follow [lock tests](references/lock-tests.md):
 
 1. **List what to lock.** Every behavior a step of the chosen target moves, and every behavior the deliberate breaks showed no test protects. Behavior already pinned by a test that the breaks turned red needs nothing new.
 2. **Write each test at a seam the rework keeps,** in the project's own test framework, layout, and naming, so the test still runs once the code behind the seam has moved. A probe from the census is its starting point. Assert what the code returns today, including behavior listed under behavior to decide: name such a test after what it records, such as "records that a gold quote is 38.00", and mark it as recording a value under decision, so the decision changes the test on purpose.
@@ -163,6 +163,7 @@ When nobody answers, as in an unattended run, hold no checkpoint: continue throu
 
 - A difference between the code and the stated design is *open*: neither drift nor intended.
 - A special case stays.
+- The lock tests of a rework proposal are written into the project's tests.
 - Rework steps include only moves that keep behavior and hold under either answer. A move that depends on an open answer is listed as waiting for it.
 
 After the rework lands, a follow-up re-measures it against the same map. At the new revision, run the lock tests and the conformance check again, and take the census again for the rules and data the target names. Fill the map's *After the rework* section: for each line of the target's **Measure**, the value before, the value now, and *met* or *not met* with the run. A rule still decided in more than one file, or a dependency still *not stated*, is a finding of the rework, and its step is reopened. A lock test that changed without a decision behind it is behavior to decide.

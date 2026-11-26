@@ -3,8 +3,9 @@
 Map one component as it is, compare it with the design people believe it has,
 and get a rework you choose: for every rule and every piece of state, one
 module that owns it. The result is a rework map, `rework-map.md`, with an
-HTML page when selected. The skill changes no application code; it adds
-only the lock tests you choose.
+HTML page when selected. The skill changes no application code; with a rework
+proposal it adds the lock tests that protect it, unless you say the project
+must not change.
 
 Use it on code that has become hard to follow or change, whoever wrote it:
 logic for one rule spread across modules and layers, helpers that carry

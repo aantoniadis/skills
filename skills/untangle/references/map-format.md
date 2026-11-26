@@ -233,7 +233,11 @@ data, and the page draws only that part, today and proposed side by side:
 ```
 
 `rules` are rule names and `files` are file ids of the structure view; the
-files of the named rules come with them.
+files of the named rules come with them. A focus shows files and the
+dependencies between them, so draw one when the problem spans files. A
+problem that lives inside one file, such as one sequence copied into six
+methods, is shown better by its excerpts side by side and a short table of
+the copies, one row per copy and one column per step they differ in.
 
 **A change history.** Under a problem whose evidence is history, such as a
 rule that one change updated in some of its places and not others, a

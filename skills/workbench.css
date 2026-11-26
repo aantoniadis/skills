@@ -56,6 +56,8 @@ body.report .nav-problems a{font-size:13px;line-height:1.4;padding:5px 8px}
 .report-counts b{font-size:17px;font-weight:800;color:var(--ink);margin-right:3px}
 .report-counts .count-bugs:not(.zero) b{color:var(--bad)}
 .report-counts .count-waiting:not(.zero) b{color:var(--wait)}
+.report-counts .zero{display:none}
+.report-counts .count-problems{display:inline}
 
 /* A labelled paragraph: the label sits above its text, so long text reads as text */
 body.report p.field>strong:first-child{display:block;font-size:13.5px;font-weight:750;color:var(--ink);margin-bottom:2px}
@@ -66,9 +68,11 @@ body.report p.field>strong:first-child{display:block;font-size:13.5px;font-weigh
 .in-short .scope{margin-top:20px}
 .waiting{margin:8px 0 12px;padding:16px 20px;background:var(--wait-tint);border:1px solid var(--wait-line);border-radius:12px;max-width:1080px}
 body.report .waiting-title{margin:0 0 8px;font-size:15px;color:var(--wait)}
-.waiting ul{margin:0;padding:0;list-style:none;display:grid;gap:12px}
-.waiting li>a{font-weight:700}
-.waiting-text{margin:2px 0 0;font-size:15px;color:var(--ink)}
+.waiting ul{margin:0;padding:0;list-style:none;display:grid;gap:6px}
+.waiting li{display:grid;grid-template-columns:128px minmax(0,1fr);gap:10px;align-items:baseline;max-width:none}
+.waiting li>a{font-weight:650}
+.waiting-state{font-size:12.5px;font-weight:700;color:var(--wait);white-space:nowrap}
+@media(max-width:560px){.waiting li{grid-template-columns:1fr;gap:0}}
 
 /* A problem: number, kind, how sure; what is wrong; the picture; the evidence; the fix; the decision */
 article.problem{margin:0 0 20px;padding:28px 0 8px;border-top:1px solid var(--line)}
@@ -139,7 +143,9 @@ details.reference[open]>summary{margin-bottom:12px}
 
 /* Tables keep short cells; long text wraps instead of squeezing */
 body.report table{table-layout:auto}
-body.report table :is(th,td){overflow-wrap:anywhere}
+body.report table :is(th,td){overflow-wrap:normal;word-break:normal;hyphens:none}
+body.report table th{white-space:nowrap}
+body.report table td{min-width:7ch}
 body.report table th{background:var(--neutral-tint);color:var(--ink)}
 body.report table td{color:var(--ink)}
 

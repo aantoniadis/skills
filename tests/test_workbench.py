@@ -42,7 +42,8 @@ class WorkbenchTests(unittest.TestCase):
         waiting = main.select("section#in-short .waiting li > a")
         self.assertEqual([a["href"] for a in waiting], ["#3-apply_legacy_rounding-has-no-caller"], "only what waits for the reader is gathered")
         counts = {chip["class"][1]: chip.b.get_text() for chip in main.select(".report-counts .count")}
-        self.assertEqual(counts, {"count-problems": "3", "count-bugs": "1", "count-waiting": "1"})
+        self.assertEqual(counts, {"count-problems": "3", "count-bugs": "1", "count-waiting": "1", "count-defaults": "0"})
+        self.assertEqual([s.get_text() for s in main.select(".waiting .waiting-state")], ["open"], "an index: state and title")
         rail = page.select_one('nav[aria-label="Sections"]')
         self.assertEqual(len(rail.select("ol.nav-problems > li")), 3)
         self.assertEqual(len(rail.select('a[href="#1-a-gold-customer-is-quoted-38-00-and-charged-36-00"]')), 1, "each problem is listed once")

@@ -142,11 +142,13 @@ def header(soup, found):
     title = soup.main.find("h1")
     if not title:
         return
-    waiting = sum(1 for f in found if f["status"] in WAITING)
+    opened = sum(1 for f in found if f["status"] == "open")
+    defaults = sum(1 for f in found if f["status"] == "default applied")
     bugs = sum(1 for f in found if kind_class(f["kind"]) == "bug")
     counts = [("count-problems", len(found), "problem" if len(found) == 1 else "problems"),
               ("count-bugs", bugs, "possible bug" if bugs == 1 else "possible bugs"),
-              ("count-waiting", waiting, "decision waits for you" if waiting == 1 else "decisions wait for you")]
+              ("count-waiting", opened, "decision open" if opened == 1 else "decisions open"),
+              ("count-defaults", defaults, "default applied" if defaults == 1 else "defaults applied")]
     bar = soup.new_tag("p", attrs={"class": "report-counts"})
     for cls, value, words in counts:
         chip = soup.new_tag("span", attrs={"class": f"count {cls}" + (" zero" if not value else "")})
@@ -178,18 +180,19 @@ def in_short(soup, found):
     head.string = "Waiting for your decision"
     box.append(head)
     listing = soup.new_tag("ul")
-    for facts in waiting:
+    for facts in waiting:  # an index: the decision itself stands under its problem
         item = soup.new_tag("li", attrs={"class": f"decision-{slug(facts['status'])}"})
+        state = soup.new_tag("span", attrs={"class": "waiting-state"})
+        state.string = facts["status"]
         link = soup.new_tag("a", href=f"#{facts['id']}")
         link.string = facts["title"]
-        item.append(link)
-        text = clone(soup, facts["decision"].find("p"))
-        text.find("strong").decompose()
-        text["class"] = ["waiting-text"]
-        item.append(text)
+        item.extend([state, link])
         listing.append(item)
     box.append(listing)
     anchor = holder.find("p", class_="field-what-you-decide") or holder.find_all("p", recursive=False)[-1]
+    following = anchor.find_next_sibling()
+    if getattr(following, "name", None) in ("ol", "ul"):  # the note's own list of decisions comes first
+        anchor = following
     anchor.insert_after(box)
 
 

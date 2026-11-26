@@ -430,8 +430,12 @@ def summary(data, view):
     """One line under a view: how many files decide each rule, and the dependencies that break the design."""
     parts = []
     for ri, r in enumerate(data.get("rules", [])):
-        homes = {home for i, _, home in site_homes(data, view) if i == ri}
-        parts.append(f'{escape(r["name"])}: decided in {len(homes)} {"file" if len(homes) == 1 else "files"}')
+        homes = [home for i, _, home in site_homes(data, view) if i == ri]
+        # A site that moves to its owner merges there; every other site keeps its own place.
+        places = len(set(homes)) if view == "proposed" and r["outcome"] == "moves" else len(homes)
+        files = len(set(homes))
+        where = f'{files} {"file" if files == 1 else "files"}'
+        parts.append(f'{escape(r["name"])}: decided ' + (f'at {places} places in {where}' if places > files else f'in {where}'))
     forbidden = sum(1 for d in data.get("dependencies", []) if d.get(view) == "not stated")
     missing = sum(1 for d in data.get("dependencies", []) if d.get(view) == "not found")
     if forbidden:
@@ -460,7 +464,7 @@ def history_figure(data, index):
     sites, commits = data["sites"], data["commits"]
     order = [c["sha"] for c in commits]
     exists = lambda site, at: not site.get("since") or order.index(at) >= order.index(site["since"])
-    label_w, col, row, top = 230, 76, 34, 58
+    label_w, col, row, top = max(150, 16 + 8 * max(len(s["label"]) for s in sites)), 76, 34, 58
     width, height = label_w + col * len(commits) + 16, top + row * len(sites) + 12
     out = [f'<svg viewBox="0 0 {width} {height}" width="{width}" role="img" aria-label="Changes to {escape(data.get("rule", "the rule"))}: '
            f'which of its places each commit changed.">']

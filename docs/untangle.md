@@ -138,7 +138,7 @@ stays unless an adversarial probe that fails without it has been written.
 
 ## The scripts
 
-The first five print leads to read, not findings. Only `break_probe.py`
+The first six print leads to read, not findings. Only `break_probe.py`
 writes files: its run logs, in the directory you give it.
 
 | Script | Prints |
@@ -148,6 +148,7 @@ writes files: its run logs, in the directory you give it.
 | `design_conformance.py` | Each dependency of a stated design, given as JSON, against those edges: *as stated*, *not stated*, or *not found*. |
 | `special_cases.py` | Lines that handle one situation apart from the main path: broad error handlers, errors turned into values, defaults for missing values, early returns, retries, status and version branches, compatibility paths, suppressed checks. |
 | `shared_data.py` | Globals, class-level variables, module-level collections, contexts, and memos; and a ledger of hash and dict keys: the files that write each key, the files that read it, and the reads that supply a default. |
+| `added_units.py` | The classes and modules a change adds, in Python and Ruby, each with its own methods, the methods that only call another, its constants, and what it extends. One with no method of its own is a lead to surplus, and added units of one base that differ only by constants are grouped. `fit-change` runs it on a diff. |
 | `break_probe.py` | Makes each listed break in a scratch worktree, runs the focused tests, reruns a break they miss under the full suite, and reports which behaviors no test protects. |
 | `tests_for_line.py` | The tests that execute a source line, from coverage.py data recorded per test. |
 | `pinned_lines.py` | The source text behind every pinned line of a note, to read against what the note says. |

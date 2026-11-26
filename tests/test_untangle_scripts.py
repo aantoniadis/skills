@@ -1,6 +1,6 @@
 """The untangle scripts: change coupling from history, import edges, the stated design against the edges,
-the leads to special cases, the tests that execute a line, and the source behind a note's pinned lines.
-The first four print leads; the tests pin what they find and what they leave out."""
+the leads to special cases, the units a change adds, the tests that execute a line, and the source behind a note's
+pinned lines. The first five print leads; the tests pin what they find and what they leave out."""
 import importlib.util
 import json
 import os
@@ -245,6 +245,55 @@ class SpecialCasesTests(Repository):
         self.assertIn("app/untracked.py:1\tvalue = a or {}", out)
         self.assertIn("app/load.py:2\treturn opts.get('k', DEFAULT)", out)
         self.assertNotIn("time.sleep", out)
+
+
+class AddedUnitsTests(Repository):
+    RUBY_BASE = ("module Shop\n  module Tiers\n    module Base\n      def rate(order)\n        order[:rate]\n      end\n    end\n"
+                 "    module Gold\n      extend Base\n      KIND = \"gold\"\n    end\n  end\nend\n")
+
+    def test_ruby_units_with_only_a_constant_are_leads_and_grouped_by_their_base(self):
+        self.commit({"lib/tiers.rb": self.RUBY_BASE})
+        base = self.git("rev-parse", "HEAD")
+        added = ("    module Silver\n      extend Base\n      KIND = \"silver\"\n    end\n"
+                 "    module Bronze\n      extend Base\n      KIND = \"bronze\"\n    end\n"
+                 "    class Quote < Struct\n      def total(order)\n        if order[:lines].empty?\n          0\n        end\n      end\n\n"
+                 "      def rate(order) = Base.rate(order)\n    end\n")
+        self.commit({"lib/tiers.rb": self.RUBY_BASE.replace("  end\nend\n", added + "  end\nend\n")})
+        out = self.run_script("added_units", "--base", base, "--head", "HEAD")
+        self.assertIn("3 in 1 files; 2 are leads", out)
+        self.assertIn("Base: Shop::Tiers::Silver, Shop::Tiers::Bronze", out)
+        self.assertIn("lib/tiers.rb:12\tShop::Tiers::Silver\t0 methods, 1 constant; extend Base", out)
+        self.assertIn("Shop::Tiers::Quote\t2 methods (1 only calls another), 0 constants; Struct", out)
+        self.assertNotIn("Shop::Tiers::Gold", out, "Gold was there before the change")
+        self.assertNotIn("\tShop\t", out, "a module that only encloses others adds nothing itself")
+
+    def test_python_classes_are_parsed_and_a_moved_class_names_where_the_base_held_it(self):
+        self.commit({"app/kinds.py": "class Kind:\n    def label(self):\n        if self.code:\n            return self.code\n        return ''\n",
+                     "app/old.py": "class Region(Kind):\n    CODE = 'r'\n"})
+        base = self.git("rev-parse", "HEAD")
+        (self.repo / "app/old.py").unlink()
+        self.commit({"app/kinds.py": "class Kind:\n    def label(self):\n        if self.code:\n            return self.code\n        return ''\n\n\n"
+                                     "class Region(Kind):\n    CODE = 'r'\n\n\nclass Team(Kind):\n    CODE = 't'\n\n\n"
+                                     "class Proxy:\n    def label(self, kind):\n        \"\"\"Doc.\"\"\"\n        return kind.label()\n",
+                     "tests/test_kinds.py": "class Fake(Kind):\n    CODE = 'f'\n"})
+        out = self.run_script("added_units", "--base", base, "--head", "HEAD")
+        self.assertIn("3 in 1 files; 3 are leads", out)
+        self.assertIn("Kind: Region, Team", out)
+        self.assertIn("app/kinds.py:8\tRegion\t0 methods, 1 constant; Kind\tthe base holds a unit of this name in app/old.py", out)
+        self.assertIn("Proxy\t1 method (1 only calls another), 0 constants", out)
+        self.assertNotIn("Fake", out, "test files are left out by default")
+        self.assertIn("Fake", self.run_script("added_units", "--base", base, "--head", "HEAD", "--tests"))
+
+    def test_the_working_tree_counts_untracked_files_and_a_bad_base_exits_2(self):
+        self.commit({"app/kinds.py": "class Kind:\n    pass\n"})
+        self.write({"app/more.py": "class Zone(Kind):\n    CODE = 'z'\n", "app/broken.py": "class (:\n"})
+        out = self.run_script("added_units", "--base", "HEAD")
+        self.assertIn("HEAD to the working tree: 1 in 1 files; 1 are leads", out)
+        self.assertIn("app/more.py:1\tZone", out)
+        self.assertIn("Not parsed: app/broken.py", out)
+        result = subprocess.run([sys.executable, str(SCRIPTS / "added_units.py"), "--base", "no-such-commit"], cwd=self.repo, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn("added_units:", result.stderr)
 
 
 class FunctionCouplingTests(Repository):

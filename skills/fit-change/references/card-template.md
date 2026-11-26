@@ -61,7 +61,7 @@ kind: change-card
 
 ## Checked and fine
 
-{{what_a_reader_would_flag_with_its_pinned_line_and_the_reason_it_stands}}
+{{what_a_reader_would_flag_with_its_pinned_line_and_the_structure_reason_it_stands_the_decision_it_makes_or_what_its_deletion_would_cost}}
 
 ## Limits
 

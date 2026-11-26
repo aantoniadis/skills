@@ -49,10 +49,13 @@ to you, on evidence, before the code is written.
 
 1. **Pin** the base and head and run the tests at the head.
 2. **Take leads on the added lines:** the guards, defaults, handlers, and
-   retries the change adds, the added lines no test executes, and any
-   dependency the stated design does not allow that is new at the head.
+   retries the change adds, the classes and modules it adds with what each
+   holds, the added lines no test executes, and any dependency the stated
+   design does not allow that is new at the head.
 3. **Count decision sites, base against head.** More sites for a rule is a
-   scattered rule. A decision outside the rule's owner is misplaced logic. A
+   scattered rule. When several sites hold the same list of kinds or types,
+   the skill asks what makes them several: one type added for each value is
+   then the finding, and the parallel lists are its evidence. A decision outside the rule's owner is misplaced logic. A
    rule changed at some sites and not at others is behavior to decide, handed
    to `find-bugs` or `fix-bug` with both results.
 4. **Account for every added special case:** its producer and its reason, or
@@ -61,13 +64,22 @@ to you, on evidence, before the code is written.
    recorded decision comes to you as a corner-case question, not a finding.
 5. **Look at data and state:** a key added to a hash another module built,
    an argument changed in place, a new writer of state another module owns.
-6. **Look for added surplus:** a wrapper that only delegates, an option
-   nothing sets, an interface with one implementation, a compatibility path
-   with no outside consumer, an old path left after its callers moved.
+6. **Look for added surplus.** For each module, class, type, or file the
+   change adds, the skill names the decision only it makes. One with none,
+   because it only delegates, only holds a constant, or only renames another,
+   is surplus, confirmed by a deletion test: if deleting it makes complexity
+   vanish, it was surplus; if the complexity reappears in every caller, it
+   was earning its place. The shapes include a wrapper that only delegates,
+   a module or subclass for each value that differs only by a constant, an
+   option nothing sets, an interface with one implementation, a compatibility
+   path with no outside consumer, and an old path left after its callers
+   moved.
 7. **Compare with the placement,** when there is one.
 
 The check reports only these kinds, each with its evidence, and "nothing
-found" is a result. When you ask it to apply fixes, a fix deletes, moves,
+found" is a result. What it records as checked and fine carries a structure
+reason; "behavior is unchanged" clears a behavior question, not a structure
+one. When you ask it to apply fixes, a fix deletes, moves,
 reuses, or returns a value in place of changing one; it adds no abstraction,
 no check, and no test for a state nothing produces.
 

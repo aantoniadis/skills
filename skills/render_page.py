@@ -29,6 +29,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from reader_text import reader_gaps  # noqa: E402
 import source_peek  # noqa: E402
 import structure_view  # noqa: E402
+import workbench  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent
 TEMPLATE = ROOT / "page-template.html"
@@ -88,7 +89,7 @@ def raise_all(problems):
         raise Failures(problems)
 
 
-NOTE_KINDS = ("understanding-note", "plan", "diagnosis-note", "pr-review-guide", "acceptance-report", "rework-map")
+NOTE_KINDS = ("understanding-note", "plan", "diagnosis-note", "pr-review-guide", "acceptance-report", "rework-map", "change-card")
 
 
 def check_front_matter(front, review=False, kind=None):
@@ -182,7 +183,8 @@ def template_hash():
                           + (ROOT / "diagram-renderer/render.mjs").read_bytes()
                           + (ROOT / "peek.js").read_bytes() + (ROOT / "peek.css").read_bytes()
                           + (ROOT / "structure_view.py").read_bytes() + (ROOT / "structure-view.js").read_bytes()
-                          + (ROOT / "structure-view.css").read_bytes()).hexdigest()
+                          + (ROOT / "structure-view.css").read_bytes() + (ROOT / "workbench.py").read_bytes()
+                          + (ROOT / "workbench.css").read_bytes() + (ROOT / "workbench.js").read_bytes()).hexdigest()
 
 
 def font_css():
@@ -249,6 +251,7 @@ CHECK_ORIGINS = ("Executed here", "Recorded run", "Source inspected", "Proposed"
 DESIGN_COLUMNS = ("Relationship", "Result", "Evidence", "What the user said")
 DESIGN_RESULTS = ("as stated", "not stated", "not found")
 RULE_COLUMNS = ("Stated rule", "Result", "Evidence", "What the user said")
+CARD_FINDING_COLUMNS = ("Finding", "Kind", "Where", "Evidence", "Fix")
 RULE_RESULTS = ("holds", "broken", "not checked")
 SPECIAL_CASE_COLUMNS = ("Special case", "Kind", "Reach", "Why it exists", "Points to")
 REACH_STATUSES = ("reached", "not reached", "unknown")
@@ -261,6 +264,7 @@ MAP_TABLES = {
     RULE_COLUMNS: ("Stated rules", 1, RULE_RESULTS),
     SPECIAL_CASE_COLUMNS: ("Special cases", 2, REACH_STATUSES),
     FINDING_COLUMNS: ("Findings", 1, FINDING_KINDS),
+    CARD_FINDING_COLUMNS: ("Structure findings", 1, FINDING_KINDS),
 }
 STATUS_TABLES = {
     REQUIREMENT_COLUMNS: ("requirements", FULFILLMENT),
@@ -280,6 +284,7 @@ TABLE_LABELS = {
     RULE_COLUMNS: ("rule-results",),
     SPECIAL_CASE_COLUMNS: ("special-case-reach",),
     FINDING_COLUMNS: ("structure-findings",),
+    CARD_FINDING_COLUMNS: ("structure-findings",),
 }
 
 
@@ -1079,6 +1084,8 @@ def render(source, source_name, diagram_renderer="auto", repo=None, directory=No
     for anchor in soup.main.find_all("a", href=True):
         if is_file_link(anchor):
             anchor["class"] = anchor.get("class", []) + ["file-link"]  # a file name never breaks inside; the cell scrolls
+    if front.get("kind") in workbench.KINDS:
+        workbench.build(soup, front["kind"])
     # Code peek: pinned GitHub links and links to files beside the note open the cited file or diff inline, and
     # fences with a language draw as highlighted rows (peek.js); the data sits outside <main>.
     payload, skipped = source_peek.build(link_targets(soup.main), front, repo, source, directory, fence_languages(soup))

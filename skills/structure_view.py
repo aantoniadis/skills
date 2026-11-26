@@ -263,8 +263,10 @@ def facts(data, view):
         homes = {home for i, _, home in site_homes(data, view) if i == ri}
         spread += len(homes) > 1
     waiting = sum(1 for r in data.get("rules", []) if r["outcome"] == "waits" or any(s.get("waits") for s in r["sites"]))
-    return (f'<span class="sv-fact {"good" if ok == len(present) else "bad"}"><b>{ok} of {len(present)}</b> dependencies as the design states</span>'
-            f'<span class="sv-fact {"bad" if spread else "good"}"><b>{spread}</b> {"rule" if spread == 1 else "rules"} decided in more than one file</span>'
+    deps = (f'<span class="sv-fact {"good" if ok == len(present) else "bad"}"><b>{ok} of {len(present)}</b> dependencies as the design states</span>'
+            if present else '<span class="sv-fact"><b>0</b> dependencies drawn in this view</span>')
+    return (deps
+            + f'<span class="sv-fact {"bad" if spread else "good"}"><b>{spread}</b> {"rule" if spread == 1 else "rules"} decided in more than one file</span>'
             f'<span class="sv-fact wait"><b>{waiting}</b> waiting for your answer</span>')
 
 
@@ -279,7 +281,7 @@ def figure(data, index):
     plan = layout(data)
     files = {f["id"]: f for f in data["files"]}
     rules = data.get("rules", [])
-    out = [f'<div class="sv-svg"><svg viewBox="0 0 {plan["width"]:.0f} {plan["height"]:.0f}" role="img" '
+    out = [f'<div class="sv-svg"><svg viewBox="0 0 {plan["width"]:.0f} {plan["height"]:.0f}" width="{plan["width"]:.0f}" role="img" '
            f'aria-label="Structure: files by design part, their dependencies, and where each rule is decided. The tables below hold the same content.">'
            '<defs>' + "".join(f'<marker id="sv{index}-{c}" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto">'
                               f'<path d="M0 0L10 5L0 10z" class="sv-head-{c}"/></marker>' for c in ("as-stated", "not-stated", "not-found")) + '</defs>']
@@ -310,7 +312,7 @@ def figure(data, index):
     for fid, box in plan["boxes"].items():
         path = files[fid]["path"]
         shown = path if len(path) <= 24 else "…" + path[-23:]
-        out.append(f'<g class="sv-file" data-file="{escape(fid)}" tabindex="0"><rect x="{box["x"]}" y="{box["y"]}" width="{box["w"]}" height="{box["h"]}" rx="10"/>'
+        out.append(f'<g class="sv-file" data-file="{escape(fid)}" data-path="{escape(path)}" tabindex="0"><rect x="{box["x"]}" y="{box["y"]}" width="{box["w"]}" height="{box["h"]}" rx="10"/>'
                    f'<text x="{box["x"] + 12}" y="{box["y"] + 24}">{escape(shown)}</text><title>{escape(path)}</title></g>')
     out.append('</g><g class="sv-dots">')
     for ri, r in enumerate(rules):
@@ -338,12 +340,14 @@ def figure(data, index):
     legend = ('<p class="sv-legend"><span><i class="as-stated"></i>dependency the design allows</span><span><i class="not-stated"></i>dependency the design does not allow</span>'
               '<span><i class="not-found"></i>the design expects it; the code lacks it</span><span><i class="dot"></i>a file that decides a rule</span>'
               '<span><i class="dot waits"></i>waits for your answer</span></p>')
-    table = ('<table class="sv-table"><thead><tr><th>Rule</th><th>Decided today in</th><th>Proposed owner</th><th>Under the proposal</th></tr></thead><tbody>'
+    table = ('<details class="sv-table-box"><summary>The rules as a table</summary><table class="sv-table"><thead><tr><th>Rule</th><th>Decided today in</th><th>Proposed owner</th><th>Under the proposal</th></tr></thead><tbody>'
              + "".join(f'<tr><td><b>{LETTERS[ri]}</b> {escape(r["name"])}</td><td>' + "<br>".join(f'<span class="sv-code">{escape(s["at"])}</span> {escape(s.get("what", ""))}' for s in r["sites"])
                        + f'</td><td><span class="sv-code">{escape(files[r["owner"]]["path"])}</span></td><td>{escape(state_of(r))}. {escape(r.get("note", ""))}</td></tr>' for ri, r in enumerate(rules))
-             + '</tbody></table>') if rules else ""
+             + '</tbody></table></details>') if rules else ""
+    names = {"today": "Today", "proposed": "Proposed", **data.get("labels", {})}
     controls = ('<div class="sv-bar"><div class="sv-switch" role="group" aria-label="Which structure to show" hidden>'
-                '<button type="button" data-view="today" aria-pressed="true">Today</button><button type="button" data-view="proposed" aria-pressed="false">Proposed</button></div>'
+                f'<button type="button" data-view="today" aria-pressed="true">{escape(names["today"])}</button>'
+                f'<button type="button" data-view="proposed" aria-pressed="false">{escape(names["proposed"])}</button></div>'
                 f'<div class="sv-facts" aria-live="polite" data-today="{escape(facts(data, "today"))}" data-proposed="{escape(facts(data, "proposed"))}">{facts(data, "today")}</div></div>')
     panel = (f'<aside class="sv-panel"><h4 class="sv-panel-title">Rules, and where each is decided</h4><ul class="sv-rules">{buttons}</ul>'
              f'<div class="sv-details" aria-live="polite"><p class="sv-hint">Select a rule to follow it across files.</p>{details}</div></aside>') if rules else ""

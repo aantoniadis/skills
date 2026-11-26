@@ -87,6 +87,17 @@ Prompt shape:
 /aantoniadis-skills:untangle <component, directory, or flow> <what hurts about it, if you know>
 ```
 
+## The page
+
+The map's page is laid out as a workbench, in a technical theme that follows
+your system's light or dark setting. At the top: the title, counts of what
+waits for you, and the three summary lines. In the middle: the structure
+view. Below it, three panels: **Decide** (behavior to decide and your open
+questions), **Findings**, and **Rework** (the recommendation, the lock tests,
+and the steps). Hovering or focusing a panel item lights up the files it names
+in the picture; a click keeps them lit. The full text of the map follows, and
+every pinned line opens the code beside the page.
+
 ## After the rework
 
 `plan-change` takes the map's chosen target and your answers as decisions

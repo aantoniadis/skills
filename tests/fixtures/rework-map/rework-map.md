@@ -326,6 +326,13 @@ Each rate change keeps touching three files, 4 times in the fetched history, and
 
 A shared rate table that the three sites read is the smaller alternative (proposed). It removes the disagreement and leaves three places that apply the rate, so it is not recommended.
 
+## Lock tests
+
+| Lock test | Behavior it locks | Failed under | Suite |
+| --- | --- | --- | --- |
+| `test_gold_quote_records_38` in `tests/quotes/test_lock.py` | a gold quote for a 40.00 basket is 38.00; records a value under decision | quote rate changed to 50% at [builder.py:27](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L27): failed, we ran it ([baseline run](runs/baseline.md)) | 43 passed ([baseline run](runs/baseline.md)) |
+| `test_checkout_discount_shown` in `tests/api/test_lock.py` | the order JSON shows a 4.00 discount for a gold 40.00 basket | display rate changed at [serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44): failed, we ran it ([baseline run](runs/baseline.md)) | 43 passed ([baseline run](runs/baseline.md)) |
+
 ## Rework steps
 
 1. Pin, proposed, structural: add a characterization test for the quote total of a gold customer in `tests/quotes/`, from the [probe](runs/probe_loyalty.py); see it fail once with the rate changed by hand.

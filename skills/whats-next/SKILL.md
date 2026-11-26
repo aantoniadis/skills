@@ -21,7 +21,7 @@ Run `python3 <package>/skills/whats-next/scripts/workflow_state.py <project>`.
 It prints the branch and its distance from the default branch, the uncommitted
 files, the investigation location, every note and report our skills left
 (understanding note, plan, diagnosis note, PR review guide, acceptance report,
-rework map)
+rework map, change card)
 with its summary line and date, local tickets, `visual-pr` tasks, Matt's
 tracker setup, and whether a local tool record exists. It reads only and
 creates nothing.

@@ -73,8 +73,9 @@ class ReworkMapTests(unittest.TestCase):
     def test_template_declares_the_kind_and_the_checked_columns(self):
         template = (ROOT / "skills/untangle/references/map-template.md").read_text()
         self.assertTrue(template.startswith("---\nkind: rework-map\n---\n"))
+        card = (ROOT / "skills/fit-change/references/card-template.md").read_text()
         for columns in page.MAP_TABLES:
-            self.assertIn("| " + " | ".join(columns) + " |", template)
+            self.assertIn("| " + " | ".join(columns) + " |", card if columns == page.CARD_FINDING_COLUMNS else template)
         self.assertIn("rework-map", page.NOTE_KINDS)
 
 

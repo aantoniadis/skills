@@ -19,6 +19,7 @@ TEMPLATES = {  # kind -> the template or fixture every real artifact is filled f
     "PR review guide (pr-review-guide)": ROOT / "skills/pr-review-guide/references/report-template.md",
     "acceptance report (check-acceptance)": ROOT / "skills/check-acceptance/references/report-template.md",
     "rework map (untangle)": ROOT / "skills/untangle/references/map-template.md",
+    "change card (fit-change)": ROOT / "skills/fit-change/references/card-template.md",
 }
 
 

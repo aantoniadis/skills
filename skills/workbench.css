@@ -1,0 +1,75 @@
+/* Workbench layout and technical theme for the structure skills' pages (workbench.py). Light and dark. */
+:root:has(body.workbench){color-scheme:light dark}
+body.workbench{--ink:#17202b;--muted:#5a6676;--accent:#2f62c9;--accent-soft:#e6edfb;--line:#dce2ea;--canvas:#eef1f5;--surface:#f6f8fb;
+  --paper:#f6f8fb;--card:#fff;--tint:#eaf0f8;--tint-strong:#dbe5f4;--pale:#e6edfb;
+  --sv-bad:#c2410c;--sv-good:#2f855a;--sv-wait:#a16207;--sv-lane:#eef2f7;--sv-lane-line:#d5dce6;--sv-box-line:#8592a3;--sv-edge:#6b7889;
+  --wb-shadow:0 1px 2px rgba(23,32,43,.06),0 4px 16px rgba(23,32,43,.05);
+  background:var(--surface);color:var(--ink)}
+@media (prefers-color-scheme:dark){
+  body.workbench{--ink:#e4e9f0;--muted:#9aa6b5;--accent:#7aa2ff;--accent-soft:#1d2a44;--line:#2a3442;--canvas:#141a22;--surface:#0f141b;
+    --paper:#0f141b;--card:#161d27;--tint:#1a2331;--tint-strong:#223047;--pale:#1d2a44;
+    --sv-bad:#f0794a;--sv-good:#5cc28d;--sv-wait:#e0b04a;--sv-lane:#141b25;--sv-lane-line:#263141;--sv-box-line:#5d6b7d;--sv-edge:#8a97a8;
+    --wb-shadow:0 1px 2px rgba(0,0,0,.4)}
+  body.workbench pre,body.workbench pre code{background:#0b1016;color:#d7dee8}
+  body.workbench table th{background:var(--tint)!important;color:var(--ink)}
+  body.workbench table td{background:var(--card)!important;color:var(--ink)}
+  body.workbench code{background:var(--tint);color:var(--ink)}
+  body.workbench a{color:var(--accent)}
+}
+body.workbench .layout{display:block}
+body.workbench .sidebar,body.workbench .mobile-header{display:none}
+body.workbench main{max-width:1400px;margin:0 auto;padding:0 20px 64px;background:transparent}
+body.workbench main>footer{margin-top:24px}
+.wb-top{position:sticky;top:0;z-index:20;margin:0 -20px 16px;padding:14px 20px 0;background:color-mix(in srgb,var(--surface) 92%,transparent);
+  backdrop-filter:blur(8px);border-bottom:1px solid var(--line)}
+.wb-heading{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 20px}
+.wb-top h1{font-size:22px;line-height:1.25;margin:0;letter-spacing:-.01em;color:var(--ink)}
+.wb-chips{display:flex;flex-wrap:wrap;gap:6px}
+.wb-chip{font-size:13px;color:var(--muted);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:3px 10px}
+.wb-chip b{font-size:14px;margin-right:2px;color:var(--ink)}
+.wb-chip.decide b,.wb-chip.finding b{color:var(--sv-bad)}.wb-chip.open b{color:var(--sv-wait)}.wb-chip.lock b{color:var(--sv-good)}
+.wb-chip.zero b{color:var(--muted)}
+.wb-nav{display:flex;gap:2px;overflow-x:auto;margin-top:10px;scrollbar-width:thin}
+.wb-nav ul{display:none}
+.wb-nav a{flex:none;font-size:13px;color:var(--muted);text-decoration:none;padding:6px 10px;border-bottom:2px solid transparent;white-space:nowrap}
+.wb-nav a:hover,.wb-nav a:focus-visible{color:var(--ink);border-bottom-color:var(--accent)}
+.wb-summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin:0 0 16px}
+.wb-summary-item{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:var(--wb-shadow)}
+.wb-summary-label{margin:0 0 4px;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)}
+.wb-summary-text{margin:0;font-size:14.5px;line-height:1.5}
+.wb-hero .structure-view{margin:0}
+.wb-hero .sv-svg{background:var(--card);box-shadow:var(--wb-shadow)}
+.wb-panels{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:18px 0 28px;align-items:start}
+@media(max-width:1100px){.wb-panels{grid-template-columns:1fr}}
+.wb-panel{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px 12px 6px;box-shadow:var(--wb-shadow);min-width:0}
+.wb-panel-title{display:flex;align-items:center;justify-content:space-between;margin:2px 2px 10px;font-size:14px;font-weight:800;letter-spacing:.06em;text-transform:uppercase}
+.wb-panel-title a{color:var(--ink);text-decoration:none}.wb-panel-title a:hover{color:var(--accent)}
+.wb-count{font-size:12px;font-weight:700;letter-spacing:0;color:var(--muted);background:var(--tint);border-radius:999px;padding:1px 8px}
+.wb-list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.wb-sub{font-size:12px;font-weight:700;color:var(--muted);margin:6px 2px 0}
+.wb-empty{font-size:14px;color:var(--muted);padding:6px 2px}
+.wb-card{border:1px solid var(--line);border-radius:10px;padding:9px 11px;background:var(--surface);cursor:default;outline:none;transition:border-color .15s,box-shadow .15s}
+.wb-card:hover,.wb-card:focus-visible,.wb-card.pinned{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.wb-card p{margin:0}
+.wb-title{font-size:14.5px;line-height:1.45}
+.wb-meta{font-size:13px;color:var(--muted);margin-top:4px!important;line-height:1.45}
+.wb-meta-label{font-weight:700}
+.wb-meta code,.wb-title code{font-size:12px}
+.wb-badge,.wb-kind{display:inline-block;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;border-radius:6px;padding:1px 6px;margin-right:6px;vertical-align:1px}
+.wb-badge.open{background:color-mix(in srgb,var(--sv-wait) 18%,transparent);color:var(--sv-wait)}
+.wb-badge.answered{background:color-mix(in srgb,var(--sv-good) 18%,transparent);color:var(--sv-good)}
+.wb-kind{background:color-mix(in srgb,var(--sv-bad) 14%,transparent);color:var(--sv-bad)}
+.wb-behavior{border-left:3px solid var(--sv-bad)}
+.wb-question.is-open{border-left:3px solid var(--sv-wait)}
+.wb-lock{border-left:3px solid var(--sv-good)}
+.wb-step{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--accent);color:#fff;font-size:11.5px;font-weight:800;margin-right:8px;vertical-align:1px}
+.wb-target{font-size:14px;margin:0 2px 10px!important;padding:8px 10px;border-radius:10px;background:var(--accent-soft)}
+.wb-moved{font-size:13px;color:var(--muted)}
+.wb-full{border-top:1px solid var(--line);padding-top:8px}
+.wb-full-label{font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin:10px 0 0}
+body.workbench .question{background:transparent}
+body.workbench .sv-file.hl rect{stroke:var(--accent);stroke-width:3;fill:var(--accent-soft)}
+@media print{.wb-top{position:static}.wb-nav{display:none}.wb-panels{grid-template-columns:1fr}}
+.wb-hero .sv-legend,.wb-hero .sv-hint{max-width:none}
+.wb-data{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:4px 14px 10px;margin:0 0 28px;box-shadow:var(--wb-shadow)}
+.wb-panel-title{color:var(--ink)}

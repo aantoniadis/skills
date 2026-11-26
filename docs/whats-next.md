@@ -10,7 +10,7 @@ the next step.
 1. **Scan.** `workflow_state.py` prints the branch and its distance from the
    default branch, uncommitted files, the investigation location, every note
    and report our skills left (understanding note, plan, diagnosis note, PR
-   review guide, acceptance report, rework map) with its summary line, local tickets,
+   review guide, acceptance report, rework map, change card) with its summary line, local tickets,
    `visual-pr` tasks, Matt's tracker setup, and whether a local tool record
    exists. The skill adds what the scan cannot see: what this conversation
    just finished, an open PR, and the installed originals from the tool record.

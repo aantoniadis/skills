@@ -84,6 +84,15 @@ Prompt shapes:
   another module built, change an argument, or write state another module
   owns.
 
+## The change card
+
+A run on its own writes a change card, `change-card.md`, and its page. The
+page uses the same workbench as `untangle`'s map: the change, the fit, and the
+choice at the top; a structure view whose switch moves between before and
+after the change; and panels for what you decide, the findings of a check,
+and the reshape steps. Called from `plan-change` or `fix-bug`, the placement
+goes into the slice or the fix instead, with no page.
+
 ## Called by other skills
 
 `plan-change` takes a placement for each slice that changes existing code

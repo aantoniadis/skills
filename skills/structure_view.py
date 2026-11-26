@@ -261,6 +261,16 @@ def route(data, boxes, lanes, side):
     return paths
 
 
+def follows(present, view):
+    """How many drawn dependencies follow the documented design, and how the others break it, in plain words."""
+    ok = sum(1 for d in present if d[view] == "as stated")
+    forbidden = sum(1 for d in present if d[view] == "not stated")
+    missing = sum(1 for d in present if d[view] == "not found")
+    text = f'<b>{ok} of {len(present)}</b> {"dependency follows" if len(present) == 1 else "dependencies follow"} the documented design'
+    breaks = ([f'{forbidden} the design forbids'] if forbidden else []) + ([f'{missing} it expects {"is" if missing == 1 else "are"} missing'] if missing else [])
+    return text + (": " + ", ".join(breaks) if breaks else "")
+
+
 def facts(data, view):
     present = [d for d in data.get("dependencies", []) if d.get(view)]
     ok = sum(1 for d in present if d[view] == "as stated")
@@ -269,7 +279,7 @@ def facts(data, view):
         homes = {home for i, _, home in site_homes(data, view) if i == ri}
         spread += len(homes) > 1
     waiting = sum(1 for r in data.get("rules", []) if r["outcome"] == "waits" or any(s.get("waits") for s in r["sites"]))
-    deps = (f'<span class="sv-fact {"good" if ok == len(present) else "bad"}"><b>{ok} of {len(present)}</b> dependencies as the design states</span>'
+    deps = (f'<span class="sv-fact {"good" if ok == len(present) else "bad"}">{follows(present, view)}</span>'
             if present else '<span class="sv-fact"><b>0</b> dependencies drawn in this view</span>')
     return (deps
             + f'<span class="sv-fact {"bad" if spread else "good"}"><b>{spread}</b> {"rule" if spread == 1 else "rules"} decided in more than one file</span>'
@@ -422,9 +432,12 @@ def summary(data, view):
     for ri, r in enumerate(data.get("rules", [])):
         homes = {home for i, _, home in site_homes(data, view) if i == ri}
         parts.append(f'{escape(r["name"])}: decided in {len(homes)} {"file" if len(homes) == 1 else "files"}')
-    off = sum(1 for d in data.get("dependencies", []) if d.get(view) in ("not stated", "not found"))
-    if off:
-        parts.append(f'{off} {"dependency differs" if off == 1 else "dependencies differ"} from the design')
+    forbidden = sum(1 for d in data.get("dependencies", []) if d.get(view) == "not stated")
+    missing = sum(1 for d in data.get("dependencies", []) if d.get(view) == "not found")
+    if forbidden:
+        parts.append(f'{forbidden} {"dependency" if forbidden == 1 else "dependencies"} the design forbids')
+    if missing:
+        parts.append(f'{missing} {"dependency" if missing == 1 else "dependencies"} the design expects {"is" if missing == 1 else "are"} missing')
     return "; ".join(parts) or "no rule drawn"
 
 

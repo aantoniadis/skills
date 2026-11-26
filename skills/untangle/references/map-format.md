@@ -5,6 +5,16 @@ Read when filling or updating a rework map. The map is one note,
 to check each claim quickly. Follow the [shared page workflow](../../HTML-PAGES.md)
 for rendering, and [evidence](../../EVIDENCE.md) for every claim and diagram.
 
+## Contents
+
+- [Order and growth](#order-and-growth)
+- [The opening](#the-opening)
+- [Pins](#pins)
+- [Tables](#tables)
+- [Structure view](#structure-view)
+- [Names](#names)
+- [Diagrams](#diagrams)
+
 ## Order and growth
 
 Keep the template's section order: what the user must decide comes before
@@ -59,9 +69,56 @@ has content, and an explicit unknown is content.
 - **Special cases.** One row per classified case, with *Reach* one of
   *reached*, *not reached*, *unknown*, each followed by the caller, probe, or
   run that supports it.
+- **Lock tests.** One row per test written in step 7, with the break it
+  failed under and the suite run that passed. Remove the section when the
+  user chose no lock tests, and say so in the limits.
 - **Findings.** One row per structure finding in rank order, with *Kind* one
   of *scattered rule*, *misplaced logic*, *needless link*, *surplus*, *shared
   mutable state*, *shapeless data*, *unjustified special case*. Each row links to its section.
+
+## Structure view
+
+The section *Structure today and proposed* holds one `structure-view` fence of
+JSON. The page draws it: files grouped by design part, the dependencies
+between them, a lettered dot for each place that decides a rule, a switch
+between today and the proposal, and for shapeless data a table of who writes
+and reads each key. Markdown readers see the JSON; the tables of the map
+carry the same content as text. The sentence before the fence states the
+takeaway and the evidence kind, as [evidence](../../EVIDENCE.md#diagrams)
+says for a diagram.
+
+```json
+{"parts": [{"id": "api", "label": "API", "said": "only translates requests"},
+           {"id": "pricing", "label": "Pricing", "said": "every price is decided here"}],
+ "outside": {"today": "Not named in the design", "proposed": "Now named in the design"},
+ "files": [{"id": "views", "path": "shop/api/views.py", "part": "api"},
+           {"id": "discounts", "path": "shop/pricing/discounts.py", "part": "pricing"},
+           {"id": "basket", "path": "shop/basket.py", "part": "outside"}],
+ "dependencies": [{"from": "views", "to": "discounts", "today": "as stated", "proposed": "as stated",
+                   "at": "shop/api/views.py:4", "why": "The design allows it."}],
+ "rules": [{"name": "Loyalty discount rate", "owner": "discounts", "outcome": "moves", "note": "...",
+            "sites": [{"file": "discounts", "at": "shop/pricing/discounts.py:12", "what": "gold 10%"},
+                      {"file": "views", "at": "shop/api/views.py:40", "what": "gold 5%", "waits": true}]}],
+ "data": [{"name": "The order dict", "proposed": "an Order value built once in views.py",
+           "keys": [{"key": "total", "writes": [{"file": "views", "at": "shop/api/views.py:36"}],
+                     "reads": [{"file": "discounts", "at": "shop/pricing/discounts.py:20", "default": "0"}]}]}]}
+```
+
+- **parts** are the stated design's parts, in the direction dependencies may
+  point, first to last. A file the design does not name has the part
+  `outside`.
+- **files** are the files that hold a decision site, a dependency, or a key
+  the findings name. Keep it to what the findings need; a picture of every
+  file reads like none.
+- **dependencies** have `today` and `proposed`, each *as stated*, *not
+  stated*, *not found*, or `null` where it does not exist in that view.
+- **rules** are the rules the findings name, at most 26. `outcome` is
+  *moves* (its sites go to the owner), *stays*, or *waits*. A site with
+  `"waits": true` keeps its place until the user answers.
+- **data** is one entry per piece of shapeless data, from the *State and
+  data* table.
+- Every `at` is a pinned line, as `path.ext:12`, or starts with `proposed`.
+  The check rejects one that is neither.
 
 ## Names
 

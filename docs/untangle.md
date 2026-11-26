@@ -3,7 +3,8 @@
 Map one component as it is, compare it with the design people believe it has,
 and get a rework you choose: for every rule and every piece of state, one
 module that owns it. The result is a rework map, `rework-map.md`, with an
-HTML page when selected. The skill changes no application code.
+HTML page when selected. The skill changes no application code; it adds
+only the lock tests you choose.
 
 Use it on code that has become hard to follow or change, whoever wrote it:
 logic for one rule spread across modules and layers, helpers that carry
@@ -61,7 +62,21 @@ behavior nobody documented, guards and fallbacks nobody can explain.
    design true. **Checkpoint:** you choose. The chosen target gets ordered
    steps: pin the behavior with a test seen to fail, subtract, gather each
    rule at its owner, reshape, then lock the design in with a check.
-7. **Record and handoff.** The map passes `render_page.py --check`, and every
+7. **Lock the behavior.** When you choose it at the kickoff, the skill
+   writes the tests that lock what the code does today: every behavior the
+   chosen rework moves, and every behavior no test protected. Each is
+   written at an interface the rework keeps, seen failing once against a
+   deliberate break, and then green on the code as it is. A value under
+   decision is recorded as it is today and marked, so your answer changes
+   the test on purpose. These tests are the only change the skill makes to
+   your project, and it does not commit them unless you allow it.
+8. **Record and handoff.** The map's page draws the structure as a picture:
+   files grouped by design part, the dependencies the code has, and a dot
+   for each place that decides a rule. A switch moves between today and the
+   proposal, so you watch each rule's dots travel to their owner and the
+   forbidden dependencies disappear. Selecting a rule follows it across
+   files, and a table shows which module writes and reads each key of
+   shapeless data. The map passes `render_page.py --check`, and every
    pinned line is printed beside its source and read against the map. The
    skill hands over the `plan-change` command with the map path and the
    chosen target, or the step text for one contained step.

@@ -79,8 +79,9 @@ choice is open. Each step is small enough to review alone and leaves the
 component working. Order them:
 
 1. **Pin.** For each behavior a later step moves, name the existing test that
-   pins it, or the characterization test to write at a seam: a test that
-   records what the code does today. The [deliberate breaks](census.md#a-deliberate-break)
+   pins it, or the lock test the skill writes for it at a seam, as
+   [lock tests](lock-tests.md) says: a test that records what the code does
+   today. The [deliberate breaks](census.md#a-deliberate-break)
    of the census say which behaviors have a pin already, and a probe from the
    census is the starting point of a new one. Each pin is seen failing once
    against a deliberate break, because a pin never seen to fail may assert

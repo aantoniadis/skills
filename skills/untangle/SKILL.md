@@ -10,7 +10,7 @@ bounded by its [evidence](../EVIDENCE.md).
 
 # Untangle
 
-Produce the **rework map** of one component: what it does, how it is built today, where that differs from what people believe, and a rework the user can choose. In the target, every rule and every piece of state has one **owner**: the module that decides the rule or writes the state. Application code and tests stay as they are; probes and scratch copies live in the investigation location.
+Produce the **rework map** of one component: what it does, how it is built today, where that differs from what people believe, and a rework the user can choose. In the target, every rule and every piece of state has one **owner**: the module that decides the rule or writes the state. Application code stays as it is. The only change to the project is the **lock tests** of step 7, when the user chose them: tests that record what the code does today, so the rework that follows cannot change it unnoticed. Probes and scratch copies live in the investigation location.
 
 Three rules hold for the whole task:
 
@@ -24,7 +24,7 @@ Steps 2 to 4 describe the component. Judgment starts at step 5, so the user corr
 
 Before the kickoff, look at the target's size and its history, because the scope recommendation reads both: `git rev-parse --is-shallow-repository`. Deepen a shallow clone within existing authorization, or state the number of commits every history count rests on.
 
-Hold the kickoff round from [asking](../ASKING.md), with the questions the request leaves open: the scope, one component or flow with a proposed starting path (when the user names none, recommend the place where change is paid most, from the most changed files that [`change_coupling.py`](scripts/change_coupling.py) prints); the deliverable, the map alone or the map with a rework proposal (recommend the proposal); an HTML companion or text only (recommend HTML when the scope has more than one flow); and how to work together, a checkpoint after steps 2, 4, and 6 (recommend it) or a guided walk through the code, where you step through one flow with excerpts and run results and the user directs the depth, following the trace loop of [explain](../explain/SKILL.md) as a helper run.
+Hold the kickoff round from [asking](../ASKING.md), with the questions the request leaves open: the scope, one component or flow with a proposed starting path (when the user names none, recommend the place where change is paid most, from the most changed files that [`change_coupling.py`](scripts/change_coupling.py) prints); the deliverable, the map alone, the map with a rework proposal, or the proposal with its lock tests written into the project (recommend the lock tests, because a rework without them changes behavior unnoticed); an HTML companion or text only (recommend HTML when the scope has more than one flow); and how to work together, a checkpoint after steps 2, 4, and 6 (recommend it) or a guided walk through the code, where you step through one flow with excerpts and run results and the user directs the depth, following the trace loop of [explain](../explain/SKILL.md) as a helper run.
 
 Then establish the ground, using [CODE-TOOLS.md](../CODE-TOOLS.md) to select capabilities and reuse local preparation. Create the investigation location and its run records first, under the topic `untangle-<component>`, where a follow-up looks for the map:
 
@@ -115,15 +115,27 @@ Done when every capability with more than one decision site for a rule, every di
 
 When the deliverable includes a proposal, follow [rework](references/rework.md): group the findings under the change that removes them, worked out as if the system had known today's requirements from the start; describe the recommended **target** in full and each alternative in a few sentences, one of which leaves the structure as it is; and give for the recommended target the ordered steps, each behavior-preserving, each with the **pin** that protects it. A pin is a test that fails when the behavior changes, seen failing once against a deliberate break. The breaks of step 3 already show which behaviors have one.
 
-When the findings do not justify a restructuring, recommend leaving the structure as it is. The proposal is then the pins to write for the behavior no test protects, and the check that keeps the stated design true.
+When the findings do not justify a restructuring, recommend leaving the structure as it is. The proposal is then the pins for the behavior no test protects, and the check that keeps the stated design true; step 7 still writes those pins.
 
 Checkpoint: the user chooses the target. Changing a behavior is never part of a rework step: it stays under behavior to decide.
 
 Done when the user has chosen a target, or the choice is listed as open with the recommendation; and every step of that target names its files, its pin, and the check that proves behavior unchanged.
 
-## 7. Record and deliver
+## 7. Lock the behavior
 
-Keep one `rework-map.md` at the investigation location. For a new map, fill [map-template.md](references/map-template.md) as [map-format.md](references/map-format.md) says, removing unused prompts; update an existing map in place. Before every delivery, including each checkpoint, run `python3 <package>/skills/render_page.py <rework-map.md> --check --sync-labels --markdown-only`, and for a chosen HTML companion follow the [shared page workflow](../HTML-PAGES.md) and run the check without `--markdown-only`.
+When the user chose lock tests, write them now, before anyone moves code. When nobody answers, write them, because they change no behavior and the rework is unsafe without them. Follow [lock tests](references/lock-tests.md):
+
+1. **List what to lock.** Every behavior a step of the chosen target moves, and every behavior the deliberate breaks showed no test protects. Behavior already pinned by a test that the breaks turned red needs nothing new.
+2. **Write each test at a seam the rework keeps,** in the project's own test framework, layout, and naming, so the test still runs once the code behind the seam has moved. A probe from the census is its starting point. Assert what the code returns today, including behavior listed under behavior to decide: name such a test after what it records, such as "records that a gold quote is 38.00", and mark it as recording a value under decision, so the decision changes the test on purpose.
+3. **See each one fail.** In a scratch worktree, make the break the test is meant to catch and run the test; record the break and the red result. Restore, run the whole suite, and record it green. A test that stays green under its break locks nothing: rewrite it at another seam, or record the gap.
+
+Leave the tests in the working tree, and commit them only within authorization, as [asking](../ASKING.md) says. They are the first step of the rework: the steps that follow name them as their pins.
+
+Done when every behavior on the list has a test seen red under its break and green on the code as it is, or a recorded reason it has none, and the whole suite passes.
+
+## 8. Record and deliver
+
+Keep one `rework-map.md` at the investigation location. For a new map, fill [map-template.md](references/map-template.md) as [map-format.md](references/map-format.md) says, removing unused prompts; update an existing map in place. Write the **structure view** into it as a `structure-view` fence, as [map-format](references/map-format.md#structure-view) says: the page draws it as a picture you can switch between today and the proposal, and the tables carry the same content as text. Before every delivery, including each checkpoint, run `python3 <package>/skills/render_page.py <rework-map.md> --check --sync-labels --markdown-only`, and for a chosen HTML companion follow the [shared page workflow](../HTML-PAGES.md) and run the check without `--markdown-only`.
 
 The check confirms that a pinned line exists. It cannot tell whether the line says what your sentence claims. Print every pin beside its source text, read the list against the map, and recount every number the map states:
 
@@ -136,9 +148,10 @@ Before delivering, check also that:
 - Every relationship in the map has its command, pinned line, or the label *inferred*, and every flow says which of its steps a run executed.
 - Every answer the user gave is in the map beside the claim it settles, and every question nobody answered is marked *open* with its default.
 - No proposed removal rests on missing test coverage alone.
+- Every lock test is listed in the map with the behavior it locks, the break it failed under, and the suite run that passed; and no application code changed.
 - A [second reader](../FRESH-REVIEW.md) has compared the map with its sources when the rework is large or the user asks.
 
-Deliver in chat: what the component does, the behavior to decide, the differences from the stated design that matter most, the recommended target, the questions still open, and the link to the map. Then hand over the next command. For the rework: `/aantoniadis-skills:plan-change Plan the rework of <component>. Reuse the rework map at <path>; the chosen target is <name>.` (`$` instead of `/` in Codex). For one contained step in familiar code, the step text is the scope for a direct implementation. When the user confirmed a difference as intended or chose a target, offer the matching update to the project's design documentation or decision records, and write it only within authorization, as [asking](../ASKING.md) says.
+Deliver in chat: what the component does, the behavior to decide, the differences from the stated design that matter most, the recommended target, the lock tests written, the questions still open, and the link to the map. Then hand over the next command. For the rework: `/aantoniadis-skills:plan-change Plan the rework of <component>. Reuse the rework map at <path>; the chosen target is <name>.` (`$` instead of `/` in Codex). For one contained step in familiar code, the step text is the scope for a direct implementation. When the user confirmed a difference as intended or chose a target, offer the matching update to the project's design documentation or decision records, and write it only within authorization, as [asking](../ASKING.md) says.
 
 Done when the map passes the check, the pins have been read against it, the chat states the applied choices, and the user has the next command or the questions that block it.
 

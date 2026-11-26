@@ -369,7 +369,9 @@ it finds with the design your documentation states. It stops at three
 checkpoints: the capability list and stated design, the differences it found,
 and the choice between rework targets. It asks you only what a person knows:
 why something exists, whether a behavior is intended, and which design you
-want. It changes no application code; the chosen rework goes to `plan-change`
+want. It writes the lock tests you choose, so the rework cannot change
+behavior unnoticed, and changes no application code. The chosen rework goes
+to `plan-change`
 with the map path, or straight to implementation for one contained step.
 [How it works](untangle.md).
 

@@ -28,6 +28,7 @@ except ImportError:
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from reader_text import reader_gaps  # noqa: E402
 import source_peek  # noqa: E402
+import structure_view  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent
 TEMPLATE = ROOT / "page-template.html"
@@ -131,7 +132,7 @@ def fence_languages(soup):
     """The languages of the page's fences that the peek script draws highlighted: diffs split into tables and
     diagrams render on their own, so neither counts. Render and check derive the embedded grammars from this."""
     return sorted({name[len("language-"):] for code in soup.select("main pre > code") for name in code.get("class", [])
-                   if name.startswith("language-") and name not in ("language-diff", "language-mermaid")})
+                   if name.startswith("language-") and name not in ("language-diff", "language-mermaid", "language-structure-view")})
 
 
 def check_prompts(source):
@@ -179,7 +180,9 @@ def template_hash():
                           + (ROOT / "diagram-theme.json").read_bytes()
                           + (ROOT / "report-labels.json").read_bytes()
                           + (ROOT / "diagram-renderer/render.mjs").read_bytes()
-                          + (ROOT / "peek.js").read_bytes() + (ROOT / "peek.css").read_bytes()).hexdigest()
+                          + (ROOT / "peek.js").read_bytes() + (ROOT / "peek.css").read_bytes()
+                          + (ROOT / "structure_view.py").read_bytes() + (ROOT / "structure-view.js").read_bytes()
+                          + (ROOT / "structure-view.css").read_bytes()).hexdigest()
 
 
 def font_css():
@@ -308,6 +311,8 @@ def label_groups(source):
         groups.update(TABLE_LABELS.get(columns, ()))
     if document.select("code.language-mermaid"):
         groups.add("diagram-evidence")
+    if document.select("code.language-structure-view"):
+        groups.update(("design-results", "structure-findings"))
     if bug_card_headings(document):
         groups.update(("bug-evidence", "bug-origin"))
     cause = bool(bug_card_headings(document, CAUSE_SECTION))
@@ -949,6 +954,18 @@ def render(source, source_name, diagram_renderer="auto", repo=None, directory=No
                     entry.extend([reason, chips]); listing.append(entry)
                 group.append(listing); wrap.append(group)
             plan.replace_with(wrap)
+    for index, code in enumerate(soup.select("pre > code.language-structure-view"), 1):
+        pre = code.parent
+        view = parse(structure_view.figure(json.loads(code.get_text()), index)).figure
+        details = soup.new_tag("details", attrs={"class": "sv-source"})
+        summary = soup.new_tag("summary")
+        summary.string = "Data behind this view"
+        details.append(summary)
+        pre.replace_with(view)
+        details.append(pre)
+        view.append(details)
+        if index == 1:
+            soup.body.extend(list(parse(structure_view.assets()).contents))
     explicit = diagram_renderer != "auto"
     for index, code in enumerate(soup.select("pre > code.language-mermaid"), 1):
         pre = code.parent
@@ -1988,7 +2005,7 @@ def markdown_problems(source, note):
     """The checks a Markdown note passes with or without its page."""
     problems = []
     for check_one, *args in ((check_prompts, source), (check_claims, source), (check_names, source), (check_attention, source),
-                             (check_opening, source), (check_learning_plan, source), (check_rework_map, source), (check_verification, source), (check_diagrams, source, note)):
+                             (check_opening, source), (check_learning_plan, source), (check_rework_map, source), (structure_view.check, source), (check_verification, source), (check_diagrams, source, note)):
         keep(problems, check_one, *args)
     keep(problems, check_bug_cards, source, note, required=False)
     return problems

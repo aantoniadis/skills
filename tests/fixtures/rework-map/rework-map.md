@@ -75,6 +75,178 @@ The design is stated in the project's architecture page: "The API layer only tra
 | --- | --- | --- | --- |
 | the `order` dict, key `discount` | [views.py:36](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/views.py#L36), [serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44) | [views.py:41](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/views.py#L41) with the default 0 | written in 2 files; read with a default; changed after it is handed over: with the dict frozen in `views.py`, 2 tests failed ([baseline run](runs/baseline.md)) |
 
+## Structure today and proposed
+
+The files by design part, the dependencies the code has, and where each rule is decided (source, at the pinned lines in the data; the loyalty paths ran in the [probe](runs/probe_loyalty.py)). The page draws it; switch to the proposal to see the rate move to `pricing`.
+
+```structure-view
+{
+ "parts": [
+  {
+   "id": "api",
+   "label": "API",
+   "said": "only translates requests"
+  },
+  {
+   "id": "quotes",
+   "label": "Quotes",
+   "said": "uses pricing"
+  },
+  {
+   "id": "pricing",
+   "label": "Pricing",
+   "said": "every price is decided here"
+  },
+  {
+   "id": "storage",
+   "label": "Storage",
+   "said": "customer records"
+  }
+ ],
+ "files": [
+  {
+   "id": "views",
+   "path": "shop/api/views.py",
+   "part": "api"
+  },
+  {
+   "id": "serializers",
+   "path": "shop/api/serializers.py",
+   "part": "api"
+  },
+  {
+   "id": "builder",
+   "path": "shop/quotes/builder.py",
+   "part": "quotes"
+  },
+  {
+   "id": "discounts",
+   "path": "shop/pricing/discounts.py",
+   "part": "pricing"
+  },
+  {
+   "id": "rounding",
+   "path": "shop/pricing/rounding.py",
+   "part": "pricing"
+  },
+  {
+   "id": "accounts",
+   "path": "shop/accounts.py",
+   "part": "storage"
+  }
+ ],
+ "dependencies": [
+  {
+   "from": "views",
+   "to": "discounts",
+   "today": "as stated",
+   "proposed": "as stated",
+   "at": "shop/api/views.py:4",
+   "why": "The design allows API to use pricing."
+  },
+  {
+   "from": "views",
+   "to": "builder",
+   "today": "as stated",
+   "proposed": "as stated",
+   "at": "shop/api/views.py:5",
+   "why": "The design allows API to use quotes."
+  },
+  {
+   "from": "builder",
+   "to": "discounts",
+   "today": "not found",
+   "proposed": "as stated",
+   "at": "shop/quotes/builder.py:27",
+   "why": "The design says quotes uses pricing; the builder computes the discount itself."
+  },
+  {
+   "from": "serializers",
+   "to": "accounts",
+   "today": "not stated",
+   "proposed": null,
+   "at": "shop/api/serializers.py:9",
+   "why": "Only pricing may read customer records."
+  },
+  {
+   "from": "discounts",
+   "to": "accounts",
+   "today": "as stated",
+   "proposed": "as stated",
+   "at": "shop/pricing/discounts.py:3",
+   "why": "Pricing reads the tier."
+  }
+ ],
+ "rules": [
+  {
+   "name": "Loyalty discount rate",
+   "owner": "discounts",
+   "outcome": "moves",
+   "note": "The quote rate waits for the decision on which rate is right.",
+   "sites": [
+    {
+     "file": "discounts",
+     "at": "shop/pricing/discounts.py:12",
+     "what": "gold 10%, silver 5%"
+    },
+    {
+     "file": "serializers",
+     "at": "shop/api/serializers.py:44",
+     "what": "recomputed for display"
+    },
+    {
+     "file": "builder",
+     "at": "shop/quotes/builder.py:27",
+     "what": "gold 5%",
+     "waits": true
+    }
+   ]
+  },
+  {
+   "name": "A guest pays full price",
+   "owner": "discounts",
+   "outcome": "stays",
+   "note": "Pinned by a test; fine.",
+   "sites": [
+    {
+     "file": "discounts",
+     "at": "shop/pricing/discounts.py:20",
+     "what": "no tier, no discount"
+    }
+   ]
+  }
+ ],
+ "data": [
+  {
+   "name": "The order dict",
+   "proposed": "an Order value with declared fields, built once in views.py",
+   "keys": [
+    {
+     "key": "discount",
+     "writes": [
+      {
+       "file": "views",
+       "at": "shop/api/views.py:36"
+      },
+      {
+       "file": "serializers",
+       "at": "shop/api/serializers.py:44"
+      }
+     ],
+     "reads": [
+      {
+       "file": "views",
+       "at": "shop/api/views.py:41",
+       "default": "0"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}
+```
+
 ## Main flows
 
 Checkout and quotes reach the discount by different paths (source; the [probe](runs/probe_loyalty.py) executed both paths end to end):

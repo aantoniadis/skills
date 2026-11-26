@@ -73,6 +73,10 @@ kind: rework-map
 | --- | --- | --- | --- |
 | {{the_hash_dict_or_object_and_one_key_of_it}} | {{pinned_sites_that_build_it_or_write_the_key}} | {{pinned_readers_and_the_default_each_supplies}} | {{written_in_several_files_read_with_a_default_defaults_differ_or_changed_after_handover_with_the_freeze_run}} |
 
+## Structure today and proposed
+
+{{one_sentence_takeaway_with_its_evidence_kind_then_a_structure_view_fence_per_map_format}}
+
 ## Main flows
 
 {{one_diagram_per_main_flow_with_takeaway_evidence_label_and_source_map_per_EVIDENCE.md_and_which_steps_a_run_executed}}
@@ -128,6 +132,14 @@ kind: rework-map
 {{what_the_present_structure_costs_at_the_present_rate_of_change_with_evidence_and_what_is_still_worth_doing}}
 
 {{each_further_alternative_in_a_few_sentences_what_it_changes_what_it_costs_and_why_it_is_not_recommended}}
+
+## Lock tests
+
+| Lock test | Behavior it locks | Failed under | Suite |
+| --- | --- | --- | --- |
+| {{test_name_and_file}} | {{behavior_in_domain_words_and_marked_when_it_records_a_value_under_decision}} | {{the_break_and_the_run_record_that_showed_it_red}} | {{the_suite_run_that_passed_on_the_code_as_it_is}} |
+
+{{behaviors_on_the_list_without_a_lock_test_and_the_reason}}
 
 ## Rework steps
 

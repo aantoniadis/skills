@@ -54,8 +54,8 @@ to you, on evidence, before the code is written.
    retries the change adds; the classes, modules, and files it adds with
    what each holds, its wrappers, its options nothing sets, and its
    interfaces with one implementation; the added lines no test executes;
-   and any dependency the stated design does not allow that is new at the
-   head. The skill then reads the diff of every changed file and keeps a
+   the values it adds in more than one file; and the dependencies it adds,
+   with the cycles they close. The skill then reads the diff of every changed file and keeps a
    list of what it read. The leads and the author's description say where to
    look first, not where to stop.
 3. **Count decision sites, base against head.** The rules come from the
@@ -79,7 +79,11 @@ to you, on evidence, before the code is written.
    another module owns, a memo or cache with no rule for when it is stale, a
    new field on a request context, and a kept reference to an object the
    caller still changes.
-6. **Look for added surplus.** For each module, class, type, or file the
+6. **Look at added dependencies.** Against a stated design, a dependency
+   the design does not allow is a needless link. With no stated design, the
+   skill reads each added dependency that closes a cycle or is the first of
+   one part on another, and asks why the two must change together.
+7. **Look for added surplus.** For each module, class, type, or file the
    change adds, the skill names the decision only it makes. One with none,
    because it only delegates, only holds a constant, or only renames another,
    is surplus, confirmed by a deletion test: if deleting it makes complexity
@@ -88,8 +92,9 @@ to you, on evidence, before the code is written.
    a module or subclass for each value that differs only by a constant, an
    option nothing sets, an interface with one implementation, a compatibility
    path with no outside consumer, and an old path left after its callers
-   moved.
-7. **Compare with the placement,** when there is one. A placement settles
+   moved. A new module or class that takes the name of an existing one comes
+   to you as a question.
+8. **Compare with the placement,** when there is one. A placement settles
    scope, not structure, so the steps above apply to what it proposed too.
 
 The check reports only these kinds, each with its evidence, and "nothing

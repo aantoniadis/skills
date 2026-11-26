@@ -9,8 +9,11 @@ A key written in several files, read with a default, or read with different defa
 whose shape no one place declares. Leads, not findings: a key name is matched as text, so two
 unrelated hashes that use the same key appear as one row; read the sites. Hash literals and
 keyword arguments are not counted as writes. Patterns cover common Ruby, Python, JavaScript,
-and TypeScript idioms, and static fields in Java, Kotlin, and C#. Run from the repository
-root, or pass --repo. Exit 2 for invalid inputs or failed Git operations. No files are written.
+and TypeScript idioms, and static fields in Java, Kotlin, and C#. With --base, only what a
+change adds is listed: the state lines it adds, and the keys it uses on an added line, each
+with all of the key's sites at the head, from that commit to --head, or to the working tree
+with its untracked files when --head is not given. Run from the repository root, or pass
+--repo. Exit 2 for invalid inputs or failed Git operations. No files are written.
 """
 import argparse
 from collections import defaultdict
@@ -49,6 +52,42 @@ def git(repo, *args):
     if result.returncode:
         raise ValueError(result.stderr.strip() or f"git failed with exit {result.returncode}")
     return result.stdout
+
+
+HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@")
+
+
+def added_lines(diff):
+    """Path -> the line numbers a unified diff with no context adds."""
+    added, path = defaultdict(set), None
+    for line in diff.splitlines():
+        if line.startswith("+++ "):
+            path = None if line == "+++ /dev/null" else line[4:].removeprefix("b/")
+            continue
+        match = HUNK.match(line)
+        if match and path:
+            start, count = int(match.group(1)), int(match.group(2) or 1)
+            added[path].update(range(start, start + count))
+    return added
+
+
+def at_revision(repo, revision, files):
+    """Path -> text of the given files at a commit, through one `git cat-file --batch` call."""
+    env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    result = subprocess.run(["git", "-C", str(repo), "cat-file", "--batch"], env=env, capture_output=True,
+                            input="".join(f"{revision}:{path}\n" for path in files).encode())
+    texts, data, position = {}, result.stdout, 0
+    for path in files:
+        end = data.find(b"\n", position)
+        if end < 0:
+            break
+        header = data[position:end].split()
+        position = end + 1
+        if len(header) == 3 and header[1] == b"blob":
+            size = int(header[2])
+            texts[path] = data[position:position + size].decode("utf-8", errors="replace")
+            position += size + 1
+    return texts
 
 
 def first(groups):
@@ -123,24 +162,47 @@ def main():
     parser.add_argument("--repo", default=".")
     parser.add_argument("--tests", action="store_true", help="include test files, which are left out by default")
     parser.add_argument("--top", type=int, default=40, help="keys to list")
+    parser.add_argument("--base", help="list only what the change adds since this commit")
+    parser.add_argument("--head", help="with --base: the commit that holds the change; default is the working tree")
     args = parser.parse_args()
+    if args.head and not args.base:
+        parser.error("--head needs --base")
+    added, texts = None, None
     try:
-        files = git(args.repo, "ls-files", "--", *args.paths).splitlines()
+        if args.head:
+            files = git(args.repo, "ls-tree", "-r", "--name-only", args.head, "--", *args.paths).splitlines()
+        else:
+            files = git(args.repo, "ls-files", "--", *args.paths).splitlines()
+        if args.base:
+            revisions = [args.base, args.head] if args.head else [args.base]
+            added = added_lines(git(args.repo, "diff", "-U0", "--no-color", "--no-ext-diff", *revisions, "--", *args.paths))
+            tracked_at_base = set(git(args.repo, "ls-tree", "-r", "--name-only", args.base).splitlines())
+            if not args.head:  # a file Git does not track yet is added as a whole
+                files += git(args.repo, "ls-files", "--others", "--exclude-standard", "--", *args.paths).splitlines()
     except ValueError as error:
         print(f"shared_data: {error}", file=sys.stderr)
         return 2
-    state, uses_by_file = [], {}
+    files = [path for path in files if PurePosixPath(path).suffix in SOURCE and (args.tests or not TEST_FILE.search(path))]
+    if args.head:
+        texts = at_revision(args.repo, args.head, files)
+    state, uses_by_file, new = [], {}, lambda path, number: True
+    if added is not None:  # a file the base does not hold is new: every line of it is added
+        new = lambda path, number: path not in tracked_at_base or number in added.get(path, ())
     for path in files:
-        if PurePosixPath(path).suffix not in SOURCE or (not args.tests and TEST_FILE.search(path)):
-            continue
-        try:
-            with open(os.path.join(args.repo, path), encoding="utf-8", errors="replace") as handle:
-                lines = handle.read().splitlines()
-        except OSError:
-            continue
-        state.extend((kind, path, number, text) for number, kind, text in state_leads(lines))
+        if texts is not None:
+            if path not in texts:
+                continue
+            lines = texts[path].splitlines()
+        else:
+            try:
+                with open(os.path.join(args.repo, path), encoding="utf-8", errors="replace") as handle:
+                    lines = handle.read().splitlines()
+            except OSError:
+                continue
+        state.extend((kind, path, number, text) for number, kind, text in state_leads(lines) if new(path, number))
         uses_by_file[path] = key_uses(lines)
-    print(f"Leads to shared mutable state: {len(state)} lines. Each is a line to read, not a defect.\n")
+    scope = f" on lines added since {args.base}" if args.base else ""
+    print(f"Leads to shared mutable state{scope}: {len(state)} lines. Each is a line to read, not a defect.\n")
     for kind in STATE:
         listed = [row for row in state if row[0] == kind]
         if listed:
@@ -148,10 +210,12 @@ def main():
             for _, path, number, text in listed:
                 print(f"{path}:{number}\t{text[:150]}")
             print()
-    keys = {key: entry for key, entry in ledger(uses_by_file).items() if notes(entry)}
+    touched = {key for path, uses in uses_by_file.items() for number, key, _, _ in uses if new(path, number)}
+    keys = {key: entry for key, entry in ledger(uses_by_file).items() if notes(entry) and key in touched}
     ranked = sorted(keys.items(), key=lambda item: (-len(set(item[1]["write"]) | set(item[1]["read"]) | set(item[1]["default"])),
                                                     -len(item[1]["write"]), item[0]))
-    print(f"Keys of untyped data: {len(keys)} keys with a sign that no one place declares them (top {args.top}).")
+    print(f"Keys of untyped data{' the change uses on an added line' if args.base else ''}: {len(keys)} keys with a sign that no one place "
+          f"declares them (top {args.top}).")
     print("A key is matched by name, so unrelated hashes that share a key share a row.\n")
     for key, entry in ranked[:args.top]:
         print(f"{key}\t{'; '.join(notes(entry))}")

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # A parcel depot in Ruby. On main, one delivery method holds its own rules. The branch moves those
 # rules into a shared module and adds one module for each new kind; the new modules hold only a constant.
-# It also adds an option nothing sets, a price cache with no rule for when it is stale, and a guard with no producer.
+# It also adds an option nothing sets, a price cache with no rule for when it is stale, a guard with no producer,
+# and a dependency of the delivery rules on the rates, which already depend on them.
 set -euo pipefail
 export GIT_AUTHOR_NAME=eval GIT_AUTHOR_EMAIL=eval@example.invalid GIT_COMMITTER_NAME=eval GIT_COMMITTER_EMAIL=eval@example.invalid
 git init -q -b main
@@ -166,7 +167,7 @@ module Depot
 
       def days(order)
         block = Base.block(order)
-        block ? block.fetch(:days, 3) : nil
+        block ? block.fetch(:days) { Rates.for(order) > 9 ? 1 : 3 } : nil
       end
     end
   end
@@ -288,4 +289,5 @@ git add -A && git commit -qm "Delivery kinds: move the standard rules into a sha
 The standard rules moved into Delivery::Base unchanged; Standard gives the same
 results as before. Express and locker orders are requested in ticket 518.
 Labels can print a compact form. Prices are cached per order. Checkout returns
-nil for a nil order, for safety."
+nil for a nil order, for safety. An order with no promised days gets one day
+when its price is above 9."

@@ -1,6 +1,6 @@
 """The untangle scripts: change coupling from history, import edges, the stated design against the edges,
-the leads to special cases, the units a change adds, the tests that execute a line, and the source behind a note's
-pinned lines. The first five print leads; the tests pin what they find and what they leave out."""
+the leads to special cases, the units, values, and edges a change adds, the tests that execute a line, and the
+source behind a note's pinned lines. The first six print leads; the tests pin what they find and what they leave out."""
 import importlib.util
 import json
 import os
@@ -22,9 +22,9 @@ def load(name):
     return module
 
 
-coupling, imports, conformance, cases, tests_for_line, pinned, shared, breaker = (load(name) for name in (
+coupling, imports, conformance, cases, tests_for_line, pinned, shared, breaker, values = (load(name) for name in (
     "change_coupling", "import_edges", "design_conformance", "special_cases", "tests_for_line", "pinned_lines", "shared_data",
-    "break_probe"))
+    "break_probe", "added_values"))
 
 
 class Repository(unittest.TestCase):
@@ -137,6 +137,45 @@ class ImportEdgesTests(Repository):
             ("web/src/app.ts", "web/src/util.ts"),
             ("engine/src/main/java/com/acme/Order.java", "engine/src/main/java/com/acme/price/Rule.java"),
         })
+
+
+    RUBY = {
+        "lib/locker.rb": "class Locker\n  def full? = false\nend\n",
+        "lib/depot/delivery/base.rb": "module Depot\n  module Delivery\n    module Base\n      def zone(order)\n        order[:zone]\n      end\n    end\n  end\nend\n",
+        "lib/depot/delivery/locker.rb": "module Depot\n  module Delivery\n    module Locker\n      extend Base\n      KIND = \"locker\"\n    end\n  end\nend\n",
+        "lib/depot/rates.rb": "require_relative \"delivery/base\"\nmodule Depot\n  module Rates\n    # Delivery::Nothing in a comment\n"
+                              "    def self.for(order) = Delivery::Locker::KIND == \"Locker\" ? 1 : ::Locker.new\n  end\nend\n",
+    }
+
+    def edge_rows(self, *args):
+        out = self.run_script("import_edges", *args)
+        return [tuple(line.split("\t")) for line in out.splitlines() if line and not line.startswith("#")]
+
+    def test_ruby_constants_resolve_as_ruby_looks_them_up(self):
+        self.commit(self.RUBY)
+        self.assertEqual(set(self.edge_rows()), {
+            ("lib/depot/delivery/locker.rb", "lib/depot/delivery/base.rb"),   # extend Base, found in the enclosing Delivery
+            ("lib/depot/rates.rb", "lib/depot/delivery/base.rb"),             # require_relative
+            ("lib/depot/rates.rb", "lib/depot/delivery/locker.rb"),           # Delivery::Locker::KIND resolves to the unit
+            ("lib/depot/rates.rb", "lib/locker.rb"),                          # ::Locker is the top-level class
+        }, "a namespace several files reopen, a comment, and a word in a string give no edge")
+
+    def test_added_edges_carry_the_cycle_and_the_first_dependency_between_directories(self):
+        self.commit(self.RUBY)
+        base = self.git("rev-parse", "HEAD")
+        self.commit({"lib/depot/delivery/base.rb": self.RUBY["lib/depot/delivery/base.rb"].replace(
+            "        order[:zone]\n", "        order[:zone] || Rates.for(order)\n")})
+        head = self.git("rev-parse", "HEAD")
+        rows = self.edge_rows("--base", base, "--head", head)
+        self.assertEqual(len(rows), 1)
+        source, target, notes = rows[0]
+        self.assertEqual((source, target), ("lib/depot/delivery/base.rb", "lib/depot/rates.rb"))
+        self.assertIn("closes a cycle: lib/depot/rates.rb -> lib/depot/delivery/base.rb -> lib/depot/rates.rb", notes)
+        self.assertIn("first dependency of lib/depot/delivery/ on lib/depot/; lib/depot/ depends on lib/depot/delivery/ too", notes)
+        self.assertEqual(len(self.edge_rows("--rev", base)), 4, "the edges at an earlier commit")
+        self.write({"lib/depot/labels.rb": "module Depot\n  module Labels\n    def self.text(order) = Delivery::Base.zone(order)\n  end\nend\n"})
+        self.assertEqual([row[:2] for row in self.edge_rows("--base", head)], [("lib/depot/labels.rb", "lib/depot/delivery/base.rb")],
+                         "the working tree counts an untracked file")
 
 
 class DesignConformanceTests(unittest.TestCase):
@@ -261,7 +300,7 @@ class AddedUnitsTests(Repository):
         self.commit({"lib/tiers.rb": self.RUBY_BASE.replace("  end\nend\n", added + "  end\nend\n"),
                      "lib/checkout.rb": "puts Shop::Tiers::Quote.new.total(order, rounding: 0)\n"})
         out = self.run_script("added_units", "--base", base, "--head", "HEAD")
-        self.assertIn("Leads to surplus from", out)
+        self.assertIn("Leads from", out)
         self.assertIn("Base: Shop::Tiers::Silver, Shop::Tiers::Bronze", out)
         self.assertIn("lib/tiers.rb:12\tShop::Tiers::Silver\t0 methods, 1 constant; extend Base", out)
         self.assertIn("Shop::Tiers::Quote\t3 methods (1 only passes parameters on), 0 constants; Struct", out)
@@ -300,7 +339,7 @@ class AddedUnitsTests(Repository):
                      "handler.py": "class Handler:\n    def run(self, x):\n        raise NotImplementedError\n\n\n"
                                    "class OnlyHandler(Handler):\n    def run(self, x):\n        if x:\n            return 1\n        return 2\n"})
         out = self.run_script("added_units", "--base", base, "--head", "HEAD")
-        self.assertIn("Leads to surplus from", out)
+        self.assertIn("Leads from", out)
         self.assertIn("kinds/: cost.py, region.py", out)
         self.assertIn("kinds/region.py\t(file)\t0 functions, 1 constant", out)
         self.assertNotIn("kinds/team.py", out, "the file was there before the change")
@@ -309,6 +348,16 @@ class AddedUnitsTests(Repository):
         self.assertIn("pricing.py:9\tprice\tlegacy_mode\n", out)
         self.assertNotIn("price\trounding", out, "quote sets rounding by keyword")
         self.assertIn("handler.py:1\tHandler\textended only at handler.py:6", out)
+
+    def test_a_unit_that_takes_the_name_of_another_is_a_lead(self):
+        self.commit({"lib/locker.rb": "class Locker\n  def full? = false\nend\n",
+                     "lib/depot/base.rb": "module Depot\n  module Base\n    def zone = 1\n  end\nend\n"})
+        base = self.git("rev-parse", "HEAD")
+        self.commit({"lib/depot/locker.rb": "module Depot\n  module Locker\n    extend Base\n    KIND = \"locker\"\n  end\nend\n",
+                     "lib/depot/more.rb": "module Depot\n  module Base\n    def days = 3\n  end\nend\n"})
+        out = self.run_script("added_units", "--base", base, "--head", "HEAD")
+        self.assertIn("lib/depot/locker.rb:2\tDepot::Locker\tlib/locker.rb:1 defines Locker", out)
+        self.assertNotIn("defines Depot::Base", out, "a unit reopened under its own name is the same unit")
 
     def test_the_working_tree_counts_untracked_files_and_a_bad_base_exits_2(self):
         self.commit({"app/kinds.py": "class Kind:\n    pass\n"})
@@ -396,6 +445,21 @@ class SharedDataTests(Repository):
         self.assertIn("carrier\twritten, never read here", out)
         self.assertNotIn("\nemail\t", out, "a key that is only read gives no sign")
 
+    def test_with_a_base_only_the_state_and_keys_of_added_lines_are_listed(self):
+        self.commit({"app/rates.rb": "module Rates\n  def self.for(order)\n    order[:weight] || 0\n  end\nend\n",
+                     "app/old.rb": "$registry = {}\nopts[:legacy] ||= true\n"})
+        base = self.git("rev-parse", "HEAD")
+        self.commit({"app/rates.rb": "module Rates\n  def self.for(order)\n    @prices ||= {}\n    order[:total] = order[:weight] || 0\n  end\nend\n",
+                     "app/labels.rb": "def label(order) = order[:total] || 'none'\n"})
+        out = self.run_script("shared_data", "--base", base, "--head", "HEAD")
+        self.assertIn(f"on lines added since {base}: 1 lines", out)
+        self.assertIn("app/rates.rb:3\t@prices ||= {}", out)
+        self.assertNotIn("$registry", out, "state the base already held is not listed")
+        self.assertIn("total\t", out)
+        self.assertNotIn("legacy\t", out, "a key the change does not touch is not listed")
+        self.write({"app/more.rb": "$cache = {}\n"})
+        self.assertIn("app/more.rb:1\t$cache = {}", self.run_script("shared_data", "--base", "HEAD"))
+
     def test_state_leads_cover_python_and_javascript_and_skip_comments(self):
         python = ["_cache = {}", "def f():", "    global counter", "    # $x = 1 and @@y = 2", "LIMIT = 10"]
         self.assertEqual([(n, kind) for n, kind, _ in shared.state_leads(python)],
@@ -403,6 +467,30 @@ class SharedDataTests(Repository):
         script = ["let registry = new Map();", "window.app = {};", "const fixed = 1;", "private static int count = 0;", "private static final int MAX = 3;"]
         self.assertEqual([(n, kind) for n, kind, _ in shared.state_leads(script)],
                          [(1, "module-level collection"), (2, "global or class-level variable"), (4, "global or class-level variable")])
+
+
+class AddedValuesTests(Repository):
+    def test_values_are_words_in_quotes_symbols_word_lists_and_numbers(self):
+        self.assertEqual(values.values('KINDS = %w[standard express] + [:locker, "pick-up"]; rate = 0.15 if n > 100'),
+                         {"standard", "express", "locker", "pick-up", "0.15", "100"})
+        self.assertEqual(values.values("  # 'express' in a comment"), set())
+        self.assertEqual(values.values('x = {kind: "ab", "name" => true, Foo::Bar => 12}'), set(), "short, common, and non-literal words")
+
+    def test_a_value_added_in_two_files_is_listed_with_the_files_that_hold_it(self):
+        self.commit({"app/pricing.py": "RATES = {'gold': 0.10}\n", "app/quotes.py": "TIERS = ('gold',)\n", "app/other.py": "x = 1\n"})
+        base = self.git("rev-parse", "HEAD")
+        self.commit({"app/pricing.py": "RATES = {'gold': 0.10, 'platinum': 0.15}\n", "app/quotes.py": "TIERS = ('gold', 'platinum')\n",
+                     "app/other.py": "x = 1\nlabel = 'once'\n", "tests/test_pricing.py": "assert rate('platinum') == 0.15\n"})
+        out = self.run_script("added_values", "--base", base, "--head", "HEAD")
+        self.assertIn("platinum\tadded in 2 files; 2 files hold it at the head", out)
+        self.assertIn("app/pricing.py:1, app/quotes.py:1", out)
+        self.assertNotIn("once", out, "a value added in one file is not listed")
+        self.assertNotIn("0.15", out, "the rate is added in one source file; the test file is left out")
+        self.assertIn("0.15\tadded in 2 files", self.run_script("added_values", "--base", base, "--head", "HEAD", "--tests"))
+        self.write({"app/new.py": "KIND = 'silver'\n", "app/quotes.py": "TIERS = ('gold', 'platinum', 'silver')\n"})
+        self.assertIn("silver\tadded in 2 files", self.run_script("added_values", "--base", "HEAD"))
+        result = subprocess.run([sys.executable, str(SCRIPTS / "added_values.py"), "--base", "no-such-commit"], cwd=self.repo, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 2)
 
 
 class TestsForLineTests(unittest.TestCase):

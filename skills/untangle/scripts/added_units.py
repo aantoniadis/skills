@@ -13,7 +13,9 @@ A unit earns its place by a decision only it makes. For the change from --base, 
 - each added function or method that only passes its own parameters on to one call: a
   possible wrapper. One with no parameter is not listed;
 - each added parameter with a default that no line outside its definition sets by keyword;
-- each added unit that exactly one other unit inherits, extends, or includes.
+- each added unit that exactly one other unit inherits, extends, or includes;
+- each added unit that takes the short name of a unit defined elsewhere: inside its namespace
+  the name now means the new unit.
 
 A lead is a place to read, not a finding: a value object, an error class, and a marker type are
 correct with no methods. The script does not look for types in other languages, units made at
@@ -195,6 +197,7 @@ def ruby_file(text):
 
 PARSERS = {".py": python_file, ".rb": ruby_file}
 SETS_BY_KEYWORD = {".py": r"\bNAME=[^=]", ".rb": r"\bNAME:\s"}
+DEFINES = {".py": r"^\s*class\s+NAME\b", ".rb": r"^\s*(?:class|module)\s+(?:[A-Z]\w*::)*NAME\b"}
 EXTENDS = {".py": r"^\s*class\s+\w+\s*\([^)]*\bNAME\b", ".rb": r"(?:<\s*(?:[A-Z]\w*::)*NAME\b|\b(?:extend|include|prepend)\s+(?:[A-Z]\w*::)*NAME\b)"}
 
 
@@ -301,6 +304,20 @@ def main():
         if len(users) == 1:
             single.append((path, one, users[0]))
 
+    def text_at_head(path):
+        try:
+            return git(repo, "show", f"{args.head}:{path}") if args.head else (repo / path).read_text(errors="replace")
+        except (ValueError, OSError):
+            return ""
+
+    same_name = []
+    for path, one, _ in units:
+        suffix, name = Path(path).suffix, short(one["name"])
+        for other_path in sorted({hit[0] for hit in search(name, DEFINES[suffix], suffix)}):
+            others = [other for other in (parse(other_path, text_at_head(other_path)) or {"units": []})["units"]
+                      if short(other["name"]) == name and other["name"] != one["name"]]
+            same_name += [(path, one, other_path, other) for other in others]
+
     hollow = [(path, one, elsewhere) for path, one, elsewhere in units if one["methods"] == one["calls"]]
     hollow_files = [(path, one) for path, one in files if one["methods"] == one["calls"]]
     by_base, by_directory = defaultdict(list), defaultdict(list)
@@ -313,9 +330,9 @@ def main():
             by_directory[str(PurePosixPath(path).parent)].append(PurePosixPath(path).name)
     by_base = {key: names for key, names in by_base.items() if len(names) > 1}
     by_directory = {key: names for key, names in by_directory.items() if len(names) > 1}
-    leads = len(hollow) + len(hollow_files) + len(wrappers) + len(unset) + len(single)
+    leads = len(hollow) + len(hollow_files) + len(wrappers) + len(unset) + len(single) + len(same_name)
     target = f"{args.base} to {args.head}" if args.head else f"{args.base} to the working tree"
-    print(f"Leads to surplus from {target}: {leads}. The change adds {len(units)} classes or modules, {len(files)} files with no class "
+    print(f"Leads from {target}: {leads}. The change adds {len(units)} classes or modules, {len(files)} files with no class "
           f"or module, {len(options)} options with a default, and {len(wrappers)} functions that only pass their parameters on.")
 
     def section(title, lines):
@@ -332,6 +349,8 @@ def main():
     section("Added functions that only pass their parameters on to one call", [f"{path}:{one['line']}\t{one['name']}" for path, one in wrappers])
     section("Added options that nothing sets by keyword", [f"{path}:{line}\t{one['name']}\t{name}" for path, one, name, line in unset])
     section("Added units that one unit extends", [f"{path}:{one['line']}\t{one['name']}\textended only at {user[0]}:{user[1]}" for path, one, user in single])
+    section("Added units that take the name of another unit",
+            [f"{path}:{one['line']}\t{one['name']}\t{other_path}:{other['line']} defines {other['name']}" for path, one, other_path, other in same_name])
     section("Other added units", [f"{path}:{one['line']}\t{one['name']}\t{describe(one)}{moved(elsewhere)}"
                                   for path, one, elsewhere in units if (path, one, elsewhere) not in hollow]
             + [f"{path}\t(file)\t{describe(one, 'function')}" for path, one in files if (path, one) not in hollow_files])

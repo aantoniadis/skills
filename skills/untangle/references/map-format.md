@@ -13,6 +13,7 @@ and [evidence](../../EVIDENCE.md) for every claim and diagram.
 - [Order and growth](#order-and-growth)
 - [In short](#in-short)
 - [Problems](#problems)
+- [A worked problem](#a-worked-problem)
 - [Pins](#pins)
 - [Pictures](#pictures)
 - [The plan and the reference](#the-plan-and-the-reference)
@@ -99,6 +100,79 @@ A behavior to decide and a corner case need no **Proposed fix:**, **Cost and
 risk:**, or **What you get:** when the decision is all there is; every other
 kind has a **Proposed fix:**, even if the fix is to leave it, with the
 reason.
+
+## A worked problem
+
+One complete problem, as it stands in a map; a change card writes its
+problems the same way. The shop, files, and commits are invented. `<sha>`
+stands for the inspected revision, and the structure view this focus names
+sits in *The plan*.
+
+````markdown
+### 2. Changing a loyalty rate takes three edits
+
+**Kind:** scattered rule · **How sure:** source, read at the lines, and history · **Cost today:** 3 files per rate change; 2 of the last 4 changes missed one
+
+**What is wrong:** The discount for each tier is decided in `pricing`, again in the API serializer for display, and again in quotes. Nothing ties the three together, so a person changing a rate must know all of them. Two of the four changes in the history missed one; that is how gold quotes came to differ from checkout (source, at the pinned lines; history from `git log -L`).
+
+```structure-focus
+{"rules": ["Loyalty discount rate"]}
+```
+
+```change-history
+{"rule": "Loyalty discount rate",
+ "sites": [{"id": "discounts", "label": "pricing/discounts.py:12"},
+           {"id": "serializers", "label": "api/serializers.py:44"},
+           {"id": "builder", "label": "quotes/builder.py:27", "since": "3be62b3"}],
+ "commits": [{"sha": "3be62b3", "date": "2023-02-17", "subject": "Quotes compute the discount locally", "changed": ["builder"]},
+             {"sha": "93548a8", "date": "2023-09-01", "subject": "Raise gold to 10%", "changed": ["discounts", "serializers"]}]}
+```
+
+**Evidence:**
+
+```python url="https://github.com/acme/shop/blob/<sha>/shop/pricing/discounts.py#L12-L13"
+RATES = {"gold": Decimal("0.10"), "silver": Decimal("0.05")}
+return subtotal * RATES.get(tier, Decimal("0"))
+```
+
+```python url="https://github.com/acme/shop/blob/<sha>/shop/quotes/builder.py#L26-L28"
+def discount_for(customer, subtotal):
+    if customer.tier == "gold":
+        return subtotal * Decimal("0.05")
+```
+
+- `discounts.py` and `builder.py` changed together in 6 commits with no dependency between them (`change_coupling.py --edges`).
+
+**Proposed fix:** *Pricing owns discounts*: `loyalty_discount(tier, subtotal)` at [discounts.py:12](https://github.com/acme/shop/blob/<sha>/shop/pricing/discounts.py#L12) is the only place that knows a rate; the serializer and the quote builder call it. The steps are in [the plan](#the-plan).
+
+**Cost and risk:** 3 files and 2 call sites change; 2 lock tests come first (proposed).
+
+**What you get:** the next rate change is one edit in one file; decision sites for the rule go from 3 to 1 (proposed).
+
+**Other options:**
+
+- **Leave it:** every rate change keeps touching three files, and the next missed file is found by a customer (inferred from the history).
+- **A shared rate table the three places read:** removes the disagreement, but three places still apply the rate (proposed).
+
+**Decision:** open. Recommended: *Pricing owns discounts*. Until you answer, the structure stays as it is.
+````
+
+What each part does on the page:
+
+- The `### 2.` heading becomes the problem's number and title, and the
+  sidebar lists it with the state of its decision.
+- The **Kind:** line becomes the problem's tags; its three labels stay on one
+  line, joined by ` · `.
+- The `structure-focus` fence draws the files of that rule, today and
+  proposed side by side. The `change-history` fence draws each commit against
+  the places it changed, and marks the place a commit missed:
+  `93548a8` changed two places and missed `quotes/builder.py:27`.
+- The two excerpt fences sit side by side because nothing stands between
+  them. Each `url` is the same pinned link the text would use: the path at
+  the inspected revision and the lines shown, as `#L26-L28`. The lines in the
+  fence are the lines at that link.
+- The **Decision:** box is coloured by its first word, and an *open* or
+  *default applied* decision is also listed under *In short*.
 
 ## Pins
 

@@ -76,6 +76,18 @@ class ReworkMapTests(unittest.TestCase):
             page.check_rework_map("| Special case | Kind | Reach | Why it exists | Points to |\n| --- | --- | --- | --- | --- |\n"
                                   "| `a.py:3` | default | reached | TBD | nothing found |\n")
 
+    def test_the_format_guide_worked_problem_passes_the_checks(self):
+        guide = (ROOT / "skills/untangle/references/map-format.md").read_text()
+        example = guide[guide.index("````markdown\n") + len("````markdown\n"):guide.index("\n````\n")].replace("<sha>", "d" * 40)
+        start, end = self.source.index("### 2. "), self.source.index("### 3. ")
+        self.note.write_text(self.source[:start] + example + "\n\n" + self.source[end:])
+        rendered = run(self.note, "--sync-labels")
+        self.assertEqual(rendered.returncode, 0, rendered.stderr)
+        checked = run(self.note, "--check", "--sync-labels")
+        self.assertEqual(checked.returncode, 0, checked.stderr)
+        html = self.note.with_suffix(".html").read_text()
+        self.assertEqual(html.count('class="history-view"'), 2, "the example's change history draws")
+
     def test_template_declares_the_kind_and_the_checked_columns(self):
         template = (ROOT / "skills/untangle/references/map-template.md").read_text()
         self.assertTrue(template.startswith("---\nkind: rework-map\n---\n"))

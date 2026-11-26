@@ -12,19 +12,20 @@ bounded by its [evidence](../EVIDENCE.md).
 
 Keep one change from eroding the design. Before the change, **place** it: say which module owns each rule it touches, what it reuses, and whether the structure has to be reshaped first. After the change, **check** it: find what the diff added in a second place, in the wrong module, or for no stated reason. A rule's **owner** is the one module that decides it. A **decision site** is a place that decides something about a rule: a condition, a default, a validation, a transformation.
 
-Five rules hold for the whole task:
+Six rules hold for the whole task:
 
 - **One change to a rule touches one decision site.** When it would touch two, the structure is what needs changing, and that is the user's decision to make before the code is written.
 - **Restructuring the placement names is in scope. Everything else stays as it is.** This is what lets a change include the refactoring it needs without growing into a rewrite.
 - **A check needs a producer; a fallback needs a decision.** A guard is added only with the caller, input, or stored value that produces the state it handles. A fallback or a caught error is added only where the request or the user says what the consumer should see on that failure; otherwise the error propagates.
 - **Data is built once, and state has one writer.** New code passes data between modules as a value with declared fields and returns a result; it does not add keys to a hash another module built, change an argument it was given, or write state another module owns.
+- **A corner case that bends the design is the developer's call.** Handling a rare input or state with a flag through layers, a branch in the general path, new state, or a new abstraction waits for their choice on a corner-case card, as [corner cases](../CORNER-CASES.md) says.
 - **Facts come from the code and from runs; intent comes from the user.** Find where a rule is decided yourself. Ask which structure they want and what a consumer should see.
 
-When [plan-change](../plan-change/SKILL.md) or [fix-bug](../fix-bug/SKILL.md) calls the place step as a helper, hold no round of your own: return the placement for the caller's slice or fix, and pass any reshape-or-patch choice back to the caller, which puts it to the user. A request, ticket, or plan with no code yet takes **Place**. A diff, a branch, a PR, or a changed working tree takes **Check**; when a placement exists for it, check against it. A change that touches one site of one rule in familiar code needs three lines of placement and no round.
+When [plan-change](../plan-change/SKILL.md) or [fix-bug](../fix-bug/SKILL.md) calls the place step as a helper, hold no round of your own: return the placement for the caller's slice or fix, and pass any reshape-or-patch choice and every corner-case card back to the caller, which puts them to the user. A request, ticket, or plan with no code yet takes **Place**. A diff, a branch, a PR, or a changed working tree takes **Check**; when a placement exists for it, check against it. A change that touches one site of one rule in familiar code needs three lines of placement and no round.
 
 ## Place
 
-1. **Name what the change decides.** List the rules the change adds or alters, in the project's domain words, the state it writes, and the failures it can meet.
+1. **Name what the change decides.** List the rules the change adds or alters, in the project's domain words, the state it writes, the failures it can meet, and the corner cases it meets.
 
 2. **Find each rule's decision sites today.** Search the code for the rule's discriminators (enum values, type fields, status strings, flags, configuration keys), follow the references from each hit, and read the history of the lines that hold the rule: `git log -S'<discriminator>' --oneline`. Record every site with its pinned line. Where two sites decide the same rule, run one input through both and record whether they agree. The census reference of [untangle](../untangle/references/census.md) says how each kind of evidence is taken and what it misses. In the same search, look for existing code the change can call before proposing new code.
 
@@ -40,9 +41,11 @@ When [plan-change](../plan-change/SKILL.md) or [fix-bug](../fix-bug/SKILL.md) ca
 
    Where the rule's sites disagree, gathering them changes what one of them returns. Which result is right is a behavior decision outside this change: ask it as its own question, and until it is answered keep every site's present result. Gather the sites that agree, leave the one that differs where it is, list it as waiting for the answer, and name its handoff to [fix-bug](../fix-bug/SKILL.md). A likely intent, such as an older copy nobody updated, is your recommendation for the answer; it is not the answer.
 
-5. **Settle failure behavior.** For each failure the change can meet, quote what the request or plan says the consumer sees. Where nothing says, list it as a question; until it is answered the error propagates.
+5. **Weigh the corner cases.** For each corner case the change meets, from the request, the runs, and step 1, decide whether handling it bends the design, as [corner cases](../CORNER-CASES.md) lists. A case handled by a check at one site is placed with the change. For a case that bends the design, write its corner-case card with the options cheapest first and put it to the user in the same round as the reshape choice. When nobody answers, apply the default that guide gives and mark it.
 
-6. **Write the placement** where the implementer reads it. For a plan's slice or a ticket, write it there with the fields below. Otherwise write the **change card**: fill [card-template.md](references/card-template.md) as `change-card.md` at the investigation location that `python3 <package>/skills/investigation_dir.py <topic> <project>` creates and prints, removing unused prompts. Its structure view, a `structure-view` fence as [untangle's map format](../untangle/references/map-format.md#structure-view) describes, shows the files the change touches before (`today`) and after the change (`proposed`), with `"labels": {"today": "Before", "proposed": "After the change"}`. Render and check the card with `python3 <package>/skills/render_page.py <change-card.md> --sync-labels`. The fields for a slice or ticket:
+6. **Settle failure behavior.** For each failure the change can meet, quote what the request or plan says the consumer sees. Where nothing says, list it as a question; until it is answered the error propagates.
+
+7. **Write the placement** where the implementer reads it. For a plan's slice or a ticket, write it there with the fields below. Otherwise write the **change card**: fill [card-template.md](references/card-template.md) as `change-card.md` at the investigation location that `python3 <package>/skills/investigation_dir.py <topic> <project>` creates and prints, removing unused prompts. Its structure view, a `structure-view` fence as [untangle's map format](../untangle/references/map-format.md#structure-view) describes, shows the files the change touches before (`today`) and after the change (`proposed`), with `"labels": {"today": "Before", "proposed": "After the change"}`. Render and check the card with `python3 <package>/skills/render_page.py <change-card.md> --sync-labels`. The fields for a slice or ticket:
 
    ```markdown
    ## Placement
@@ -52,6 +55,7 @@ When [plan-change](../plan-change/SKILL.md) or [fix-bug](../fix-bug/SKILL.md) ca
    **Reuse:** <existing code the change calls, pinned; or none found, with the search>.
    **Data and state:** <the value the change adds or extends, with its fields and the one place that builds it; the one writer of any state it touches; or none>.
    **Reshape first:** <the ordered steps, each structural with its pin; or none: the change fits>.
+   **Corner cases:** <per case that bends the design: the chosen option and its authority, or the open card and its default; or none met>.
    **In scope:** <the files and the restructuring named above>. **Out of scope:** everything else.
    **Failure behavior:** <per failure: the quoted decision, or the open question and "the error propagates">.
    **Check after:** <the test command, then fit-change on the diff>.
@@ -59,7 +63,7 @@ When [plan-change](../plan-change/SKILL.md) or [fix-bug](../fix-bug/SKILL.md) ca
 
 Deliver the placement in chat with its pinned lines, the choice made or still open, and the next command. For an implementation the user starts, hand off to `mattpocock:implement` as [package references](../REFERENCES.md) say, with the placement in the command, or give the placement as the scope of a direct implementation.
 
-Done when every rule the change touches has its decision sites listed with pinned lines, the fit is stated with the signal that decided it, the user has chosen or the default is marked, and the placement is where the implementer reads it.
+Done when every rule the change touches has its decision sites listed with pinned lines, the fit is stated with the signal that decided it, every corner case that bends the design has a card, the user has chosen or each default is marked, and the placement is where the implementer reads it.
 
 ## Check
 
@@ -79,7 +83,7 @@ Done when every rule the change touches has its decision sites listed with pinne
    - A decision added outside the rule's owner is **misplaced logic**.
    - A rule changed at some of its sites and not at others is **behavior to decide**, not a structure finding: run one input through the changed and the unchanged site, record both results, and hand it to [find-bugs](../find-bugs/SKILL.md) or [fix-bug](../fix-bug/SKILL.md).
 
-4. **Account for every special case the change adds.** For each added guard, default, caught error, retry, or compatibility path, name its producer and its reason as [special cases](../untangle/references/special-cases.md) says. With no producer and no line of the request behind it, it is an **unjustified special case**. A check where data enters the system (user input, an external service, stored data, a file) has its producer by definition and is fine.
+4. **Account for every special case the change adds.** For each added guard, default, caught error, retry, or compatibility path, name its producer and its reason as [special cases](../untangle/references/special-cases.md) says. With no producer and no line of the request behind it, it is an **unjustified special case**. A check where data enters the system (user input, an external service, stored data, a file) has its producer by definition and is fine. An added case with a producer whose handling bends the design, as [corner cases](../CORNER-CASES.md) lists, and has no recorded decision is a question, not a finding: write its corner-case card into the questions for the user.
 
 5. **Look at the data and state the change touches.** Run `python3 <package>/skills/untangle/scripts/shared_data.py` on the changed files at the head, and read the added lines for these: a key added to a hash or dict that another module built, with the reads of that key that supply a default; an argument changed in place; a new writer of a global, a class-level variable, or a field another module owns. The first is **shapeless data** made worse, the other two are **shared mutable state**. Data a function builds and returns is fine.
 

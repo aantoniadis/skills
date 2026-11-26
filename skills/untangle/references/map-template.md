@@ -89,6 +89,12 @@ kind: rework-map
 
 {{counts_per_kind_and_file_of_the_leads_counted_and_not_inspected_one_by_one}}
 
+## Corner cases
+
+| Case | Reach and harm | What handling it bends | Options, cheapest first | Decision |
+| --- | --- | --- | --- | --- |
+| {{reached_special_case_whose_handling_bends_the_design_with_its_pinned_line}} | {{who_meets_it_with_evidence_and_what_a_user_gets_without_it}} | {{the_flag_branch_state_abstraction_second_path_or_ordering_it_needs_and_what_each_change_pays}} | {{reject_isolate_or_keep_each_with_files_and_what_a_user_sees}} | {{chosen_option_with_authority_or_open_and_it_stays}} |
+
 ## Findings
 
 | Finding | Kind | Where | Cost today | Removed by |

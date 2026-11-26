@@ -53,7 +53,9 @@ behavior nobody documented, guards and fallbacks nobody can explain.
    case. A special case is classified by
    whether anything reaches it and by what it points to: a missing
    requirement, a producer emitting a state it should not, an implicit
-   boundary, or a real outcome. What looked wrong and is fine is recorded, so
+   boundary, or a real outcome. A case that is reached but bends the design
+   gets a corner-case card, so you can choose to keep it, isolate it at the
+   edge, or reject the case. What looked wrong and is fine is recorded, so
    the next run does not raise it again.
 6. **Rework.** Findings are grouped under the change that removes them. The
    map describes one recommended target in full and each alternative in a few

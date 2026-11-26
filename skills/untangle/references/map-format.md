@@ -69,9 +69,13 @@ has content, and an explicit unknown is content.
 - **Special cases.** One row per classified case, with *Reach* one of
   *reached*, *not reached*, *unknown*, each followed by the caller, probe, or
   run that supports it.
+- **Corner cases.** One row per reached special case whose handling bends
+  the design, as [corner cases](../../CORNER-CASES.md) says, with its options
+  cheapest first and the decision: the chosen option with its authority, or
+  *open* with "it stays". Remove the section when no case bends the design.
 - **Lock tests.** One row per test written in step 7, with the break it
   failed under and the suite run that passed. Remove the section when the
-  user chose no lock tests, and say so in the limits.
+  deliverable is the map alone, and say so in the limits.
 - **Findings.** One row per structure finding in rank order, with *Kind* one
   of *scattered rule*, *misplaced logic*, *needless link*, *surplus*, *shared
   mutable state*, *shapeless data*, *unjustified special case*. Each row links to its section.

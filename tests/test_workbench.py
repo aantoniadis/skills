@@ -55,6 +55,12 @@ class WorkbenchTests(unittest.TestCase):
         self.assertEqual(len(main.select('.wb-panel[aria-label="Reshape first"] .wb-card')), 3)
         self.assertEqual([label.get_text() for label in main.select(".wb-summary-label")], ["The change", "Fit", "Choice"])
         self.assertIn("dependencies drawn in this view", str(main))
+        corner = main.select('.wb-panel[aria-label="Decide"] .wb-corner')
+        self.assertEqual(len(corner), 1, "a corner case is a decision for the developer")
+        self.assertIn("is-open", corner[0]["class"])
+        self.assertIn("Handling it needs:", corner[0].get_text())
+        chips = {chip["class"][1]: chip.b.get_text() for chip in main.select(".wb-chip")}
+        self.assertEqual(chips["open"], "2", "an open corner case counts as an open question")
 
     def test_committed_card_fixture_carries_a_current_label_key(self):
         source = (ROOT / "tests/fixtures/change-card/change-card.md").read_text()

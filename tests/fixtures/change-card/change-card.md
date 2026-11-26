@@ -19,6 +19,12 @@ kind: change-card
 | --- | --- | --- | --- |
 | Reshape first, or add platinum in both places? | It decides the steps below. | Reshape first. | open |
 
+## Corner cases
+
+| Case | Reach and harm | What handling it bends | Options, cheapest first | Decision |
+| --- | --- | --- | --- | --- |
+| A customer upgraded to platinum while a quote is open: the quote showed the gold total, checkout charges the platinum total (seen in our probe). | Found by our probe; no known user meets it. The customer pays less than quoted, never more. | Storing the tier on each quote, a new stored field, and a branch at checkout. | Leave: checkout uses the tier at checkout, as for gold and silver today. Build in: store the tier with the quote, in `shop/quotes.py` and `shop/storage.py` (proposed). | open: leave (default) |
+
 ## Rules and owners
 
 | Rule | Owner | Decided today in | After the change |

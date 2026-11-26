@@ -114,6 +114,18 @@ def decide_items(soup):
             title.insert(0, badge)
             items.append(card(soup, "wb-question" + (" is-open" if is_open else ""), title,
                               small(soup, "Until answered: " if is_open else "Answer: ", cells[2] if is_open else cells[3])))
+    corner = table_rows(soup, "corner-cases")
+    if corner:
+        items.append(heading(soup, "Corner cases"))
+    for cells in corner:
+        if len(cells) >= 5:
+            is_open = bool(OPEN.match(cells[4].get_text()))
+            badge = soup.new_tag("span", attrs={"class": "wb-badge " + ("open" if is_open else "answered")})
+            badge.string = "open" if is_open else "decided"
+            title = cell(soup, cells[0], "p", "wb-title")
+            title.insert(0, badge)
+            items.append(card(soup, "wb-corner" + (" is-open" if is_open else ""), title, small(soup, "Reach and harm: ", cells[1]),
+                              small(soup, "Handling it needs: ", cells[2]), small(soup, "Decision: ", cells[4])))
     return items
 
 
@@ -170,7 +182,8 @@ def target_line(soup):
 def chips(soup, kind):
     """Counts for the top bar: what needs the user, what was found, what protects the rework."""
     count = lambda identifier: len(table_rows(soup, identifier))
-    open_questions = sum(1 for cells in table_rows(soup, "questions-for-the-user") if len(cells) >= 4 and OPEN.match(cells[3].get_text()))
+    open_questions = (sum(1 for cells in table_rows(soup, "questions-for-the-user") if len(cells) >= 4 and OPEN.match(cells[3].get_text()))
+                      + sum(1 for cells in table_rows(soup, "corner-cases") if len(cells) >= 5 and OPEN.match(cells[4].get_text())))
     findings = "findings" if kind == "rework-map" else "structure-findings"
     values = [("decide", count("behavior-to-decide"), "to decide"), ("open", open_questions, "open questions"),
               ("finding", count(findings), "findings"), ("lock", count("lock-tests"), "lock tests")]

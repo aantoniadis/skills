@@ -32,9 +32,15 @@ to you, on evidence, before the code is written.
    the test that pins each, or patch, with what the next change will cost.
    Where the existing sites disagree, which result is right is asked as its
    own question, and until you answer every site keeps its present result.
-5. **Settle failure behavior:** what the request says a consumer sees on each
+5. **Weigh the corner cases.** A rare input or state whose handling would
+   bend the design (a flag through layers, a branch in the general path, new
+   state, a new abstraction) comes to you as a corner-case card: who meets
+   it, what it costs, and the options cheapest first: reject it at the
+   boundary, isolate it at the edge, build it in, or leave it. Until you
+   answer, the design stays as it is.
+6. **Settle failure behavior:** what the request says a consumer sees on each
    failure, or a question for you. Until it is answered, the error propagates.
-6. **Write the placement** into the plan or ticket, or as a change card:
+7. **Write the placement** into the plan or ticket, or as a change card:
    rules and owners, reuse, reshape steps, what is in and out of scope,
    failure behavior, and the check to run afterwards.
 
@@ -70,7 +76,7 @@ Prompt shapes:
 /aantoniadis-skills:fit-change Check <the branch, PR, or working tree> against <base>. <Report only | Apply the fixes that keep behavior.>
 ```
 
-## Three rules it applies
+## Four rules it applies
 
 - **Restructuring the placement names is in scope. Everything else stays as
   it is.** This is how a change includes the refactoring it needs without
@@ -83,6 +89,10 @@ Prompt shapes:
   with declared fields and returns a result. It does not add keys to a hash
   another module built, change an argument, or write state another module
   owns.
+- **A corner case that bends the design is your call.** The skill shows
+  you its reach and its price, and recommends; building it into the general
+  design needs your answer. The [corner cases](../skills/CORNER-CASES.md)
+  guide holds the card and the defaults.
 
 ## The change card
 

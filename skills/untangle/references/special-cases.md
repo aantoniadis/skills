@@ -7,6 +7,14 @@ facts decide each case: whether anything reaches it, and why it exists. An
 unexplained special case is evidence about the design before it is a line to
 delete.
 
+## Contents
+
+- [Which ones to account for](#which-ones-to-account-for)
+- [Reach](#reach)
+- [Why it exists, and what it points to](#why-it-exists-and-what-it-points-to)
+- [When it bends the design](#when-it-bends-the-design)
+- [Before proposing a removal](#before-proposing-a-removal)
+
 ## Which ones to account for
 
 Start from the list [`special_cases.py`](../scripts/special_cases.py) prints,
@@ -68,6 +76,13 @@ when the reason may no longer hold. Then name what the case points to:
   sees, and the question for the user is what the consumer should see.
 - **Nothing found.** No producer, no reason in history, and the user knows
   none. It is an unjustified special case.
+
+## When it bends the design
+
+A *reached* case can still cost more than it is worth: a flag passed through
+layers, a branch in the general path, or state kept only for it. Weigh it as
+[corner cases](../../CORNER-CASES.md) says, with its own card in the map, and
+let the user choose between keeping it, isolating it, and rejecting the case.
 
 ## Before proposing a removal
 

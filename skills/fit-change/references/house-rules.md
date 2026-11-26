@@ -1,7 +1,7 @@
 # House rules
 
-Read when a kind of structure finding has appeared in a second change to the
-same project, or when the user asks how to stop it at the source. A session
+Read when a kind of structure finding, or a corner case handled by bending
+the design, has appeared in a second change to the same project, or when the user asks how to stop it at the source. A session
 that never invokes a skill still reads the project's instruction file, so a
 rule that has to hold in every session goes there, or into a check the
 project runs.
@@ -48,6 +48,11 @@ its own names: its owner modules, its boundary, its design document.
 - When you replace a path, move its callers and delete it in the same change,
   unless something outside this repository uses it.
 - Search for existing code before writing a helper.
+- Before handling a rare input or state with a parameter through layers, a
+  branch in the general path, new stored state, or a new abstraction, stop.
+  Say who meets the case and what handling it costs the design, offer the
+  cheaper options (reject it at the boundary, isolate it at the edge, leave
+  it), and let the developer choose.
 ```
 
 Where the project states its design, add one line that points to it and names

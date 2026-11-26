@@ -23,6 +23,12 @@ kind: change-card
 | --- | --- | --- | --- |
 | {{question_only_a_person_can_answer}} | {{what_it_decides}} | {{conservative_default}} | {{the_answer_or_open}} |
 
+## Corner cases
+
+| Case | Reach and harm | What handling it bends | Options, cheapest first | Decision |
+| --- | --- | --- | --- | --- |
+| {{the_input_or_state_and_the_probe_that_reaches_it}} | {{who_meets_it_with_evidence_and_what_a_user_gets_if_not_handled}} | {{the_flag_branch_state_abstraction_second_path_or_ordering_it_needs}} | {{reject_isolate_build_in_leave_each_with_files_and_what_a_user_sees}} | {{chosen_option_with_authority_or_open_with_the_default}} |
+
 ## Rules and owners
 
 | Rule | Owner | Decided today in | After the change |

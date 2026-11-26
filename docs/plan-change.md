@@ -25,6 +25,10 @@ by whom, on what evidence.
    against the real code and systems. A probe that breaks a clause comes back to
    you with its output and options; you decide the revised clause
    ([contract probes](../skills/plan-change/references/contract-probes.md)).
+   A corner case these steps uncover, whose handling would bend the design,
+   comes to you with its reach and its price; under an autopilot policy the
+   plan keeps the design and records the case as open
+   ([corner cases](../skills/CORNER-CASES.md)).
 3. **Retain evidence.** Keep decisions, material revisions, and blockers in the
    plan. Separate history and milestone copies are useful for larger changes.
    Retain source snapshots for evidence from dirty or non-Git files.

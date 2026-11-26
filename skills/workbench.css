@@ -108,7 +108,7 @@ body.workbench .wb-panel-title a{color:inherit;text-decoration:none}
 .wb-kind{color:var(--bad);background:var(--bad-tint);border-color:var(--bad-line)}
 .wb-behavior .wb-title::before{content:"Decide";color:var(--bad);background:var(--bad-tint);border-color:var(--bad-line)}
 .wb-lock .wb-title::before{content:"Locked";color:var(--good);background:var(--good-tint);border-color:var(--good-line)}
-.wb-behavior,.wb-question.is-open,.wb-lock{border-left:1px solid transparent}
+.wb-behavior,.wb-question.is-open,.wb-corner.is-open,.wb-lock{border-left:1px solid transparent}
 .wb-step{display:inline-grid;place-items:center;min-width:22px;height:22px;border-radius:11px;background:var(--accent);color:var(--on-accent);font-size:12px;font-weight:800;margin-right:8px;vertical-align:1px}
 .wb-target{margin:4px 0 12px!important;padding:10px 12px;font-size:14.5px;line-height:1.5;border:1px solid var(--accent-line);border-radius:10px;background:var(--accent-tint);color:var(--ink)}
 

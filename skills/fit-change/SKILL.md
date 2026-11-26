@@ -61,7 +61,7 @@ When [plan-change](../plan-change/SKILL.md) or [fix-bug](../fix-bug/SKILL.md) ca
    **Check after:** <the test command, then fit-change on the diff>.
    ```
 
-Deliver the placement in chat with its pinned lines, the choice made or still open, and the next command. For an implementation the user starts, hand off to `mattpocock:implement` as [package references](../REFERENCES.md) say, with the placement in the command, or give the placement as the scope of a direct implementation.
+Deliver the placement in chat with its pinned lines, the choice made or still open, one line for each corner case that bends the design (the case, who meets it, what handling it would add, and the option applied or chosen), and the next command. For an implementation the user starts, hand off to `mattpocock:implement` as [package references](../REFERENCES.md) say, with the placement in the command, or give the placement as the scope of a direct implementation.
 
 Done when every rule the change touches has its decision sites listed with pinned lines, the fit is stated with the signal that decided it, every corner case that bends the design has a card, the user has chosen or each default is marked, and the placement is where the implementer reads it.
 

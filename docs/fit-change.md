@@ -132,6 +132,11 @@ Prompt shapes:
   with declared fields and returns a result. It does not add keys to a hash
   another module built, change an argument, or write state another module
   owns.
+- **New code meets [clean structure](../skills/CLEAN-STRUCTURE.md).** A
+  unit the change adds has one responsibility and a name that says what it
+  is for, adds no abstraction without a second user today, and writes no
+  state another module owns. A name that says less than the body does, or
+  is generic, is an unclear name.
 - **A corner case that bends the design is your call.** The skill shows
   you its reach and its price, and recommends; building it into the general
   design needs your answer. The [corner cases](../skills/CORNER-CASES.md)

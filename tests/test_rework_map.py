@@ -65,7 +65,9 @@ class ReworkMapTests(unittest.TestCase):
                 ("**Proposed fix:** Delete it once you confirm", "**Fix later:** Delete it once you confirm", "needs **Proposed fix:**"),
                 ("**What is wrong:** [rounding.py:8]", "**The issue:** [rounding.py:8]", "add **What is wrong:**"),
                 ("*Verified by:* tested, `test_guest_pays_full_price`", "*Verified by:* probably, `test_guest_pays_full_price`", "start *Verified by:* with one of"),
-                ("- **Rename** `shop/pricing/discounts.py`", "- **Rework** `shop/pricing/discounts.py`", "Module changes: start each item with one of")):
+                ("- **Rename** `shop/pricing/discounts.py`", "- **Rework** `shop/pricing/discounts.py`", "Module changes: start each item with one of"),
+                ("- **YAGNI:** today", "- **Lean:** today", "Design principles: start each item with one of"),
+                ("- **Liskov substitution:** not applicable", "- **Open–closed:** also not applicable", "under ### Design principles today's result and the proposed one for: Liskov substitution")):
             with self.subTest(new=new):
                 self.assertIn(old, self.source)
                 self.note.write_text(self.source.replace(old, new))

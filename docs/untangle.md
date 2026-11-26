@@ -112,7 +112,8 @@ worth it, and the author who carries it out.
 - **Problems**, ranked by what the structure costs: scattered rules,
   misplaced logic, needless links, two-way flow (calls or state that go
   back up the layers, or files that depend on each other), surplus,
-  shared mutable state, shapeless data, unjustified special cases. The
+  shared mutable state, shapeless data, unjustified special cases, and
+  unclear names. The
   map is for making code readable; a possible bug it finds on the way is a
   *behavior to decide*, ranked last and handed to `find-bugs` or `fix-bug`.
   Each problem is one section that holds everything
@@ -133,8 +134,12 @@ worth it, and the author who carries it out.
   reason. A module is named for the one decision it owns, one with no
   decision of its own is removed or merged, and one with two reasons to
   change is split. The whole structure has a switch between today and the
-  proposal, which shows renamed, removed, and added modules; then come the
-  lock tests and the steps.
+  proposal, which shows renamed, removed, and added modules. Then the
+  **design principles**: single responsibility, the rest of SOLID, YAGNI,
+  minimal shared state, one-way flow, and intention-revealing names, each
+  checked on the code today and on the target, so a lead sees what the
+  rework buys. The [clean structure](../skills/CLEAN-STRUCTURE.md) guide
+  holds the check for each. Then come the lock tests and the steps.
 - **What is sound**, and **How it works today** as the reference the
   problems cite, folded on the page until opened.
 

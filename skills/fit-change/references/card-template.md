@@ -49,9 +49,11 @@ kind: change-card
 
 **Reuse:** {{existing_code_the_change_calls_pinned_or_none_found_with_the_search}}.
 
-**New units:** {{proposed_each_module_class_type_or_file_the_change_adds_with_the_decision_only_it_makes_or_none}}.
+**New units:** {{proposed_each_module_class_type_or_file_the_change_adds_with_its_name_its_responsibility_in_one_sentence_and_the_decision_only_it_makes_or_none}}.
 
 **Module changes:** {{proposed_each_rename_remove_merge_split_or_move_the_reshape_makes_with_its_reason_or_none}}.
+
+**Design principles:** {{proposed_each_principle_of_clean_structure_the_change_breaks_or_the_reshape_restores_with_its_check_or_all_met}}.
 
 **Data and state:** {{proposed_the_value_the_change_adds_built_once_and_the_one_writer_of_any_state_or_none}}.
 

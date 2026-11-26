@@ -66,9 +66,9 @@ kind: rework-map
 
 ### {{recommended_target_name}}
 
-**Owners:** {{proposed_one_module_per_rule_and_state}}.
+**Modules:** {{proposed_each_module_its_responsibility_in_one_sentence_its_one_reason_to_change_and_the_rules_and_state_it_owns}}.
 
-**Interface:** {{proposed_signatures_or_types_callers_need}}.
+**Interface:** {{proposed_signatures_or_types_callers_need_named_for_what_they_return_or_do_and_why_for_a_complex_one}}.
 
 **Guarantees at the boundary:** {{proposed_checks_made_once_and_the_inner_checks_by_line_that_become_unnecessary}}.
 
@@ -83,6 +83,12 @@ kind: rework-map
 ### Module changes
 
 - **{{Rename_Remove_Merge_Split_or_Move}}** {{the_modules_and_what_they_become_proposed}}: {{the_reason_and_the_problems_it_removes}}
+
+### Design principles
+
+- **{{Single_responsibility_Open–closed_Liskov_substitution_Interface_segregation_Dependency_inversion_YAGNI_Minimal_shared_state_One-way_flow_or_Intention-revealing_names}}:** {{today_the_check_result_with_its_evidence_then_proposed_the_result_for_the_target_or_not_applicable_with_the_reason}}
+
+{{one_item_per_principle_all_nine_in_this_order}}
 
 ### Lock tests
 

@@ -257,7 +257,7 @@ RULE_RESULTS = ("holds", "broken", "not checked")
 SPECIAL_CASE_COLUMNS = ("Special case", "Kind", "Reach", "Why it exists", "Points to")
 REACH_STATUSES = ("reached", "not reached", "unknown")
 FINDING_KINDS = ("scattered rule", "misplaced logic", "needless link", "two-way flow", "surplus", "shared mutable state",
-                 "shapeless data", "unjustified special case")
+                 "shapeless data", "unjustified special case", "unclear name")
 # columns -> (section label, index of the status cell, its values); the cell starts with its status.
 MAP_TABLES = {
     DESIGN_COLUMNS: ("Stated design and the code", 1, DESIGN_RESULTS),
@@ -1901,6 +1901,8 @@ def check_learning_plan(source):
 PROBLEM_FIELDS = ("Kind", "How sure", "What is wrong", "Decision")
 VERIFIED = ("tested", "locked", "untested")
 MODULE_CHANGES = ("Rename", "Remove", "Merge", "Split", "Move")
+PRINCIPLES = ("Single responsibility", "Open–closed", "Liskov substitution", "Interface segregation", "Dependency inversion",
+              "YAGNI", "Minimal shared state", "One-way flow", "Intention-revealing names")  # CLEAN-STRUCTURE.md
 
 
 def spec_behaviors(document):
@@ -1971,6 +1973,15 @@ def check_rework_map(source):
         text = item.get_text(" ", strip=True)
         if not any(text.startswith(verb) for verb in MODULE_CHANGES):
             problems.append(f"Module changes: start each item with one of: {', '.join(MODULE_CHANGES)} — {text[:60]!r}.")
+    principles = section_items(document, "Design principles")
+    labels = [item.strong.get_text(strip=True).rstrip(":") if item.strong else "" for item in principles]
+    for item, label in zip(principles, labels):
+        if label not in PRINCIPLES:
+            problems.append(f"Design principles: start each item with one of: {', '.join(PRINCIPLES)} in bold — {item.get_text(' ', strip=True)[:60]!r}.")
+    if document.find("h3", string="Lock tests"):  # a rework map's plan; its front matter is blanked by now
+        missing = [p for p in PRINCIPLES if p not in labels]
+        if missing:
+            problems.append(f"The plan: list under ### Design principles today's result and the proposed one for: {', '.join(missing)}.")
     for heading, elements in problem_sections(document):
         name = f"Problem {heading.get_text(' ', strip=True)!r}"
         fields = problem_fields(elements)

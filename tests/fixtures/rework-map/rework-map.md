@@ -324,7 +324,7 @@ The files by design part, the dependencies the code has, and where each rule is 
 
 ### Pricing owns discounts
 
-**Owners:** proposed: `shop/pricing/discounts.py` decides the loyalty rate; `api` and `quotes` call it.
+**Modules:** proposed: `shop/pricing/loyalty.py` decides the loyalty discount for a tier and changes when a loyalty rate changes; `shop/api/serializers.py` turns an order into JSON and changes when the API's format changes; `shop/quotes/builder.py` assembles a quote from priced lines and changes when the quote's layout changes.
 
 **Interface:** proposed: `loyalty_discount(tier, subtotal) -> Decimal`, the function that exists today at [discounts.py:12](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/discounts.py#L12).
 
@@ -342,6 +342,18 @@ The files by design part, the dependencies the code has, and where each rule is 
 
 - **Rename** `shop/pricing/discounts.py` to `shop/pricing/loyalty.py` (proposed): it owns the loyalty rule, and "discounts" also names coupons, which it does not decide. Problem 1.
 - **Move** the tier lookup out of `shop/api/serializers.py` into `shop/pricing/loyalty.py` (proposed): the API translates requests and decides nothing about money, as the design states. Problem 1.
+
+### Design principles
+
+- **Single responsibility:** today `serializers.py` formats orders and decides a discount, two reasons to change ([serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44)); proposed, each module above has one.
+- **Open–closed:** today adding a tier edits three files, as the change history of problem 1 shows; proposed, it adds one row to the rate table in `loyalty.py`.
+- **Liskov substitution:** not applicable: we ran `git grep -n "class .*(" shop/`, and it found no subclass or interface in scope.
+- **Interface segregation:** today `serializers.py` takes the whole `order` dict and writes its `discount` key ([serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44)); proposed, it takes the `Order` value and only reads it.
+- **Dependency inversion:** today the pricing rule imports no storage or framework code, as `import_edges.py` printed; proposed, unchanged.
+- **YAGNI:** today `apply_legacy_rounding` has no caller (problem 2); proposed, it goes once you confirm, and the target adds no interface or setting.
+- **Minimal shared state:** today two files write the `order` dict ([views.py:36](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/views.py#L36), [serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44)); proposed, `views.py` builds the `Order` value once and nothing changes it.
+- **One-way flow:** today the serializer reads customer records, against the order of the parts; proposed, calls move from API and quotes to pricing to storage.
+- **Intention-revealing names:** today `discounts.py` also names coupons, which it does not decide; proposed, it is renamed `loyalty.py`.
 
 ### Lock tests
 
@@ -466,6 +478,7 @@ These labels describe separate judgments. Read each against its stated scope and
 | shared mutable state | State that more than one module writes, or data a module changes after another module handed it over. What a value holds depends on every writer and the order they ran in. |
 | shapeless data | Data passed between modules with no declared shape, such as a hash or dict, so each site that reads or writes a key decides part of it. |
 | unjustified special case | Code for one situation with no caller, input, test, incident, or decision behind it. It stays until its removal has the evidence the map names. |
+| unclear name | A name that hides what the unit is for: it says less than the body does, describes the mechanism instead of the purpose, or is generic, such as manager, helper, or utils. |
 | corner case | A rare input or state whose handling would bend the design. Whether it is worth that complexity is the developer's decision, weighed on its reach, harm, and options. |
 | behavior to decide | What the code does may be wrong or unwanted, such as two places that give different results for one input. It is not a structure problem; its fix is a behavior change that someone decides. |
 

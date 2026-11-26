@@ -125,7 +125,7 @@ the paragraph in bold; the checker reads the first four.
 
 - **Kind:** one of *scattered rule*, *misplaced logic*, *needless link*,
   *two-way flow*, *surplus*, *shared mutable state*, *shapeless data*,
-  *unjustified special case*, *corner case*, or *behavior to decide*; then **How sure:**, one of
+  *unjustified special case*, *unclear name*, *corner case*, or *behavior to decide*; then **How sure:**, one of
   *observed* (a run showed it), *source* (read at the lines), or *inferred*,
   with what ran or was read; then **Cost today:**, what it costs each change
   or each user, with its evidence. The three share one line, joined by ` · `.
@@ -326,9 +326,14 @@ exist, and the commit that creates it is not counted as missing the others.
 ## The plan and the reference
 
 *The plan* holds the recommended target and the user's choice, the structure
-view, the target's owners, interface, boundary checks, data and state, flow,
-failure behavior, and measure, then the module changes, the lock tests as a
-list, the steps, and questions that no problem holds.
+view, the target's modules, interface, boundary checks, data and state, flow,
+failure behavior, and measure, then the module changes, the design
+principles, the lock tests as a list, the steps, and questions that no
+problem holds.
+
+- **Modules** names each module of the target with its responsibility in one
+  sentence with no *and*, its one reason to change, and the rules and state
+  it owns.
 
 - **Flow** states the one direction calls and state move in the target, in
   the order of the parts, and each edge against it that the target removes:
@@ -340,7 +345,17 @@ list, the steps, and questions that no problem holds.
   removes. A name follows the decision the module owns in the project's
   words; a module with no decision of its own is removed or merged; a module
   that changes for two reasons is split. Draw each change in the structure
-  view, as [pictures](#pictures) says. *What is sound* lists what works and should
+  view, as [pictures](#pictures) says.
+- **Design principles** is a list of nine items, one per principle of
+  [clean structure](../../CLEAN-STRUCTURE.md), in its order. Each starts
+  with the principle's name in bold, *Single responsibility*,
+  *Open–closed*, *Liskov substitution*, *Interface segregation*,
+  *Dependency inversion*, *YAGNI*, *Minimal shared state*, *One-way flow*,
+  or *Intention-revealing names*, then today's result with its evidence and the
+  proposed result. *Not applicable* with its reason is a result. The checker
+  reads the names and requires all nine. A lead reads this list to see what
+  the rework buys: each principle broken today and met after is a reason to
+  do it. *What is sound* lists what works and should
 be kept, and what looks wrong and is fine, each with its reason.
 
 *How it works today* is the reference the problems cite. Two tables keep

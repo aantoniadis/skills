@@ -65,8 +65,9 @@ behavior nobody documented, guards and fallbacks nobody can explain.
    design true. **Checkpoint:** you choose. The chosen target gets ordered
    steps: pin the behavior with a test seen to fail, subtract, gather each
    rule at its owner, reshape, then lock the design in with a check.
-7. **Lock the behavior.** When you choose it at the kickoff, the skill
-   writes the tests that lock what the code does today: every behavior the
+7. **Lock the behavior.** With a rework proposal, the skill writes the
+   tests that lock what the code does today, unless you say the project
+   must not change: every behavior the
    chosen rework moves, and every behavior no test protected. Each is
    written at an interface the rework keeps, seen failing once against a
    deliberate break, and then green on the code as it is. A value under
@@ -95,8 +96,8 @@ Prompt shape:
 The map's page is laid out as a workbench, in a technical theme that follows
 your system's light or dark setting. At the top: the title, counts of what
 waits for you, and the three summary lines. In the middle: the structure
-view. Below it, three panels: **Decide** (behavior to decide and your open
-questions), **Findings**, and **Rework** (the recommendation, the lock tests,
+view. Below it, three panels: **Decide** (behavior to decide, your open
+questions, and corner cases), **Findings**, and **Rework** (the recommendation, the lock tests,
 and the steps). Hovering or focusing a panel item lights up the files it names
 in the picture; a click keeps them lit. The full text of the map follows, and
 every pinned line opens the code beside the page.
@@ -120,8 +121,9 @@ there.
 
 In an unattended run nobody answers, so the skill holds no checkpoint and
 delivers once. A difference between the code and the stated design is then
-marked *open*, neither drift nor intended; every special case stays; and the
-rework steps include only moves that hold under either answer. The questions
+marked *open*, neither drift nor intended; every special case stays; the lock
+tests of a rework proposal are still written; and the rework steps include
+only moves that hold under either answer. The questions
 wait for you in the map's question table. Answer them in a follow-up and the
 skill updates the findings, targets, and steps they change.
 

@@ -1,7 +1,7 @@
 # Shared reading pages
 
 Read this when filling, checking, or rendering an understanding note, behavior
-plan, PR review, acceptance report, bug diagnosis, or rework map. Apply [technical English](TECHNICAL-ENGLISH.md). Markdown
+plan, PR review, acceptance report, bug diagnosis, rework map, or change card. Apply [technical English](TECHNICAL-ENGLISH.md). Markdown
 remains authoritative for findings, source excerpts, evidence, and decision status.
 
 ## Contents

@@ -72,6 +72,6 @@ recommendations. **Build in** needs the developer's own answer.
 Write the card where the decision is read: the change card or the slice's
 placement in [fit-change](fit-change/SKILL.md), the plan's decision record in
 [plan-change](plan-change/SKILL.md), the diagnosis in
-[fix-bug](fix-bug/SKILL.md), and the question table of a rework map in
+[fix-bug](fix-bug/SKILL.md), and the *Corner cases* table of a rework map in
 [untangle](untangle/SKILL.md). Record the chosen option and its authority:
 the developer's answer, or the default applied because nobody answered.

@@ -337,7 +337,9 @@ change would touch one place, it writes a short placement for the implementer.
 When it would touch two or more, it puts the choice to you: reshape first, or
 patch and pay again at the next change. It also asks what a consumer should
 see on each failure the request leaves open, so that the implementer does not
-invent a fallback.
+invent a fallback. A corner case whose handling would bend the design comes
+to you with who meets it, what it costs, and the cheaper options; until you
+answer, the design stays as it is.
 
 After the change, check the diff:
 

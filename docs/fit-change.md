@@ -41,8 +41,9 @@ to you, on evidence, before the code is written.
 6. **Settle failure behavior:** what the request says a consumer sees on each
    failure, or a question for you. Until it is answered, the error propagates.
 7. **Write the placement** into the plan or ticket, or as a change card:
-   rules and owners, reuse, reshape steps, what is in and out of scope,
-   failure behavior, and the check to run afterwards.
+   rules and owners, reuse, reshape steps, corner cases and their decisions,
+   what is in and out of scope, failure behavior, and the check to run
+   afterwards.
 
 **Check**, after the change:
 
@@ -56,7 +57,8 @@ to you, on evidence, before the code is written.
    to `find-bugs` or `fix-bug` with both results.
 4. **Account for every added special case:** its producer and its reason, or
    it is an unjustified special case. A check where data enters the system is
-   fine.
+   fine. An added flag, branch, or state that serves one real case with no
+   recorded decision comes to you as a corner-case question, not a finding.
 5. **Look at data and state:** a key added to a hash another module built,
    an argument changed in place, a new writer of state another module owns.
 6. **Look for added surplus:** a wrapper that only delegates, an option
@@ -66,8 +68,8 @@ to you, on evidence, before the code is written.
 
 The check reports only these kinds, each with its evidence, and "nothing
 found" is a result. When you ask it to apply fixes, a fix deletes, moves,
-reuses, or returns a value in place of changing one; it adds no abstraction, no check, and no test for a state nothing
-produces.
+reuses, or returns a value in place of changing one; it adds no abstraction,
+no check, and no test for a state nothing produces.
 
 Prompt shapes:
 
@@ -76,8 +78,11 @@ Prompt shapes:
 /aantoniadis-skills:fit-change Check <the branch, PR, or working tree> against <base>. <Report only | Apply the fixes that keep behavior.>
 ```
 
-## Four rules it applies
+## The rules it applies
 
+- **One change to a rule touches one place.** When it would touch two, the
+  structure is what needs changing, and that is your decision before the
+  code is written.
 - **Restructuring the placement names is in scope. Everything else stays as
   it is.** This is how a change includes the refactoring it needs without
   growing into a rewrite.
@@ -93,6 +98,9 @@ Prompt shapes:
   you its reach and its price, and recommends; building it into the general
   design needs your answer. The [corner cases](../skills/CORNER-CASES.md)
   guide holds the card and the defaults.
+- **Facts come from the code and from runs; intent comes from you.** The
+  skill finds where a rule is decided. It asks you which structure you want
+  and what a consumer should see.
 
 ## The change card
 

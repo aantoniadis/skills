@@ -1,6 +1,6 @@
 # Using our skills with the originals
 
-Our eight skills establish the evidence, decisions, and review context for a
+Our ten skills establish the evidence, decisions, and review context for a
 change. Matt Pocock's originals turn that context into specs, tickets, and
 implementation. HumanLayer's originals supply visual explanations and PR
 presentations. Start at the skill matching the current task and reuse existing context. These
@@ -26,6 +26,9 @@ selected by the project.
 | The branch is done and the PR is not open yet | `find-bugs`, then `/visual-pr` | The implementing session, or a new one checked out on the branch | The PR |
 | You have to review a PR you did not write | `pr-review-guide` | A new session, without the author's context | `find-bugs` inside, when selected |
 | You need to know whether the epic, tickets, or spec is delivered | `check-acceptance` | A new session on the delivered head | `plan-change` or `implement` for gaps; `fix-bug` for bugs |
+| A feature or bug fix is about to be written in existing code | `fit-change`, to place it | The planning session, or the implementing session before it writes code | `implement`, with the placement in the command |
+| A change is written and the PR is not open yet | `fit-change`, to check its structure, beside `find-bugs` | The implementing session | The PR |
+| Existing code has become hard to follow or change | `untangle` | A new session; answer its checkpoints in that session | `plan-change`, with the map path and the chosen target |
 | A contained change in familiar code | The [light path](light-path.md) | The current session | Nothing new |
 
 A new session means a fresh context window: a new session in the host, or
@@ -49,7 +52,7 @@ not both. A contained change in familiar code takes neither.
 
 ## How to invoke them
 
-After [installation](../README.md#install), our eight skills are registered as
+After [installation](../README.md#install), our ten skills are registered as
 `aantoniadis-skills:<name>`. The examples below use Claude Code's `/` prefix;
 use `$` instead in Codex. In OpenCode, run a skill with
 `opencode run --command <name>` or the `/skills` menu. Hosts can also select
@@ -318,11 +321,69 @@ flowchart LR
     R -. search for bugs .-> F
 ```
 
+## 10. Keep one change from eroding the design
+
+**Session:** the planning session or the implementing one, before code is
+written; the implementing session again when the change is done.
+
+Before a change, ask where it belongs:
+
+```text
+/aantoniadis-skills:fit-change Add a platinum customer tier with a 15 percent loyalty discount.
+```
+
+The skill lists where each rule the change touches is decided today. When one
+change would touch one place, it writes a short placement for the implementer.
+When it would touch two or more, it puts the choice to you: reshape first, or
+patch and pay again at the next change. It also asks what a consumer should
+see on each failure the request leaves open, so that the implementer does not
+invent a fallback. A corner case whose handling would bend the design comes
+to you with who meets it, what it costs, and the cheaper options; until you
+answer, the design stays as it is.
+
+After the change, check the diff:
+
+```text
+/aantoniadis-skills:fit-change Check this branch against main. Apply the fixes that keep behavior.
+```
+
+It reports a rule added in a second place, a decision made in the wrong
+module, and each added guard, fallback, or wrapper that has no producer and
+no line of the request behind it. It runs beside `find-bugs`, which looks for
+defects. `plan-change` and `fix-bug` call the place step themselves.
+[How it works](fit-change.md).
+
+## 11. Untangle code that has degraded
+
+**Session:** a new one, kept open through its checkpoints; the map holds your
+answers, so a later session resumes from it.
+
+Use it on one component or flow that has become hard to follow, whoever wrote
+it. Name what hurts when you know:
+
+```text
+/aantoniadis-skills:untangle The pricing component. Agents have changed it for months; the same discount rule seems to live in several places. Map it and propose a rework.
+```
+
+The skill runs the code, reads its tests and history, breaks decisions on
+purpose in a scratch copy to see whether any test notices, and compares what
+it finds with the design your documentation states. It stops at three
+checkpoints: the capability list and stated design, the differences it found,
+and the choice between rework targets. It asks you only what a person knows:
+why something exists, whether a behavior is intended, and which design you
+want. With a rework proposal it writes lock tests, so the rework cannot
+change behavior unnoticed, and changes no application code. The chosen rework goes
+to `plan-change`
+with the map path, or straight to implementation for one contained step.
+[How it works](untangle.md).
+
 ## Artifacts and direct upstream use
 
 | Owner | Artifact convention |
 | --- | --- |
 | Our investigation and report skills | Recorded `Investigations:` location, else `.scratch/<topic>/`, kept out of commits; HTML is an optional companion |
+| Our `fit-change` | A `## Placement` section in the plan or ticket, else `change-card.md` at the investigation location, which a check also writes |
+| Our `untangle` | One `rework-map.md` at the investigation location, with probes and run records under `runs/`; HTML is an optional companion |
 | Our planning workflow | One authoritative plan/spec, material revision notes, and self-contained tickets at the selected project/tracker locations |
 | Matt's original local ticket workflow | One file per ticket under `.scratch/<feature-slug>/issues/`, in dependency order |
 | Matt's original `implement-spec` | One integration branch holding every ticket's merged work; a draft PR only when the tracker closes work through PRs or you ask |

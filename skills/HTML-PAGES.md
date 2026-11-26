@@ -1,7 +1,7 @@
 # Shared reading pages
 
 Read this when filling, checking, or rendering an understanding note, behavior
-plan, PR review, acceptance report, or bug diagnosis. Apply [technical English](TECHNICAL-ENGLISH.md). Markdown
+plan, PR review, acceptance report, bug diagnosis, rework map, or change card. Apply [technical English](TECHNICAL-ENGLISH.md). Markdown
 remains authoritative for findings, source excerpts, evidence, and decision status.
 
 ## Contents
@@ -23,6 +23,8 @@ For a new note, start from the calling skill's Markdown template:
 | PR review | [report-template.md](pr-review-guide/references/report-template.md) | [Report format](pr-review-guide/references/report-format.md) |
 | Acceptance report | [report-template.md](check-acceptance/references/report-template.md) | [Report format](check-acceptance/references/report-format.md) |
 | Bug diagnosis | [diagnosis-template.md](fix-bug/references/diagnosis-template.md) | [Diagnosis-page guidance](fix-bug/references/diagnosis-page.md) and the calling skill |
+| Rework map | [map-template.md](untangle/references/map-template.md) | [Map format](untangle/references/map-format.md) and the calling skill |
+| Change card | [card-template.md](fit-change/references/card-template.md) | The calling skill; the structure view as the [map format](untangle/references/map-format.md#structure-view) says |
 
 Replace every `{{...}}` prompt with supported content. Keep the front matter's
 `kind` line: whats-next classifies the note by it, and `--check` rejects any

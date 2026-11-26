@@ -20,7 +20,8 @@ user runs the next step.
 Run `python3 <package>/skills/whats-next/scripts/workflow_state.py <project>`.
 It prints the branch and its distance from the default branch, the uncommitted
 files, the investigation location, every note and report our skills left
-(understanding note, plan, diagnosis note, PR review guide, acceptance report)
+(understanding note, plan, diagnosis note, PR review guide, acceptance report,
+rework map, change card)
 with its summary line and date, local tickets, `visual-pr` tasks, Matt's
 tracker setup, and whether a local tool record exists. It reads only and
 creates nothing.
@@ -50,8 +51,13 @@ context window: a new session in the host, or its clear command.
 | Tickets with blocking edges, and no commits for them yet | Matt's `implement` per unblocked ticket, or `implement-spec` for the whole spec | A new session per ticket, on the feature branch; one new session for `implement-spec` |
 | A plan whose Readiness line says ready, and no spec or tickets | `plan-change` to draft the spec and tickets, or Matt's `to-spec` then `to-tickets` | The same planning session, unbroken |
 | A plan with open decisions or blocked slices | `plan-change` on the open choices | The same planning session |
+| A rework map with a chosen target, and no plan for it | `plan-change`, with the map path and the target's name | A new session |
+| A rework map with a chosen target, and commits since its revision that carry out the rework | `untangle` on the same map, to re-measure the rework | A new session |
+| A rework map with unanswered questions for the user | `untangle` on the same map, with the answers | A new session; the map holds the earlier answers |
 | An understanding note, and no plan | `plan-change`, with the note path | The same session |
 | A change with consequences beyond its own function, and no note or plan | `explain` for one concrete question about today's behavior, or `plan-change` when the flow is already known | Start the planning session here |
+| A change to existing code about to be written, and the question where it belongs or whether to refactor first | `fit-change`, with the request | The current session, before the code is written |
+| Existing code that has become hard to follow or change, and no change in hand | `untangle`, with the component and what hurts | A new session, kept open through its checkpoints |
 | A contained change in familiar code | No skill: the host's normal coding workflow, with `find-bugs` when a defect search would help | The current session |
 | Investigation work ahead, and no local tool record | `setup-tools`, naming the skills to run | Any |
 

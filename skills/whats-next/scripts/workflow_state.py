@@ -20,9 +20,11 @@ KINDS = (
     ("diagnosis-note", "diagnosis note", "fix-bug", r"^\*\*Checked:\*\*"),
     ("pr-review-guide", "PR review guide", "pr-review-guide", r"^## What the change does$"),
     ("acceptance-report", "acceptance report", "check-acceptance", r"^## What was asked$"),
+    ("rework-map", "rework map", "untangle", r"^\*\*What differs from the stated design:\*\*"),
+    ("change-card", "change card", "fit-change", r"^\*\*Fit:\*\*"),
 )
 KIND_LINE = re.compile(r"\A---\n(?:(?!---\n)[^\n]*\n)*?kind:\s*([\w-]+)\s*\n(?:(?!---\n)[^\n]*\n)*?---\n")
-SUMMARY = re.compile(r"^\*\*(?:Readiness|Bottom line|Verdict|Answer):\*\*\s*(.+)", re.M)
+SUMMARY = re.compile(r"^\*\*(?:Readiness|Bottom line|Verdict|Answer|Recommended rework|Fit):\*\*\s*(.+)", re.M)
 SKIP = {".git", "node_modules", ".venv", "venv", "dist", "build"}
 CAP = 400  # Markdown files read before the scan stops and says so.
 

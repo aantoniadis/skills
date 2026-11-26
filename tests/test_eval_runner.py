@@ -32,6 +32,19 @@ class EvalRunnerTests(unittest.TestCase):
         self.assertTrue(run.grade(report, "", "", [], [".scratch/x/report.md"], "")["new-report-written"]["passed"])
         self.assertFalse(run.grade(report, "", "", [], [], "")["new-report-written"]["passed"])
 
+    def test_regrading_one_case_keeps_the_other_cases_results(self):
+        place = run.load_case(ROOT / "evals/fit-change-place")
+        saved = [{"case": "fit-change-place", "run": 0, "final": "x", "graders": {"three-sites-named": {"passed": False, "why": "limit"}}},
+                 {"case": "fit-change-check", "run": 0, "final": "y", "graders": {"wrapper-is-surplus": {"passed": True, "why": "kept"}}}]
+        judge, run.judge = run.judge, lambda rubric, final, model: (True, "stub")
+        try:
+            results = run.regrade_saved(saved, [place], "unused", 2)
+        finally:
+            run.judge = judge
+        self.assertEqual([r["case"] for r in results], ["fit-change-place", "fit-change-check"])
+        self.assertTrue(results[0]["graders"]["three-sites-named"]["passed"])
+        self.assertEqual(results[1]["graders"], {"wrapper-is-surplus": {"passed": True, "why": "kept"}})
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -30,7 +30,10 @@ page a reviewer can verify.
    every affected caller and the test is watched green; the original loop
    reruns. With no correct test seam, the note records the gap and keeps the
    loop as proof. When the fix changes a shared producer, its other consumers
-   are compared.
+   are compared. When the bug occurs only in a corner case and a fix at the
+   cause would bend the design, the diagnosis shows you the case's reach and
+   price, and the fix takes the cheapest option that ends the harm until you
+   choose ([corner cases](../skills/CORNER-CASES.md)).
 6. **Record and deliver.** `diagnosis.md` and `diagnosis.html` at the
    investigation location, checked by `render_page.py`; runs under
    `runs/bugs/<n>/`; the fix and test in the working tree unless a commit was

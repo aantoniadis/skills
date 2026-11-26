@@ -28,6 +28,8 @@ except ImportError:
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from reader_text import reader_gaps  # noqa: E402
 import source_peek  # noqa: E402
+import structure_view  # noqa: E402
+import workbench  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent
 TEMPLATE = ROOT / "page-template.html"
@@ -87,7 +89,7 @@ def raise_all(problems):
         raise Failures(problems)
 
 
-NOTE_KINDS = ("understanding-note", "plan", "diagnosis-note", "pr-review-guide", "acceptance-report")
+NOTE_KINDS = ("understanding-note", "plan", "diagnosis-note", "pr-review-guide", "acceptance-report", "rework-map", "change-card")
 
 
 def check_front_matter(front, review=False, kind=None):
@@ -131,7 +133,7 @@ def fence_languages(soup):
     """The languages of the page's fences that the peek script draws highlighted: diffs split into tables and
     diagrams render on their own, so neither counts. Render and check derive the embedded grammars from this."""
     return sorted({name[len("language-"):] for code in soup.select("main pre > code") for name in code.get("class", [])
-                   if name.startswith("language-") and name not in ("language-diff", "language-mermaid")})
+                   if name.startswith("language-") and name not in ("language-diff", "language-mermaid", "language-structure-view")})
 
 
 def check_prompts(source):
@@ -179,7 +181,10 @@ def template_hash():
                           + (ROOT / "diagram-theme.json").read_bytes()
                           + (ROOT / "report-labels.json").read_bytes()
                           + (ROOT / "diagram-renderer/render.mjs").read_bytes()
-                          + (ROOT / "peek.js").read_bytes() + (ROOT / "peek.css").read_bytes()).hexdigest()
+                          + (ROOT / "peek.js").read_bytes() + (ROOT / "peek.css").read_bytes()
+                          + (ROOT / "structure_view.py").read_bytes() + (ROOT / "structure-view.js").read_bytes()
+                          + (ROOT / "structure-view.css").read_bytes() + (ROOT / "workbench.py").read_bytes()
+                          + (ROOT / "workbench.css").read_bytes() + (ROOT / "workbench.js").read_bytes()).hexdigest()
 
 
 def font_css():
@@ -242,6 +247,25 @@ VERIFICATION_COLUMNS = ("Check or scenario", "Result", "Evidence origin", "Revis
 FULFILLMENT = ("Met", "Partial", "Unmet", "Not verified", "Needs clarification", "Not applicable")
 CHECK_RESULTS = ("Passed", "Failed", "Mixed", "Not run", "Blocked")
 CHECK_ORIGINS = ("Executed here", "Recorded run", "Source inspected", "Proposed")
+# A rework map (untangle): the stated dependencies and rules against the code, the special cases, and the findings.
+DESIGN_COLUMNS = ("Relationship", "Result", "Evidence", "What the user said")
+DESIGN_RESULTS = ("as stated", "not stated", "not found")
+RULE_COLUMNS = ("Stated rule", "Result", "Evidence", "What the user said")
+CARD_FINDING_COLUMNS = ("Finding", "Kind", "Where", "Evidence", "Fix")
+RULE_RESULTS = ("holds", "broken", "not checked")
+SPECIAL_CASE_COLUMNS = ("Special case", "Kind", "Reach", "Why it exists", "Points to")
+REACH_STATUSES = ("reached", "not reached", "unknown")
+FINDING_COLUMNS = ("Finding", "Kind", "Where", "Cost today", "Removed by")
+FINDING_KINDS = ("scattered rule", "misplaced logic", "needless link", "surplus", "shared mutable state", "shapeless data",
+                 "unjustified special case")
+# columns -> (section label, index of the status cell, its values); the cell starts with its status.
+MAP_TABLES = {
+    DESIGN_COLUMNS: ("Stated design and the code", 1, DESIGN_RESULTS),
+    RULE_COLUMNS: ("Stated rules", 1, RULE_RESULTS),
+    SPECIAL_CASE_COLUMNS: ("Special cases", 2, REACH_STATUSES),
+    FINDING_COLUMNS: ("Findings", 1, FINDING_KINDS),
+    CARD_FINDING_COLUMNS: ("Structure findings", 1, FINDING_KINDS),
+}
 STATUS_TABLES = {
     REQUIREMENT_COLUMNS: ("requirements", FULFILLMENT),
     VERIFICATION_COLUMNS: ("verification", CHECK_RESULTS),
@@ -256,6 +280,11 @@ TABLE_LABELS = {
     DECISION_COLUMNS: ("decisions",),
     CONTRACT_COLUMNS: ("contract",),
     QUESTION_COLUMNS: ("questions",),
+    DESIGN_COLUMNS: ("design-results",),
+    RULE_COLUMNS: ("rule-results",),
+    SPECIAL_CASE_COLUMNS: ("special-case-reach",),
+    FINDING_COLUMNS: ("structure-findings",),
+    CARD_FINDING_COLUMNS: ("structure-findings",),
 }
 
 
@@ -287,6 +316,8 @@ def label_groups(source):
         groups.update(TABLE_LABELS.get(columns, ()))
     if document.select("code.language-mermaid"):
         groups.add("diagram-evidence")
+    if document.select("code.language-structure-view"):
+        groups.update(("design-results", "structure-findings"))
     if bug_card_headings(document):
         groups.update(("bug-evidence", "bug-origin"))
     cause = bool(bug_card_headings(document, CAUSE_SECTION))
@@ -928,6 +959,18 @@ def render(source, source_name, diagram_renderer="auto", repo=None, directory=No
                     entry.extend([reason, chips]); listing.append(entry)
                 group.append(listing); wrap.append(group)
             plan.replace_with(wrap)
+    for index, code in enumerate(soup.select("pre > code.language-structure-view"), 1):
+        pre = code.parent
+        view = parse(structure_view.figure(json.loads(code.get_text()), index)).figure
+        details = soup.new_tag("details", attrs={"class": "sv-source"})
+        summary = soup.new_tag("summary")
+        summary.string = "Data behind this view"
+        details.append(summary)
+        pre.replace_with(view)
+        details.append(pre)
+        view.append(details)
+        if index == 1:
+            soup.body.extend(list(parse(structure_view.assets()).contents))
     explicit = diagram_renderer != "auto"
     for index, code in enumerate(soup.select("pre > code.language-mermaid"), 1):
         pre = code.parent
@@ -1041,6 +1084,8 @@ def render(source, source_name, diagram_renderer="auto", repo=None, directory=No
     for anchor in soup.main.find_all("a", href=True):
         if is_file_link(anchor):
             anchor["class"] = anchor.get("class", []) + ["file-link"]  # a file name never breaks inside; the cell scrolls
+    if front.get("kind") in workbench.KINDS:
+        workbench.build(soup, front["kind"])
     # Code peek: pinned GitHub links and links to files beside the note open the cited file or diff inline, and
     # fences with a language draw as highlighted rows (peek.js); the data sits outside <main>.
     payload, skipped = source_peek.build(link_targets(soup.main), front, repo, source, directory, fence_languages(soup))
@@ -1829,6 +1874,30 @@ def check_learning_plan(source):
     raise_all(problems)
 
 
+def check_rework_map(source):
+    """A rework map's status cells use the shared words: a relationship's or a stated rule's result,
+    a special case's reach, and a finding's kind. Checks the declared rows, not whether the map found everything."""
+    document = parse(MARKDOWN.render(source))
+    problems = []
+    for table in document.find_all("table"):
+        columns = tuple(th.get_text(" ", strip=True) for th in table.select("thead th"))
+        if columns not in MAP_TABLES:
+            continue
+        label, index, values = MAP_TABLES[columns]
+        if not table.select("tbody tr"):
+            problems.append(f"{label}: add rows or remove the unused table.")
+        for row in table.select("tbody tr"):
+            cells = row.find_all("td")
+            if len(cells) != len(columns) or any(cell.get_text(strip=True) in ("", "-", "—", "TODO", "TBD") for cell in cells):
+                problems.append(f"{label}: fill every table cell; state unknowns and their limits explicitly.")
+                continue
+            status = cells[index].get_text(" ", strip=True).lower()
+            # The longest value first: "not reached" must not read as "reached".
+            if not any(re.match(rf"{re.escape(value)}\b", status) for value in sorted(values, key=len, reverse=True)):
+                problems.append(f"{label}: start the {columns[index]} cell with one of: {', '.join(values)}.")
+    raise_all(problems)
+
+
 def check_review_tables(source, html):
     """Keep structured comparisons, decisions, fulfillment, and results faithful to Markdown."""
     def owner_of(element):
@@ -1943,7 +2012,7 @@ def markdown_problems(source, note):
     """The checks a Markdown note passes with or without its page."""
     problems = []
     for check_one, *args in ((check_prompts, source), (check_claims, source), (check_names, source), (check_attention, source),
-                             (check_opening, source), (check_learning_plan, source), (check_verification, source), (check_diagrams, source, note)):
+                             (check_opening, source), (check_learning_plan, source), (check_rework_map, source), (structure_view.check, source), (check_verification, source), (check_diagrams, source, note)):
         keep(problems, check_one, *args)
     keep(problems, check_bug_cards, source, note, required=False)
     return problems

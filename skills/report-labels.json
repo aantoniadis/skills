@@ -146,6 +146,42 @@
       "Skip": "The reading plan gives an evidence-based reason this material needs no further reading for the scoped question. File type alone does not justify skipping it."
     }
   },
+  "design-results": {
+    "title": "Stated dependencies against the code",
+    "options": {
+      "as stated": "The design allows the relationship and the extracted dependencies show it. The result is as complete as the dependency source named beside it.",
+      "not stated": "The code has the relationship and the stated design does not allow it. It is drift or an intended relationship the design never recorded; the user's answer says which.",
+      "not found": "The design names the relationship and no extracted dependency shows it. The dependency may run through something the source of the edges cannot see."
+    }
+  },
+  "rule-results": {
+    "title": "Stated rules against the code",
+    "options": {
+      "holds": "The search or run named beside the rule found nothing that breaks it. It holds as far as that check reaches.",
+      "broken": "A pinned line or a run shows the code doing what the stated rule excludes. It is drift, or the rule is out of date; the user's answer says which.",
+      "not checked": "The rule was recorded and not compared with the code."
+    }
+  },
+  "special-case-reach": {
+    "title": "Special-case reach",
+    "options": {
+      "reached": "A named caller, input, test, or run reaches the special case.",
+      "not reached": "The callers were enumerated and none produces the state, and a probe through the public boundary did not reach the case. Other inputs remain possible.",
+      "unknown": "Nothing establishes whether the case is reached. Missing test coverage alone gives this status; the case stays."
+    }
+  },
+  "structure-findings": {
+    "title": "Structure findings",
+    "options": {
+      "scattered rule": "One rule is decided at more than one place, and nothing in the code says the places must change together.",
+      "misplaced logic": "A decision is made away from the module that owns the state or rule it decides.",
+      "needless link": "Pieces that change for different reasons are tied together.",
+      "surplus": "Code with no reason of its own to exist, such as a wrapper that only delegates, an option nothing varies, or code nothing reaches.",
+      "shared mutable state": "State that more than one module writes, or data a module changes after another module handed it over. What a value holds depends on every writer and the order they ran in.",
+      "shapeless data": "Data passed between modules with no declared shape, such as a hash or dict, so each site that reads or writes a key decides part of it.",
+      "unjustified special case": "Code for one situation with no caller, input, test, incident, or decision behind it. It stays until its removal has the evidence the map names."
+    }
+  },
   "diagram-evidence": {
     "title": "Diagram evidence",
     "options": {

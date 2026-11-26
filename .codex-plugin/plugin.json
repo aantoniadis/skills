@@ -1,7 +1,7 @@
 {
   "name": "aantoniadis-skills",
-  "version": "0.9.0",
-  "description": "Skills for coding agents: understand code, plan changes, fix bugs, find defects, review PRs, check acceptance. Works with Matt Pocock's and HumanLayer's original skills, installed separately.",
+  "version": "0.10.0",
+  "description": "Skills for coding agents: understand code, plan changes, fix bugs, find defects, review PRs, check acceptance, fit a change into the design, untangle degraded code. Works with Matt Pocock's and HumanLayer's original skills, installed separately.",
   "author": {
     "name": "aantoniadis"
   },
@@ -11,8 +11,8 @@
   "skills": "./skills/",
   "interface": {
     "displayName": "aantoniadis-skills",
-    "shortDescription": "Understand code, plan changes, fix bugs, find defects, review PRs, check acceptance.",
-    "longDescription": "Skills for coding agents: understand code, plan changes, fix bugs, find defects, review PRs, check acceptance. Works with Matt Pocock's and HumanLayer's original skills, installed separately.",
+    "shortDescription": "Understand code, plan changes, fix bugs, find defects, review PRs, check acceptance, fit a change into the design, untangle degraded code.",
+    "longDescription": "Skills for coding agents: understand code, plan changes, fix bugs, find defects, review PRs, check acceptance, fit a change into the design, untangle degraded code. Works with Matt Pocock's and HumanLayer's original skills, installed separately.",
     "developerName": "aantoniadis",
     "category": "Productivity",
     "capabilities": [],

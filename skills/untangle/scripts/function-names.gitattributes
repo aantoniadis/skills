@@ -1,0 +1,22 @@
+# Tells git which line names the function around a change, so hunk headers and `git log -L :name:file`
+# find methods inside classes. Pass it with: git -c core.attributesFile=<this file> -c diff.js.xfuncname=... ...
+*.py diff=python
+*.rb diff=ruby
+*.rake diff=ruby
+*.java diff=java
+*.kt diff=kotlin
+*.cs diff=csharp
+*.php diff=php
+*.go diff=golang
+*.rs diff=rust
+*.c diff=cpp
+*.cc diff=cpp
+*.cpp diff=cpp
+*.h diff=cpp
+*.hpp diff=cpp
+*.js diff=js
+*.jsx diff=js
+*.mjs diff=js
+*.cjs diff=js
+*.ts diff=js
+*.tsx diff=js

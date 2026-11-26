@@ -47,6 +47,8 @@ kind: change-card
 
 **Reuse:** {{existing_code_the_change_calls_pinned_or_none_found_with_the_search}}.
 
+**New units:** {{proposed_each_module_class_type_or_file_the_change_adds_with_the_decision_only_it_makes_or_none}}.
+
 **Data and state:** {{proposed_the_value_the_change_adds_built_once_and_the_one_writer_of_any_state_or_none}}.
 
 **In scope:** {{proposed_files_and_the_restructuring_named_above}}. **Out of scope:** everything else.
@@ -65,7 +67,7 @@ kind: change-card
 
 ## Limits
 
-{{what_was_not_checked_and_the_check_that_would_settle_it}}
+{{count_of_changed_files_read_each_file_not_inspected_with_its_reason_and_what_else_was_not_checked_with_the_check_that_would_settle_it}}
 
 ## Status and label key
 

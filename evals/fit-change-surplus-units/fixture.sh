@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # A parcel depot in Ruby. On main, one delivery method holds its own rules. The branch moves those
 # rules into a shared module and adds one module for each new kind; the new modules hold only a constant.
+# It also adds an option nothing sets, a price cache with no rule for when it is stale, and a guard with no producer.
 set -euo pipefail
 export GIT_AUTHOR_NAME=eval GIT_AUTHOR_EMAIL=eval@example.invalid GIT_COMMITTER_NAME=eval GIT_COMMITTER_EMAIL=eval@example.invalid
 git init -q -b main
@@ -226,10 +227,13 @@ module Depot
     RESOLVERS = [StandardRate, ExpressRate, LockerRate].freeze
 
     def self.for(order)
-      resolver = RESOLVERS.map(&:new).find { _1.handles?(order) }
-      raise ArgumentError, "no rate for this delivery" unless resolver
+      @prices ||= {}
+      @prices[order[:id]] ||= begin
+        resolver = RESOLVERS.map(&:new).find { _1.handles?(order) }
+        raise ArgumentError, "no rate for this delivery" unless resolver
 
-      resolver.price(order)
+        resolver.price(order)
+      end
     end
   end
 end
@@ -240,11 +244,13 @@ module Depot
   module Labels
     KINDS = %w[standard express locker].freeze
 
-    def self.text(order)
+    def self.text(order, compact: false)
       kind = order[:delivery][:kind].to_s
       raise ArgumentError, "unknown delivery kind" unless KINDS.include?(kind)
 
       zone = Delivery::Base.zone(order)
+      return "#{kind[0].upcase}#{zone}" if compact
+
       tracked = Delivery::Base.tracked?(order) ? "TRACKED" : "UNTRACKED"
       "#{kind.upcase} #{zone} #{tracked}"
     end
@@ -255,6 +261,8 @@ cat > lib/depot/checkout.rb <<'EOF'
 module Depot
   module Checkout
     def self.summary(order)
+      return nil if order.nil?
+
       { price: Rates.for(order), promise_days: Delivery::Base.days(order), label: Labels.text(order) }
     end
   end
@@ -263,9 +271,10 @@ EOF
 python3 - <<'EOF'
 from pathlib import Path
 p = Path("test/test_depot.rb"); s = p.read_text()
+s = s.replace('STANDARD = { weight_kg: 1,', 'STANDARD = { id: 1, weight_kg: 1,')
 s = s.replace('''  def test_checkout_summary''', '''  def test_express_and_locker_orders
-    express = { weight_kg: 3, delivery: { kind: "express", postcode: "20095", days: 1 } }
-    locker = { weight_kg: 1, delivery: { kind: "locker", postcode: "80331", tracking: false } }
+    express = { id: 2, weight_kg: 3, delivery: { kind: "express", postcode: "20095", days: 1 } }
+    locker = { id: 3, weight_kg: 1, delivery: { kind: "locker", postcode: "80331", tracking: false } }
     assert_equal({ price: 14.90, promise_days: 1, label: "EXPRESS 20 TRACKED" }, Depot::Checkout.summary(express))
     assert_equal({ price: 3.50, promise_days: 3, label: "LOCKER 80 UNTRACKED" }, Depot::Checkout.summary(locker))
     assert_equal %w[standard express locker], Depot::Delivery::Base.kinds
@@ -277,4 +286,6 @@ EOF
 git add -A && git commit -qm "Delivery kinds: move the standard rules into a shared Base, add express and locker
 
 The standard rules moved into Delivery::Base unchanged; Standard gives the same
-results as before. Express and locker orders are requested in ticket 518."
+results as before. Express and locker orders are requested in ticket 518.
+Labels can print a compact form. Prices are cached per order. Checkout returns
+nil for a nil order, for safety."

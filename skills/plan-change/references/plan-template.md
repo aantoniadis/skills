@@ -57,7 +57,7 @@ kind: plan
 
 **Scope:** {{decision_references_controlling_code_or_interfaces_each_marked_existing_new_changed_or_removed_and_delivered_subset}}.
 
-**Placement:** {{owner_of_each_rule_the_slice_touches_reuse_reshape_first_steps_and_each_corner_case_that_bends_the_design_with_its_decision_or_fits_at_one_site_from_fit_change_or_no_existing_code_touched}}.
+**Placement:** {{owner_of_each_rule_the_slice_touches_reuse_new_units_each_with_the_decision_it_makes_reshape_first_steps_and_each_corner_case_that_bends_the_design_with_its_decision_or_fits_at_one_site_from_fit_change_or_no_existing_code_touched}}.
 
 **Depends on:** {{prerequisite_decisions_slices_or_explicit_none}}.
 

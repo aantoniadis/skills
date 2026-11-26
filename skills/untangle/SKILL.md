@@ -107,7 +107,7 @@ Classify every special case that has a row in the map as [special cases](referen
 
 Rank the structure findings by what they cost today: how many places one change to the rule must touch, and how often the rule itself has changed. Take that from the history of the rule's lines or its discriminator; a file's change count says how busy the file is, not the rule. A problem in code nobody changes is listed with *no action*.
 
-**Looks wrong, is fine** records what a reader would flag and the reason the user or the history gave, so that the next run does not raise it again.
+**Looks wrong, is fine** records what a reader would flag and the reason the user or the history gave, so that the next run does not raise it again. The reason is about structure or intent: a decision the code makes, a requirement, an incident. "The tests pass" says the code works; it does not say its shape is right.
 
 Done when every capability with more than one decision site for a rule, every difference the user called drift, and every special case with a row has a finding, a place under behavior to decide, or a stated reason it is fine.
 

@@ -256,16 +256,22 @@ class AddedUnitsTests(Repository):
         base = self.git("rev-parse", "HEAD")
         added = ("    module Silver\n      extend Base\n      KIND = \"silver\"\n    end\n"
                  "    module Bronze\n      extend Base\n      KIND = \"bronze\"\n    end\n"
-                 "    class Quote < Struct\n      def total(order)\n        if order[:lines].empty?\n          0\n        end\n      end\n\n"
-                 "      def rate(order) = Base.rate(order)\n    end\n")
-        self.commit({"lib/tiers.rb": self.RUBY_BASE.replace("  end\nend\n", added + "  end\nend\n")})
+                 "    class Quote < Struct\n      def total(order, rounding: 2, legacy: false)\n        if order[:lines].empty?\n          0\n        end\n      end\n\n"
+                 "      def rate(order) = Base.rate(order)\n\n      def empty? = lines.empty?\n    end\n")
+        self.commit({"lib/tiers.rb": self.RUBY_BASE.replace("  end\nend\n", added + "  end\nend\n"),
+                     "lib/checkout.rb": "puts Shop::Tiers::Quote.new.total(order, rounding: 0)\n"})
         out = self.run_script("added_units", "--base", base, "--head", "HEAD")
-        self.assertIn("3 in 1 files; 2 are leads", out)
+        self.assertIn("Leads to surplus from", out)
         self.assertIn("Base: Shop::Tiers::Silver, Shop::Tiers::Bronze", out)
         self.assertIn("lib/tiers.rb:12\tShop::Tiers::Silver\t0 methods, 1 constant; extend Base", out)
-        self.assertIn("Shop::Tiers::Quote\t2 methods (1 only calls another), 0 constants; Struct", out)
+        self.assertIn("Shop::Tiers::Quote\t3 methods (1 only passes parameters on), 0 constants; Struct", out)
+        self.assertIn("lib/tiers.rb:27\tShop::Tiers::Quote.rate\n", out, "a method that hands its parameter to one call")
+        self.assertNotIn("Quote.empty?", out, "a method with no parameter is not listed as a wrapper")
+        self.assertIn("Shop::Tiers::Quote.total\tlegacy\n", out, "no line sets legacy: by keyword")
+        self.assertNotIn("Quote.total\trounding", out, "checkout sets rounding:")
         self.assertNotIn("Shop::Tiers::Gold", out, "Gold was there before the change")
         self.assertNotIn("\tShop\t", out, "a module that only encloses others adds nothing itself")
+        self.assertIn("Not looked for:", out, "the output says what no lead clears")
 
     def test_python_classes_are_parsed_and_a_moved_class_names_where_the_base_held_it(self):
         self.commit({"app/kinds.py": "class Kind:\n    def label(self):\n        if self.code:\n            return self.code\n        return ''\n",
@@ -277,19 +283,40 @@ class AddedUnitsTests(Repository):
                                      "class Proxy:\n    def label(self, kind):\n        \"\"\"Doc.\"\"\"\n        return kind.label()\n",
                      "tests/test_kinds.py": "class Fake(Kind):\n    CODE = 'f'\n"})
         out = self.run_script("added_units", "--base", base, "--head", "HEAD")
-        self.assertIn("3 in 1 files; 3 are leads", out)
         self.assertIn("Kind: Region, Team", out)
         self.assertIn("app/kinds.py:8\tRegion\t0 methods, 1 constant; Kind\tthe base holds a unit of this name in app/old.py", out)
-        self.assertIn("Proxy\t1 method (1 only calls another), 0 constants", out)
+        self.assertIn("Proxy\t1 method (1 only passes parameters on), 0 constants", out)
         self.assertNotIn("Fake", out, "test files are left out by default")
         self.assertIn("Fake", self.run_script("added_units", "--base", base, "--head", "HEAD", "--tests"))
+
+    def test_files_wrappers_unset_options_and_single_implementations_are_leads(self):
+        self.commit({"kinds/team.py": "KIND = 'team'\n\n\ndef config(entity):\n    return entity if entity.get('kind') == KIND else None\n",
+                     "pricing.py": "def total(order):\n    return order['amount']\n"})
+        base = self.git("rev-parse", "HEAD")
+        self.commit({"kinds/region.py": "KIND = 'region'\n", "kinds/cost.py": "KIND = 'cost'\n",
+                     "pricing.py": "def total(order):\n    return order['amount']\n\n\ndef get_total(order):\n    return total(order)\n\n\n"
+                                   "def price(order, legacy_mode=False, rounding=2):\n    if legacy_mode:\n        return 0\n"
+                                   "    return round(total(order), rounding)\n\n\ndef quote(order):\n    return price(order, rounding=0)\n",
+                     "handler.py": "class Handler:\n    def run(self, x):\n        raise NotImplementedError\n\n\n"
+                                   "class OnlyHandler(Handler):\n    def run(self, x):\n        if x:\n            return 1\n        return 2\n"})
+        out = self.run_script("added_units", "--base", base, "--head", "HEAD")
+        self.assertIn("Leads to surplus from", out)
+        self.assertIn("kinds/: cost.py, region.py", out)
+        self.assertIn("kinds/region.py\t(file)\t0 functions, 1 constant", out)
+        self.assertNotIn("kinds/team.py", out, "the file was there before the change")
+        self.assertIn("pricing.py:5\tget_total\n", out)
+        self.assertNotIn("\tquote\n", out, "quote passes a value of its own, so it decides something")
+        self.assertIn("pricing.py:9\tprice\tlegacy_mode\n", out)
+        self.assertNotIn("price\trounding", out, "quote sets rounding by keyword")
+        self.assertIn("handler.py:1\tHandler\textended only at handler.py:6", out)
 
     def test_the_working_tree_counts_untracked_files_and_a_bad_base_exits_2(self):
         self.commit({"app/kinds.py": "class Kind:\n    pass\n"})
         self.write({"app/more.py": "class Zone(Kind):\n    CODE = 'z'\n", "app/broken.py": "class (:\n"})
         out = self.run_script("added_units", "--base", "HEAD")
-        self.assertIn("HEAD to the working tree: 1 in 1 files; 1 are leads", out)
+        self.assertIn("HEAD to the working tree: 1.", out)
         self.assertIn("app/more.py:1\tZone", out)
+        self.assertNotIn("extended only", out, "Kind was there before the change")
         self.assertIn("Not parsed: app/broken.py", out)
         result = subprocess.run([sys.executable, str(SCRIPTS / "added_units.py"), "--base", "no-such-commit"], cwd=self.repo, capture_output=True, text=True)
         self.assertEqual(result.returncode, 2)

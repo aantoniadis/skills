@@ -1,5 +1,5 @@
 ---
 type: regex
 target: trace
-pattern: "## Corner cases|\\*\\*Corner cases:\\*\\*"
+pattern: "\\*\\*Kind:\\*\\* corner case|\\*\\*Corner cases:\\*\\*"
 ---

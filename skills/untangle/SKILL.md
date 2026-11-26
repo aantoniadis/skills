@@ -10,7 +10,7 @@ bounded by its [evidence](../EVIDENCE.md).
 
 # Untangle
 
-Produce the **rework map** of one component: what it does, how it is built today, where that differs from what people believe, and a rework the user can choose. In the target, every rule and every piece of state has one **owner**: the module that decides the rule or writes the state. Application code stays as it is. The only change to the project is the **lock tests** of step 7, which come with every rework proposal: tests that record what the code does today, so the rework that follows cannot change it unnoticed. Probes and scratch copies live in the investigation location.
+Produce the **rework map** of one component: what is wrong with it, what to do about each problem, and how it is built today, for a lead who decides whether the rework is worth it and an author who carries it out. In the target, every rule and every piece of state has one **owner**: the module that decides the rule or writes the state. Application code stays as it is. The only change to the project is the **lock tests** of step 7, which come with every rework proposal: tests that record what the code does today, so the rework that follows cannot change it unnoticed. Probes and scratch copies live in the investigation location.
 
 Three rules hold for the whole task:
 
@@ -89,11 +89,11 @@ Done when every stated dependency and rule has a result with its evidence, every
 
 ## 5. Name what is wrong
 
-Sort what you found into three places.
+Write what you found as **problems**: each one thing that makes the component costly to change or possibly wrong, with its evidence, its picture, its proposed fix, and its decision in one place, as [map format](references/map-format.md#problems) says. A problem is one of three things.
 
-**Behavior to decide** is what the component does that may be wrong or unwanted: a possible defect, two sites that give different results for the same input, a fallback that changes what a consumer sees. It is not a structure problem and gets no structure name. List each one near the top of the map with its run, and its handoff to [fix-bug](../fix-bug/SKILL.md) or [plan-change](../plan-change/SKILL.md). A user who no longer trusts the code reads these first.
+**Behavior to decide** is what the component does that may be wrong or unwanted: a possible defect, two sites that give different results for the same input, a fallback that changes what a consumer sees. It is not a structure problem and gets no structure name. Its fix is the handoff to [fix-bug](../fix-bug/SKILL.md) or [plan-change](../plan-change/SKILL.md) with the question that decides it. These problems come first: a user who no longer trusts the code reads them first.
 
-**Structure findings** each get one of seven names, with the evidence that confirms it:
+**A structure problem** gets one of seven names, with the evidence that confirms it:
 
 - **Scattered rule:** one rule decided at more than one decision site. Nothing in the code says the sites must change together.
 - **Misplaced logic:** a decision made away from the owner of the state or rule it decides, such as a business rule in a serializer.
@@ -103,13 +103,13 @@ Sort what you found into three places.
 - **Shapeless data:** data passed between modules with no declared shape, so each site that reads or writes a key decides part of it. Its signs are a key written in several files, a key read with a default, and two readers whose defaults differ. Many unjustified special cases are its symptom: a reader defends itself because nothing says what the data holds.
 - **Unjustified special case:** a special case with no caller, input, test, incident, or decision behind it.
 
-Classify every special case that has a row in the map as [special cases](references/special-cases.md) says, by whether anything reaches it and by what it points to. A special case is first a lead to something larger: a requirement the design never accounted for, a producer that emits a state it should not, or a boundary nobody made explicit. Name that, and the local line second. A special case that is *reached* and whose handling bends the design, as [corner cases](../CORNER-CASES.md) lists, gets a corner-case card in the map's *Corner cases* table: its reach and harm, what each change to the general path pays for it, and the options, such as isolating it at the edge or rejecting the case at the boundary. Until the user chooses, it stays as it is.
+Classify every special case that has a row in the map as [special cases](references/special-cases.md) says, by whether anything reaches it and by what it points to. A special case is first a lead to something larger: a requirement the design never accounted for, a producer that emits a state it should not, or a boundary nobody made explicit. Name that, and the local line second. A special case that is *reached* and whose handling bends the design, as [corner cases](../CORNER-CASES.md) lists, is a **corner case**, the third kind of problem: its reach and harm, what each change to the general path pays for it, and the options, such as isolating it at the edge or rejecting the case at the boundary. Until the user chooses, it stays as it is.
 
-Rank the structure findings by what they cost today: how many places one change to the rule must touch, and how often the rule itself has changed. Take that from the history of the rule's lines or its discriminator; a file's change count says how busy the file is, not the rule. A problem in code nobody changes is listed with *no action*.
+Rank the structure problems by what they cost today: how many places one change to the rule must touch, and how often the rule itself has changed. Take that from the history of the rule's lines or its discriminator; a file's change count says how busy the file is, not the rule. Where the history shows a change that updated some of a rule's places and missed others, draw it as a change history under the problem: it is the strongest evidence a lead sees. Problems that one change would remove are one problem, with the cause named and the others as its evidence. A problem in code nobody changes stays in the map with *no action* as its fix.
 
-**Looks wrong, is fine** records what a reader would flag and the reason the user or the history gave, so that the next run does not raise it again. The reason is about structure or intent: a decision the code makes, a requirement, an incident. "The tests pass" says the code works; it does not say its shape is right.
+**What is sound** records what works and should be kept, and what a reader would flag and the reason the user or the history gave, so that the next run does not raise it again. The reason is about structure or intent: a decision the code makes, a requirement, an incident. "The tests pass" says the code works; it does not say its shape is right.
 
-Done when every capability with more than one decision site for a rule, every difference the user called drift, and every special case with a row has a finding, a place under behavior to decide, or a stated reason it is fine.
+Done when every capability with more than one decision site for a rule, every difference the user called drift, and every special case with a row is a problem, part of one, or under *What is sound* with its reason; and every problem has its kind, how sure, what is wrong, and its decision.
 
 ## 6. Propose the rework
 
@@ -117,7 +117,7 @@ When the deliverable includes a proposal, follow [rework](references/rework.md):
 
 When the findings do not justify a restructuring, recommend leaving the structure as it is. The proposal is then the pins for the behavior no test protects, and the check that keeps the stated design true; step 7 still writes those pins.
 
-Checkpoint: the user chooses the target. Changing a behavior is never part of a rework step: it stays under behavior to decide.
+Checkpoint: the user chooses the target. Changing a behavior is never part of a rework step: it stays a problem of the kind behavior to decide.
 
 Done when the user has chosen a target, or the choice is listed as open with the recommendation; and every step of that target names its files, its pin, and the check that proves behavior unchanged.
 
@@ -135,7 +135,7 @@ Done when every behavior on the list has a test seen red under its break and gre
 
 ## 8. Record and deliver
 
-Keep one `rework-map.md` at the investigation location. For a new map, fill [map-template.md](references/map-template.md) as [map-format.md](references/map-format.md) says, removing unused prompts; update an existing map in place. Write the **structure view** into it as a `structure-view` fence, as [map-format](references/map-format.md#structure-view) says: the page draws it as a picture you can switch between today and the proposal, and the tables carry the same content as text. Before every delivery, including each checkpoint, run `python3 <package>/skills/render_page.py <rework-map.md> --check --sync-labels --markdown-only`, and for a chosen HTML companion follow the [shared page workflow](../HTML-PAGES.md) and run the check without `--markdown-only`.
+Keep one `rework-map.md` at the investigation location. For a new map, fill [map-template.md](references/map-template.md) as [map-format.md](references/map-format.md) says, removing unused prompts; update an existing map in place. Write the **structure view** into its plan as a `structure-view` fence, and under each problem that a picture shows better than words a `structure-focus` fence of its part, today and proposed side by side, or a `change-history` fence of the commits that missed a place, as [map-format](references/map-format.md#pictures) says. Put the decisive excerpts of each problem one after another as fences with `url`, so the page sets them side by side. Before every delivery, including each checkpoint, run `python3 <package>/skills/render_page.py <rework-map.md> --check --sync-labels --markdown-only`, and for a chosen HTML companion follow the [shared page workflow](../HTML-PAGES.md) and run the check without `--markdown-only`.
 
 The check confirms that a pinned line exists. It cannot tell whether the line says what your sentence claims. Print every pin beside its source text, read the list against the map, and recount every number the map states:
 
@@ -151,15 +151,15 @@ Before delivering, check also that:
 - Every lock test is listed in the map with the behavior it locks, the break it failed under, and the suite run that passed; and no application code changed.
 - A [second reader](../FRESH-REVIEW.md) has compared the map with its sources when the recommended target touches more than five files, removes a check at a trust boundary, or the user asks.
 
-Deliver in chat: what the component does, the behavior to decide, the differences from the stated design that matter most, the recommended target, the lock tests written, the questions still open, each corner case that waits for the user's choice with what keeping it costs, and the link to the map. Then hand over the next command. For the rework: `/aantoniadis-skills:plan-change Plan the rework of <component>. Reuse the rework map at <path>; the chosen target is <name>.` (`$` instead of `/` in Codex). For one contained step in familiar code, the step text is the scope for a direct implementation. When the user confirmed a difference as intended or chose a target, offer the matching update to the project's design documentation or decision records, and write it only within authorization, as [asking](../ASKING.md) says.
+Deliver in chat what *In short* says: the problem that matters most and the count of the others, what you propose, and each decision that waits for the user with its default; then the lock tests written, and the link to the map. Then hand over the next command. For the rework: `/aantoniadis-skills:plan-change Plan the rework of <component>. Reuse the rework map at <path>; the chosen target is <name>.` (`$` instead of `/` in Codex). For one contained step in familiar code, the step text is the scope for a direct implementation. When the user confirmed a difference as intended or chose a target, offer the matching update to the project's design documentation or decision records, and write it only within authorization, as [asking](../ASKING.md) says.
 
 Done when the map passes the check, the pins have been read against it, the chat states the applied choices, and the user has the next command or the questions that block it.
 
 ## Working with the user
 
-Each checkpoint is a round from [asking](../ASKING.md): number the questions, put the recommended answer first, and word each so that "yes" accepts it. Group questions that have one answer, such as six guards on the same value, into one. Ask the questions with the most consequence first, and keep the rest in the map's question table.
+Each checkpoint is a round from [asking](../ASKING.md): number the questions, put the recommended answer first, and word each so that "yes" accepts it. Group questions that have one answer, such as six guards on the same value, into one. Ask the questions with the most consequence first. Each question lives in the **Decision:** of the problem it decides; a question no problem holds goes under *Other questions* in the plan.
 
-When nobody answers, as in an unattended run, hold no checkpoint: continue through the steps, write each checkpoint's questions into the question table, and deliver once at the end. Then:
+When nobody answers, as in an unattended run, hold no checkpoint: continue through the steps, write each checkpoint's questions into the decisions of their problems, and deliver once at the end. Then:
 
 - A difference between the code and the stated design is *open*: neither drift nor intended.
 - A special case stays.
@@ -168,4 +168,4 @@ When nobody answers, as in an unattended run, hold no checkpoint: continue throu
 
 After the rework lands, a follow-up re-measures it against the same map. At the new revision, run the lock tests and the conformance check again, and take the census again for the rules and data the target names. Fill the map's *After the rework* section: for each line of the target's **Measure**, the value before, the value now, and *met* or *not met* with the run. A rule still decided in more than one file, or a dependency still *not stated*, is a finding of the rework, and its step is reopened. A lock test that changed without a decision behind it is behavior to decide.
 
-A follow-up, such as "the guard in the importer came from an outage", resumes the same map: recheck the revision, record the answer beside its claim, and update the findings, targets, and steps it changes.
+A follow-up, such as "the guard in the importer came from an outage", resumes the same map: recheck the revision, record the answer in the decision it settles, and update the problems, the target, and the steps it changes.

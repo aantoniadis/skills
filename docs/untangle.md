@@ -45,9 +45,9 @@ behavior nobody documented, guards and fallbacks nobody can explain.
    the main flows from the source, marking the steps a run executed.
    **Checkpoint:** you see the differences first, and say for each whether it
    is intended or drift.
-5. **Findings.** What may be wrong or unwanted in what the component does, a
-   possible defect or two sites that disagree, goes near the top of the map
-   as behavior to decide, with its run and its handoff. Each structure
+5. **Problems.** What may be wrong or unwanted in what the component does, a
+   possible defect or two sites that disagree, is a problem to decide, ranked
+   first, with its run and its handoff. Each structure
    problem gets one of seven names: scattered rule, misplaced logic, needless
    link, surplus, shared mutable state, shapeless data, unjustified special
    case. A special case is classified by
@@ -91,16 +91,34 @@ Prompt shape:
 /aantoniadis-skills:untangle <component, directory, or flow> <what hurts about it, if you know>
 ```
 
-## The page
+## The map
 
-The map's page is laid out as a workbench, in a technical theme that follows
-your system's light or dark setting. At the top: the title, counts of what
-waits for you, and the three summary lines. In the middle: the structure
-view. Below it, three panels: **Decide** (behavior to decide, your open
-questions, and corner cases), **Findings**, and **Rework** (the recommendation, the lock tests,
-and the steps). Hovering or focusing a panel item lights up the files it names
-in the picture; a click keeps them lit. The full text of the map follows, and
-every pinned line opens the code beside the page.
+The map is written for two readers: a lead who decides whether the rework is
+worth it, and the author who carries it out.
+
+- **In short**, at the top: the problem that matters most, what we propose,
+  and what you decide. A lead can stop there. Every decision that waits for
+  you is gathered under it, linked to its problem.
+- **Problems**, ranked. Each problem is one section that holds everything
+  about it: what is wrong and what it costs, how sure the map is (we ran it,
+  read it at the lines, or inferred it), a picture, the evidence, the
+  proposed fix with its cost and what you get, the other options with
+  *leave it* always among them, and your decision.
+- **The pictures** show the problem, not the whole component. A *focus*
+  draws only the files and rules of that problem, today and proposed side by
+  side. A *change history* draws each past change to a rule against the
+  places that decide it, and marks every place a change missed: "4 commits
+  changed the rate; 2 of them changed only some of its places". Code
+  excerpts sit side by side, so three places that decide one rule are read
+  at once.
+- **The plan**, for the author: the target, the whole structure with a
+  switch between today and the proposal, the lock tests, and the steps.
+- **What is sound**, and **How it works today** as the reference the
+  problems cite, folded on the page until opened.
+
+The page is light, with a dark theme for whoever asks; the sidebar lists the
+problems with the state of each decision, and every pinned line opens the
+code beside the page.
 
 ## After the rework
 

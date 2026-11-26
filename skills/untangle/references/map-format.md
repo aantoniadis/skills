@@ -1,38 +1,104 @@
 # Rework map format
 
-Read when filling or updating a rework map. The map is one note,
-`rework-map.md`, written for a reader who was not there and who must be able
-to check each claim quickly. Follow the [shared page workflow](../../HTML-PAGES.md)
-for rendering, and [evidence](../../EVIDENCE.md) for every claim and diagram.
+Read when filling or updating a rework map, or the change card of
+[fit-change](../../fit-change/SKILL.md), which has the same shape. The map is
+one note, `rework-map.md`, written for two readers who were not there: a lead
+who decides whether the rework is worth it, and the author who carries it
+out. Each must find what is wrong and what to do about it without reading the
+rest. Follow the [shared page workflow](../../HTML-PAGES.md) for rendering,
+and [evidence](../../EVIDENCE.md) for every claim and diagram.
 
 ## Contents
 
 - [Order and growth](#order-and-growth)
-- [The opening](#the-opening)
+- [In short](#in-short)
+- [Problems](#problems)
 - [Pins](#pins)
-- [Tables](#tables)
-- [Structure view](#structure-view)
+- [Pictures](#pictures)
+- [The plan and the reference](#the-plan-and-the-reference)
 - [Names](#names)
 - [Diagrams](#diagrams)
 
 ## Order and growth
 
-Keep the template's section order: what the user must decide comes before
-the description, and the description before the proposal. The map grows
-through the task: after step 2 it holds the opening, the questions, the
-capability list, and the stated design; steps 3 and 4 add the census, the
-tables, and the flows; steps 5 and 6 add findings, targets, and steps. Remove
-a section that has nothing to hold or that the chosen deliverable does not
-include, and say in *Limits and open questions* what was left out. A map
-delivered at a checkpoint passes the check as it stands.
+Keep the template's order: *In short*, then the problems, then the plan, then
+what is sound, then *How it works today* as reference. The argument comes
+first and the description last, because the description is the evidence and
+the reader reaches it from a problem. The map grows through the task: after
+step 2 it holds *In short* as far as it is known, the capabilities, and the
+stated design; steps 3 and 4 fill the reference; steps 5 and 6 write the
+problems and the plan. Remove a section that has nothing to hold, and say in
+*Limits* what was left out. A map delivered at a checkpoint passes the check
+as it stands.
 
-## The opening
+## In short
 
-The three bold lines under the title are what most readers read. Each states
-its result and its scope: *What it does* in domain words; *What differs from
-the stated design* with the count of dependencies and rules checked;
-*Recommended rework* with one reason, or that the structure should stay as it
-is. When the scope could not run, the *What ran* line says so first.
+Three labelled paragraphs, a few sentences each, that a lead reads and stops:
+
+- **The problem:** the most consequential problem in the reader's terms,
+  what it costs, and its evidence. When there are several, the one that
+  matters most and the count of the others.
+- **What we propose:** the recommended target, what changes, and what
+  protects the change, or that the structure should stay as it is and why.
+- **What you decide:** each decision that waits for the user in one line,
+  with its default; or that none waits.
+
+Then the scope, the inspected source, and what ran. When the scope could not
+run, the *What ran* line says so first.
+
+## Problems
+
+A **problem** is one thing that makes the component costly to change or
+possibly wrong, with what to do about it. It is the unit of the map: each
+problem holds its own evidence, picture, fix, and decision, so a reader
+never assembles one from several sections. Rank them by what they cost:
+behavior to decide first, then structure problems by how many places one
+change must touch times how often the rule changes. Number them in their
+headings, `### 1. <title>`, and refer to them as *problem 1*.
+
+The title states the consequence a lead understands, such as *A gold
+customer is quoted 38.00 and charged 36.00* or *Changing a loyalty rate takes
+three edits*; not the mechanism, such as *Discount logic in serializer*.
+
+Each problem has these labelled paragraphs, in this order. The label starts
+the paragraph in bold; the checker reads the first four.
+
+- **Kind:** one of *behavior to decide*, *corner case*, *scattered rule*,
+  *misplaced logic*, *needless link*, *surplus*, *shared mutable state*,
+  *shapeless data*, *unjustified special case*; then **How sure:**, one of
+  *observed* (a run showed it), *source* (read at the lines), or *inferred*,
+  with what ran or was read; then **Cost today:**, what it costs each change
+  or each user, with its evidence. The three share one line, joined by ` · `.
+- **What is wrong:** what happens and why it hurts, in as many paragraphs as
+  it needs, with pinned lines and runs. Write for the lead first: what a user
+  of the software or a person changing the code meets.
+- The picture, when one shows the problem better than words: a
+  `structure-focus` fence, a `change-history` fence, or both. See
+  [pictures](#pictures).
+- **Evidence:** the decisive excerpts as fences with `url="..."`, one after
+  another so the page sets them side by side, then a list of the runs,
+  searches, and history that support the problem. Show the lines that make
+  the point: the three places that decide a rate, not the files around them.
+- **Proposed fix:** what changes to remove the problem, labelled *proposed*,
+  and where the steps are. For behavior to decide, the handoff to fix-bug or
+  plan-change and the question that decides it.
+- **Cost and risk:** the files, call sites, and lock tests the fix needs, and
+  what can go wrong.
+- **What you get:** the measure, before and after, such as the decision
+  sites for the rule going from 3 to 1.
+- **Other options:** a list, each option in bold with what it changes and
+  costs. *Leave it* is always one of them, with what the problem keeps
+  costing at its present rate. A corner case lists its options cheapest
+  first, as [corner cases](../../CORNER-CASES.md) says.
+- **Decision:** one of *open*, *default applied*, *decided*, or *none
+  needed*, then the recommendation and what holds until the user answers, or
+  the answer with its date. The page gathers every open decision under *In
+  short*, so each one stands on its own.
+
+A behavior to decide and a corner case need no **Proposed fix:**, **Cost and
+risk:**, or **What you get:** when the decision is all there is; every other
+kind has a **Proposed fix:**, even if the fix is to leave it, with the
+reason.
 
 ## Pins
 
@@ -40,56 +106,18 @@ Pin committed code at its commit. For a repository with a hosted remote,
 build the link from `git remote get-url origin` and the inspected revision:
 `[discounts.py:12](https://<host>/<owner>/<repo>/blob/<sha>/shop/pricing/discounts.py#L12)`.
 With no hosted remote, link the path relative to the map with the same
-anchor, and state the revision in the opening. Take line numbers from the
-file at that revision.
+anchor, and state the revision in *In short*. Take line numbers from the file
+at that revision. An excerpt fence carries the same link as its `url`.
 
-## Tables
+## Pictures
 
-Use the template's column names exactly; the checker reads them. Every cell
-has content, and an explicit unknown is content.
-
-- **Behavior to decide.** One row per behavior that may be wrong or unwanted,
-  worded as what a consumer sees, with the run that shows it and its handoff.
-- **Questions for the user.** One row per question only a person can answer.
-  *Default until answered* gives the conservative default and what changes
-  under the other answer. *Answer* quotes the user, or says *open*. Keep
-  answered rows: they are the record the next session reads.
-- **Capabilities.** One row per capability, in the user's order of importance.
-  A capability the code performs and no document or person named is marked
-  *not stated anywhere*. Each inspected capability has its own section with
-  one list item per decision site.
-- **Stated design and the code.** Two tables. Dependencies have *Result* one
-  of *as stated*, *not stated*, *not found*, and *Evidence* names the edge
-  source and pins the decisive file edges. Stated rules have *Result* one of
-  *holds*, *broken*, *not checked*. When every dependency is as stated, one
-  sentence with the count replaces the rows.
-- **State and data.** One row per piece of state, and one row per key of
-  each piece of shapeless data, with the default each reader supplies. More
-  than one writer is not yet a finding; it is what the user is shown.
-- **Special cases.** One row per classified case, with *Reach* one of
-  *reached*, *not reached*, *unknown*, each followed by the caller, probe, or
-  run that supports it.
-- **Corner cases.** One row per reached special case whose handling bends
-  the design, as [corner cases](../../CORNER-CASES.md) says, with its options
-  cheapest first and the decision: the chosen option with its authority, or
-  *open* with "it stays". Remove the section when no case bends the design.
-- **Lock tests.** One row per test written in step 7, with the break it
-  failed under and the suite run that passed. Remove the section when the
-  deliverable is the map alone, and say so in the limits.
-- **Findings.** One row per structure finding in rank order, with *Kind* one
-  of *scattered rule*, *misplaced logic*, *needless link*, *surplus*, *shared
-  mutable state*, *shapeless data*, *unjustified special case*. Each row links to its section.
-
-## Structure view
-
-The section *Structure today and proposed* holds one `structure-view` fence of
-JSON. The page draws it: files grouped by design part, the dependencies
-between them, a lettered dot for each place that decides a rule, a switch
-between today and the proposal, and for shapeless data a table of who writes
-and reads each key. Markdown readers see the JSON; the tables of the map
-carry the same content as text. The sentence before the fence states the
-takeaway and the evidence kind, as [evidence](../../EVIDENCE.md#diagrams)
-says for a diagram.
+**The structure view.** *The plan* holds one `structure-view` fence of JSON:
+the files that the problems name, grouped by design part, the dependencies
+between them, a lettered dot for each place that decides a rule, and for
+shapeless data the keys and who writes and reads them. The page draws it
+with a switch between today and the proposal. The sentence before the fence
+states the takeaway and the evidence kind, as
+[evidence](../../EVIDENCE.md#diagrams) says for a diagram.
 
 ```json
 {"parts": [{"id": "api", "label": "API", "said": "only translates requests"},
@@ -112,24 +140,75 @@ says for a diagram.
   point, first to last. A file the design does not name has the part
   `outside`.
 - **files** are the files that hold a decision site, a dependency, or a key
-  the findings name. Keep it to what the findings need; a picture of every
-  file reads like none.
+  a problem names. A picture of every file reads like none.
 - **dependencies** have `today` and `proposed`, each *as stated*, *not
   stated*, *not found*, or `null` where it does not exist in that view.
-- **rules** are the rules the findings name, at most 26. `outcome` is
+- **rules** are the rules the problems name, at most 26. `outcome` is
   *moves* (its sites go to the owner), *stays*, or *waits*. A site with
   `"waits": true` keeps its place until the user answers.
-- **data** is one entry per piece of shapeless data, from the *State and
-  data* table.
+- **data** is one entry per piece of shapeless data a problem names.
 - Every `at` is a pinned line, as `path.ext:12`, or starts with `proposed`.
-  The check rejects one that is neither.
+  The check rejects one that is neither. A change card labels its views with
+  `"labels": {"today": "Before", "proposed": "After the change"}`.
+
+**A focus.** Under a problem, a `structure-focus` fence names part of that
+data, and the page draws only that part, today and proposed side by side:
+
+```json
+{"rules": ["Loyalty discount rate"], "files": ["views"]}
+```
+
+`rules` are rule names and `files` are file ids of the structure view; the
+files of the named rules come with them.
+
+**A change history.** Under a problem whose evidence is history, such as a
+rule that one change updated in some of its places and not others, a
+`change-history` fence lists the places and the commits that changed them,
+oldest first. Take them from `git log -L` on each place, or from
+`change_coupling.py --functions`. The page draws one row per place and one
+column per commit, and marks each place a commit left unchanged while
+changing another; its caption counts those commits.
+
+```json
+{"rule": "Loyalty discount rate",
+ "sites": [{"id": "discounts", "label": "pricing/discounts.py:12"},
+           {"id": "builder", "label": "quotes/builder.py:27", "since": "3be62b3"}],
+ "commits": [{"sha": "3be62b3", "date": "2023-02-17", "subject": "Quotes compute the discount", "changed": ["builder"]},
+             {"sha": "93548a8", "date": "2023-09-01", "subject": "Raise gold to 10%", "changed": ["discounts"]}]}
+```
+
+`since` is the commit that created a place; before it the place did not
+exist, and the commit that creates it is not counted as missing the others.
+
+## The plan and the reference
+
+*The plan* holds the recommended target and the user's choice, the structure
+view, the target's owners, interface, boundary checks, data and state,
+failure behavior, and measure, then the lock tests as a list, the steps, and
+questions that no problem holds. *What is sound* lists what works and should
+be kept, and what looks wrong and is fine, each with its reason.
+
+*How it works today* is the reference the problems cite. Two tables keep
+their columns exactly, because the checker reads them:
+
+- **Stated design and the code.** Dependencies have *Result* one of *as
+  stated*, *not stated*, *not found*, and *Evidence* names the edge source
+  and pins the decisive file edges. Stated rules have *Result* one of
+  *holds*, *broken*, *not checked*. When every dependency is as stated, one
+  sentence with the count replaces the rows.
+- **Special cases.** One row per classified case, with *Reach* one of
+  *reached*, *not reached*, *unknown*, each followed by the caller, probe,
+  or run that supports it. A case that is a problem names it in *Points to*.
+
+Capabilities, state and data, and behavior no test protects are lists and
+prose. Every cell of a table has content, and an explicit unknown is
+content; text that needs more than a line goes in a list instead.
 
 ## Names
 
-Name a finding by its consequence, such as *Discount rule decided in three
-places*, and a target by its shape, such as *Pricing owns discounts*. Use the
-project's glossary terms for capabilities and state. Steps are numbered in
-their list and referred to by what they do.
+Name a problem by its consequence and a target by its shape, such as
+*Pricing owns discounts*. Use the project's glossary terms for capabilities
+and state. Steps are numbered in their list and referred to by what they do.
 
 ## Diagrams
 

@@ -139,12 +139,13 @@ Prompt shapes:
 
 ## The change card
 
-A run on its own writes a change card, `change-card.md`, and its page. The
-page uses the same workbench as `untangle`'s map: the change, the fit, and the
-choice at the top; a structure view whose switch moves between before and
-after the change; and panels for what you decide, the findings of a check,
-and the reshape steps. Called from `plan-change` or `fix-bug`, the placement
-goes into the slice or the fix instead, with no page.
+A run on its own writes a change card, `change-card.md`, and its page, in the
+same shape as `untangle`'s map: *In short* with the problem, what we propose,
+and what you decide; then one section per problem (why the change does not
+fit, each corner case, each finding of a check) with its picture before and
+after the change, its evidence side by side, its fix, and its decision; then
+the plan for the implementer. Called from `plan-change` or `fix-bug`, the
+placement goes into the slice or the fix instead, with no page.
 
 ## Called by other skills
 

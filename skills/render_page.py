@@ -133,7 +133,8 @@ def fence_languages(soup):
     """The languages of the page's fences that the peek script draws highlighted: diffs split into tables and
     diagrams render on their own, so neither counts. Render and check derive the embedded grammars from this."""
     return sorted({name[len("language-"):] for code in soup.select("main pre > code") for name in code.get("class", [])
-                   if name.startswith("language-") and name not in ("language-diff", "language-mermaid", "language-structure-view")})
+                   if name.startswith("language-") and name not in ("language-diff", "language-mermaid", "language-structure-view",
+                                                                     "language-structure-focus", "language-change-history")})
 
 
 def check_prompts(source):
@@ -251,11 +252,9 @@ CHECK_ORIGINS = ("Executed here", "Recorded run", "Source inspected", "Proposed"
 DESIGN_COLUMNS = ("Relationship", "Result", "Evidence", "What the user said")
 DESIGN_RESULTS = ("as stated", "not stated", "not found")
 RULE_COLUMNS = ("Stated rule", "Result", "Evidence", "What the user said")
-CARD_FINDING_COLUMNS = ("Finding", "Kind", "Where", "Evidence", "Fix")
 RULE_RESULTS = ("holds", "broken", "not checked")
 SPECIAL_CASE_COLUMNS = ("Special case", "Kind", "Reach", "Why it exists", "Points to")
 REACH_STATUSES = ("reached", "not reached", "unknown")
-FINDING_COLUMNS = ("Finding", "Kind", "Where", "Cost today", "Removed by")
 FINDING_KINDS = ("scattered rule", "misplaced logic", "needless link", "surplus", "shared mutable state", "shapeless data",
                  "unjustified special case")
 # columns -> (section label, index of the status cell, its values); the cell starts with its status.
@@ -263,8 +262,6 @@ MAP_TABLES = {
     DESIGN_COLUMNS: ("Stated design and the code", 1, DESIGN_RESULTS),
     RULE_COLUMNS: ("Stated rules", 1, RULE_RESULTS),
     SPECIAL_CASE_COLUMNS: ("Special cases", 2, REACH_STATUSES),
-    FINDING_COLUMNS: ("Findings", 1, FINDING_KINDS),
-    CARD_FINDING_COLUMNS: ("Structure findings", 1, FINDING_KINDS),
 }
 STATUS_TABLES = {
     REQUIREMENT_COLUMNS: ("requirements", FULFILLMENT),
@@ -283,8 +280,6 @@ TABLE_LABELS = {
     DESIGN_COLUMNS: ("design-results",),
     RULE_COLUMNS: ("rule-results",),
     SPECIAL_CASE_COLUMNS: ("special-case-reach",),
-    FINDING_COLUMNS: ("structure-findings",),
-    CARD_FINDING_COLUMNS: ("structure-findings",),
 }
 
 
@@ -317,7 +312,9 @@ def label_groups(source):
     if document.select("code.language-mermaid"):
         groups.add("diagram-evidence")
     if document.select("code.language-structure-view"):
-        groups.update(("design-results", "structure-findings"))
+        groups.add("design-results")
+    if problem_sections(document):
+        groups.update(("structure-findings", "problem-evidence", "decision-status"))
     if bug_card_headings(document):
         groups.update(("bug-evidence", "bug-origin"))
     cause = bool(bug_card_headings(document, CAUSE_SECTION))
@@ -959,6 +956,22 @@ def render(source, source_name, diagram_renderer="auto", repo=None, directory=No
                     entry.extend([reason, chips]); listing.append(entry)
                 group.append(listing); wrap.append(group)
             plan.replace_with(wrap)
+    def keep_source(view, pre, words):
+        """The fence's data stays on the page, folded under the picture it draws."""
+        details = soup.new_tag("details", attrs={"class": "sv-source"})
+        summary = soup.new_tag("summary")
+        summary.string = words
+        details.append(summary)
+        pre.replace_with(view)
+        details.append(pre)
+        view.append(details)
+
+    full = soup.select_one("pre > code.language-structure-view")
+    for index, code in enumerate(soup.select("pre > code.language-structure-focus"), 1):
+        keep_source(parse(structure_view.focus_figure(json.loads(full.get_text()), json.loads(code.get_text()), index)).figure,
+                    code.parent, "Data behind this picture")
+    for index, code in enumerate(soup.select("pre > code.language-change-history"), 1):
+        keep_source(parse(structure_view.history_figure(json.loads(code.get_text()), index)).figure, code.parent, "Data behind this history")
     for index, code in enumerate(soup.select("pre > code.language-structure-view"), 1):
         pre = code.parent
         view = parse(structure_view.figure(json.loads(code.get_text()), index)).figure
@@ -971,6 +984,8 @@ def render(source, source_name, diagram_renderer="auto", repo=None, directory=No
         view.append(details)
         if index == 1:
             soup.body.extend(list(parse(structure_view.assets()).contents))
+    if not full and soup.select(".sv-focus, .history-view"):
+        soup.body.extend(list(parse(structure_view.assets()).contents))
     explicit = diagram_renderer != "auto"
     for index, code in enumerate(soup.select("pre > code.language-mermaid"), 1):
         pre = code.parent
@@ -1152,6 +1167,10 @@ def claim_gaps(source):
             return  # A question asks for evidence; it does not assert an answer.
         if re.match(r"^\s*(?:[-*+]|\d+[.)])\s+\**(?:Action|Next(?: action)?|Fix|Recommendation):", block[0]):
             return  # a recommendation, not a claim
+        if re.match(r"^\*\*(?:Decision|What you decide):\*\*", text):
+            return  # a decision and its state, not a claim; check_rework_map checks the state word
+        if re.match(r"^\*\*Kind:\*\*.*·\s*\*\*How sure:\*\*", text):
+            return  # a problem's tags: its How sure labels the problem, and check_rework_map checks it
         if PINNED.search(text) or EVIDENCE_WORDS.search(text) or QUOTED_LINK.search(text) or COMMAND.search(text):
             return
         gaps.append((start + 1, text[:80]))
@@ -1874,11 +1893,62 @@ def check_learning_plan(source):
     raise_all(problems)
 
 
+PROBLEM_FIELDS = ("Kind", "How sure", "What is wrong", "Decision")
+PROBLEM_KINDS = ("behavior to decide", "corner case", *FINDING_KINDS)
+HOW_SURE = ("observed", "source", "inferred")
+DECISIONS = ("open", "default applied", "decided", "none needed")
+
+
+def problem_sections(document):
+    """(heading, [elements under it]) for each problem: an h3 under the h2 *Problems*."""
+    heading = next((h for h in document.find_all("h2") if h.get_text(strip=True) == "Problems"), None)
+    found, current = [], None
+    for element in (heading.find_next_siblings() if heading else []):
+        if element.name == "h2":
+            break
+        if element.name == "h3":
+            current = (element, [])
+            found.append(current)
+        elif current:
+            current[1].append(element)
+    return found
+
+
+def problem_fields(elements):
+    """Label -> the text after it, for each paragraph that starts with a bold label; the Kind line holds
+    several labels joined by middle dots."""
+    fields = {}
+    for element in elements:
+        if element.name != "p" or not element.find("strong") or element.contents[0] is not element.find("strong"):
+            continue
+        text = element.get_text(" ", strip=True)
+        for part in text.split(" · "):
+            label, _, value = part.partition(":")
+            if value:
+                fields[label.strip()] = value.strip()
+    return fields
+
+
 def check_rework_map(source):
-    """A rework map's status cells use the shared words: a relationship's or a stated rule's result,
-    a special case's reach, and a finding's kind. Checks the declared rows, not whether the map found everything."""
+    """A rework map's and a change card's problems carry their kind, how sure, what is wrong, and a decision
+    in the shared words, and the remaining status cells use them too. Checks the declared problems and rows,
+    not whether the note found everything."""
     document = parse(MARKDOWN.render(source))
     problems = []
+    for heading, elements in problem_sections(document):
+        name = f"Problem {heading.get_text(' ', strip=True)!r}"
+        fields = problem_fields(elements)
+        missing = [label for label in PROBLEM_FIELDS if label not in fields]
+        if missing:
+            problems.append(f"{name}: add {', '.join(f'**{label}:**' for label in missing)}.")
+            continue
+        for label, values in (("Kind", PROBLEM_KINDS), ("How sure", HOW_SURE), ("Decision", DECISIONS)):
+            value = fields[label].lower()
+            if not any(re.match(rf"{re.escape(option)}\b", value) for option in sorted(values, key=len, reverse=True)):
+                problems.append(f"{name}: start **{label}:** with one of: {', '.join(values)}.")
+        kind = fields["Kind"].lower()
+        if not kind.startswith(("behavior to decide", "corner case")) and "Proposed fix" not in fields:
+            problems.append(f"{name}: a structure problem needs **Proposed fix:**, or a fix of leaving it with its reason.")
     for table in document.find_all("table"):
         columns = tuple(th.get_text(" ", strip=True) for th in table.select("thead th"))
         if columns not in MAP_TABLES:

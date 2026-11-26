@@ -60,9 +60,17 @@ From the repository root:
 ```bash
 git log -S'<discriminator>' --oneline -- <scope>      # commits that add or remove the string
 git log -G'<regex>' --oneline -- <scope>              # commits whose diff matches
-git log -L :<function>:<file>                         # the history of one function
+a=<package>/skills/untangle/scripts/function-names.gitattributes
+git -c core.attributesFile="$a" log --oneline -L :<function>:<file>   # the history of one function or method
 python3 <package>/skills/untangle/scripts/change_coupling.py --edges <edges.tsv> <scope>
+python3 <package>/skills/untangle/scripts/change_coupling.py --functions <scope>
 ```
+
+Without the attributes file, `git log -L :<name>:<file>` finds only
+definitions that start a line, so it prints nothing, and no error, for a
+method inside a class. With `--functions`, `change_coupling.py` counts
+functions in place of files: one large file can hide a rule scattered over
+its own functions, which file counts cannot show.
 
 `change_coupling.py` lists the files in scope that change most, and the pairs
 that change in the same commits. A pair of kind *code* with no dependency is
@@ -73,24 +81,29 @@ that changes with the code and still disagrees with it is a finding.
 
 ## A deliberate break
 
-A break answers "does any test protect this behavior?". Work in a disposable
-worktree, never in the user's checkout, and remove it afterwards:
+A break answers "does any test protect this behavior?". List the breaks in a
+file, one per line: a short name, the path, the line number, the text that
+replaces the line, and the focused test command expected to catch it. Then
+let the script make them, one at a time, in a disposable worktree of HEAD:
 
 ```bash
-wt="$(mktemp -d)/probe" && git worktree add --detach "$wt" HEAD
-# in "$wt": install what the tests need as the project's instructions say, change one decision,
-# run the tests that should notice (the whole baseline when unsure), and keep the change and the output under runs/
-git worktree remove --force "$wt"
+python3 <package>/skills/untangle/scripts/break_probe.py <runs>/breaks.tsv \
+  --full "<the command that runs every test of the scope>" --setup "<install command, if the tests need one>" --out <runs>/breaks
 ```
 
-Use the session's temporary directory when the host assigns one. Make one
-change per break: invert a condition, change a constant, remove a check, alter
-a path. Record each as one line: what was changed, where, the tests run, and
-the result.
+Make one change per break: invert a condition, change a constant, remove a
+check, alter a path. Choose the focused tests with `tests_for_line.py` or by
+reading, but treat its *0 tests* as a lead, not a result: per-test coverage
+misses some lines, such as `await` expressions. The script reruns every break
+the focused tests miss under `--full`, and reports one of three results:
 
-- A test turns red: the behavior is pinned, and that test is its pin.
-- Every test stays green: no test protects the behavior. Record it in the map
-  under *Behavior no test protects*; it is the first pin a rework writes.
+- *focused red*: the behavior is pinned, and those tests are its pin.
+- *full red*: it is pinned only outside the focused selection. The pin
+  exists; name the test that caught it from the log.
+- *green*: no test protects the behavior. Record it in the map under
+  *Behavior no test protects*; it is the first lock test a rework writes.
+
+The worktree holds HEAD, so uncommitted changes in the checkout are not in it.
 
 Break first what would hurt most if it changed silently: a check on who may
 do what, a rule about money or data, a value another system reads.
@@ -126,13 +139,26 @@ signs that no one place declares the data's shape:
 A key name is matched as text. Confirm at the sites that two rows concern the
 same data.
 
+The script reads keys written as `data[key] = ...` and read as `data[key]`
+or with a default. It does not see keys set by a comprehension, passed as
+keyword arguments into a store, or held in a database row. For those, start
+from the other end: list every caller of the methods that write the state,
+with the references search of the census, and read what each passes.
+
 Then find out what changes the data after it is handed over. In a scratch
 worktree, as for [a deliberate break](#a-deliberate-break), make the data
-immutable at the point where one module hands it to the next: freeze the hash
-and its nested values, wrap the dict in a read-only view, freeze the object.
-Run the baseline. Each test that fails with a "cannot modify" error names a
-site that changes shared data. Record the sites; a suite that stays green
+immutable at the point where one module hands it to the next. In Ruby, freeze
+the hash and its nested values. In Python, replace the dict and its lists
+with subclasses whose changing methods raise, because a read-only view such as
+`MappingProxyType` fails `isinstance(x, dict)` checks and breaks the code for
+the wrong reason. Run the baseline. Each test that fails with your raise names
+a site that changes shared data. Record the sites; a suite that stays green
 shows only that no test reaches a change.
+
+State held in a database or a file is shared too, and a freeze cannot reach
+it. Where two writers read a value, change it, and write it back, run them
+interleaved in a probe: both read, then both write. A value one of them wrote
+that is gone afterwards is a lost update, and it goes under behavior to decide.
 
 Changing a value a function built itself is not a finding. The finding is a
 change to data another module handed over, or to state another module also

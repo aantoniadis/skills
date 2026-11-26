@@ -66,7 +66,7 @@ A **decision site** is a place that decides something about a capability: a cond
 In the same pass, list two more things, each with its script and your own reading:
 
 - The scope's special cases, with [`special_cases.py`](scripts/special_cases.py). A **special case** is code that exists for one situation: a guard, a default, an error turned into a value, a retry, a compatibility path, a parameter one caller sets.
-- The scope's shared data, with [`shared_data.py`](scripts/shared_data.py): state that more than one piece of code changes, and **shapeless data**, a hash, dict, or untyped object passed between modules whose keys are decided at the sites that use them. For each piece of shapeless data, record where it is built, and for each key the sites that write it and read it. Then freeze it where it is handed over, in a scratch worktree, and run the tests: each failure names a site that changes it afterwards. [Census](references/census.md#state-and-data-that-travels) has the steps.
+- The scope's shared data, with [`shared_data.py`](scripts/shared_data.py): state that more than one piece of code changes, and **shapeless data**, a hash, dict, or untyped object passed between modules whose keys are decided at the sites that use them. For each piece of shapeless data, record where it is built, and for each key the sites that write it and read it. Then freeze it where it is handed over, in a scratch worktree, and run the tests: each failure names a site that changes it afterwards. For state held in a database or a file, start from every caller of the methods that write it, and run two writers interleaved. [Census](references/census.md#state-and-data-that-travels) has the steps.
 
 A **lead** is where to look. It enters the map only after you have read the code on both sides and, where a run decides it, run it.
 
@@ -149,7 +149,7 @@ Before delivering, check also that:
 - Every answer the user gave is in the map beside the claim it settles, and every question nobody answered is marked *open* with its default.
 - No proposed removal rests on missing test coverage alone.
 - Every lock test is listed in the map with the behavior it locks, the break it failed under, and the suite run that passed; and no application code changed.
-- A [second reader](../FRESH-REVIEW.md) has compared the map with its sources when the rework is large or the user asks.
+- A [second reader](../FRESH-REVIEW.md) has compared the map with its sources when the recommended target touches more than five files, removes a check at a trust boundary, or the user asks.
 
 Deliver in chat: what the component does, the behavior to decide, the differences from the stated design that matter most, the recommended target, the lock tests written, the questions still open, and the link to the map. Then hand over the next command. For the rework: `/aantoniadis-skills:plan-change Plan the rework of <component>. Reuse the rework map at <path>; the chosen target is <name>.` (`$` instead of `/` in Codex). For one contained step in familiar code, the step text is the scope for a direct implementation. When the user confirmed a difference as intended or chose a target, offer the matching update to the project's design documentation or decision records, and write it only within authorization, as [asking](../ASKING.md) says.
 

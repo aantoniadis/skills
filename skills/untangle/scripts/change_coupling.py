@@ -5,14 +5,17 @@ Leads, not findings: a pair that changes together with no dependency between its
 holds one rule in two places, and a file that changes often is where a rework pays back. With
 paths given, the pairs still include partners outside them, marked as such: the other half of
 a rule often lives outside the component. Squash merges, bulk commits, renames, and a short
-history all distort the counts, so read both files of a pair before recording anything. Run from the repository root, or pass --repo. Exit 2 for
+history all distort the counts, so read both files of a pair before recording anything.
+With --functions the same tables list functions in place of files, named by git's hunk headers
+with the function-name rules of function-names.gitattributes beside this script: one large file
+can hide a rule scattered over its own functions, which file counts cannot show. Run from the repository root, or pass --repo. Exit 2 for
 invalid inputs or failed Git operations. No files are written.
 """
 import argparse
 from collections import Counter
 from itertools import combinations
 import os
-from pathlib import PurePosixPath
+from pathlib import Path, PurePosixPath
 import re
 import subprocess
 import sys
@@ -21,6 +24,37 @@ TEST_FILE = re.compile(r"(^|/)(tests?|__tests__|spec|testdata|fixtures)/|(^|/)te
 DOCUMENT = re.compile(r"\.(md|mdx|rst|txt|adoc)$", re.I)
 NOISE = re.compile(r"(^|/)(node_modules|vendor|dist|build|target|\.venv|__pycache__)/|\.lock$|(^|/)package-lock\.json$"
                    r"|(^|/)(pnpm-lock|yarn)\.\w+$|\.min\.(js|css)$|\.(png|jpe?g|gif|svg|ico|pdf|woff2?|snap)$")
+
+
+ATTRIBUTES = Path(__file__).resolve().parent / "function-names.gitattributes"
+# git has no built-in function-name rule for JavaScript and TypeScript; this one names functions, classes, and methods.
+JS_FUNCNAME = (r"^[ \t]*((export[ \t]+)?(default[ \t]+)?(async[ \t]+)?(function\*?|class)[ \t]+[A-Za-z_$][A-Za-z0-9_$]*.*"
+               r"|[ \t]*(static[ \t]+|async[ \t]+|get[ \t]+|set[ \t]+)*[A-Za-z_$][A-Za-z0-9_$]*[ \t]*\([^;]*\)[ \t]*(:[^{]*)?\{[ \t]*"
+               r"|[ \t]*(export[ \t]+)?(const|let)[ \t]+[A-Za-z_$][A-Za-z0-9_$]*[ \t]*=[ \t]*(async[ \t]+)?(\([^)]*\)|[A-Za-z_$][A-Za-z0-9_$]*)[ \t]*=>.*)$")
+FUNCTION_GIT = ("-c", f"core.attributesFile={ATTRIBUTES}", "-c", f"diff.js.xfuncname={JS_FUNCNAME}")
+HUNK = re.compile(r"^@@ [^@]* @@ ?(.*)$")
+NAME = re.compile(r"(?:def|class|function\*?|func|fn|sub|module)\s+([A-Za-z_$][\w$.!?]*)|([A-Za-z_$][\w$]*)\s*(?:=\s*(?:async\s*)?(?:\([^)]*\)|\w+)\s*=>|\()")
+
+
+def function_commits(log):
+    """The changed functions of each commit, as path::name, from `git log -p -U0` with function-name rules.
+    A hunk outside any function is left out."""
+    current, path = None, None
+    for line in log.splitlines():
+        if line.startswith("@") and re.fullmatch(r"@[0-9a-f]{7,40}", line):
+            if current:
+                yield sorted(current)
+            current, path = set(), None
+        elif line.startswith("+++ "):
+            path = None if line == "+++ /dev/null" else line[4:].removeprefix("b/")
+        elif current is not None and path and line.startswith("@@"):
+            match = HUNK.match(line)
+            context = (match.group(1) if match else "").strip()
+            name = NAME.search(context)
+            if name:  # a hunk outside any function, such as an import, says nothing about a rule
+                current.add(f"{path}::{next(g for g in name.groups() if g)}")
+    if current:
+        yield sorted(current)
 
 
 def git(repo, *args):
@@ -103,42 +137,53 @@ def main():
     parser.add_argument("--top", type=int, default=30, help="rows per table")
     parser.add_argument("--edges", help="TSV of dependency edges (import_edges.py writes one); marks pairs with no dependency")
     parser.add_argument("--exclude", action="append", default=[], help="regular expression for paths to leave out; repeatable")
+    parser.add_argument("--functions", action="store_true", help="count functions in place of files")
     args = parser.parse_args()
     try:
         exclude = [re.compile(pattern) for pattern in args.exclude]
         shallow = git(args.repo, "rev-parse", "--is-shallow-repository").strip() == "true"
         tracked = set(git(args.repo, "ls-files").splitlines())
         in_scope = set(git(args.repo, "ls-files", "--", *args.paths).splitlines()) if args.paths else tracked
-        log = git(args.repo, "log", f"--since={args.since}", "--no-merges", "--format=@%H", "--name-only")
+        if args.functions:
+            log = git(args.repo, *FUNCTION_GIT, "log", f"--since={args.since}", "--no-merges", "--format=@%H", "-p", "-U0",
+                      "--no-color", "--no-ext-diff", "--", *args.paths)
+        else:
+            log = git(args.repo, "log", f"--since={args.since}", "--no-merges", "--format=@%H", "--name-only")
         edges = read_edges(args.edges) if args.edges else None
     except (ValueError, OSError, re.error) as error:
         print(f"change_coupling: {error}", file=sys.stderr)
         return 2
     # A file that no longer exists cannot be reworked; its history stays out of the tables.
-    keep = lambda path: path in tracked and not NOISE.search(path) and not any(p.search(path) for p in exclude)
-    revisions, shared, bulk = analyze(commits(log), keep, args.max_files, scoped=in_scope.__contains__)
-    touched = sum(1 for files in commits(log) if any(path in in_scope and keep(path) for path in files))
+    file_of = lambda entity: entity.split("::", 1)[0]
+    keep = lambda entity: (file_of(entity) in tracked and not NOISE.search(file_of(entity))
+                           and not any(p.search(file_of(entity)) for p in exclude))
+    scoped = lambda entity: file_of(entity) in in_scope
+    changes = list(function_commits(log) if args.functions else commits(log))
+    revisions, shared, bulk = analyze(changes, keep, args.max_files, scoped=scoped)
+    touched = sum(1 for files in changes if any(scoped(path) and keep(path) for path in files))
+    unit = "functions" if args.functions else "files"
     print(f"History: {touched} commits since {args.since} changed the scope; {bulk} bulk commits (more than {args.max_files} files in scope) count for no pair.")
     if shallow:
         print("WARNING: this clone is shallow, so the counts cover only the fetched commits. "
               "Deepen it (git fetch --depth=<n>) or state the limit beside every count.")
-    inside = [(path, count) for path, count in revisions.most_common() if path in in_scope]
+    inside = [(path, count) for path, count in revisions.most_common() if scoped(path)]
     if not inside:
-        print("No changed files in this window and scope.")
+        print(f"No changed {unit} in this window and scope.")
         return 0
-    print(f"\nMost changed files in scope (top {args.top}):\n\nchanges\tfile")
+    print(f"\nMost changed {unit} in scope (top {args.top}):\n\nchanges\t{unit[:-1]}")
     for path, count in inside[:args.top]:
         print(f"{count}\t{path}")
     rows = pairs(revisions, shared, args.min_shared)
-    print(f"\nFiles that change together ({len(rows)} pairs with at least {args.min_shared} shared commits; top {args.top}).")
+    print(f"\n{unit.capitalize()} that change together ({len(rows)} pairs with at least {args.min_shared} shared commits; top {args.top}).")
     print("degree: the share of the pair's changes that touched both files. kind: test and document pairs are often expected.")
     print("dependency: whether --edges holds an edge between the two; 'none found' with kind 'code' is the lead to one rule in two places.\n")
     print("shared\tdegree\tkind\tdirectories\tscope\tdependency\tpair")
     for count, degree, a, b in rows[:args.top]:
-        across = "different" if PurePosixPath(a).parent != PurePosixPath(b).parent else "same"
-        scope = "inside" if a in in_scope and b in in_scope else "one outside"
-        linked = "not given" if edges is None else ("yes" if frozenset((a, b)) in edges else "none found")
-        print(f"{count}\t{degree}%\t{kind(a, b)}\t{across}\t{scope}\t{linked}\t{a}  <->  {b}")
+        fa, fb = file_of(a), file_of(b)
+        across = ("same file" if fa == fb else "same") if PurePosixPath(fa).parent == PurePosixPath(fb).parent else "different"
+        scope = "inside" if scoped(a) and scoped(b) else "one outside"
+        linked = "not given" if edges is None else ("yes" if frozenset((fa, fb)) in edges else "none found")
+        print(f"{count}\t{degree}%\t{kind(fa, fb)}\t{across}\t{scope}\t{linked}\t{a}  <->  {b}")
     return 0
 
 

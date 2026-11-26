@@ -4,6 +4,7 @@ The first four print leads; the tests pin what they find and what they leave out
 import importlib.util
 import json
 import os
+import re
 from pathlib import Path
 import sqlite3
 import subprocess
@@ -21,8 +22,9 @@ def load(name):
     return module
 
 
-coupling, imports, conformance, cases, tests_for_line, pinned, shared = (load(name) for name in (
-    "change_coupling", "import_edges", "design_conformance", "special_cases", "tests_for_line", "pinned_lines", "shared_data"))
+coupling, imports, conformance, cases, tests_for_line, pinned, shared, breaker = (load(name) for name in (
+    "change_coupling", "import_edges", "design_conformance", "special_cases", "tests_for_line", "pinned_lines", "shared_data",
+    "break_probe"))
 
 
 class Repository(unittest.TestCase):
@@ -243,6 +245,44 @@ class SpecialCasesTests(Repository):
         self.assertIn("app/untracked.py:1\tvalue = a or {}", out)
         self.assertIn("app/load.py:2\treturn opts.get('k', DEFAULT)", out)
         self.assertNotIn("time.sleep", out)
+
+
+class FunctionCouplingTests(Repository):
+    def test_functions_that_change_together_inside_one_file_are_paired(self):
+        body = lambda a, b, c: (f"class Store:\n    def save(self):\n        return {a}\n\n    def load(self):\n        return {b}\n\n"
+                                f"def report():\n    return {c}\n")
+        self.commit({"app/store.py": body(1, 1, 1)})
+        for a, b, c in ((2, 2, 1), (3, 3, 1), (4, 4, 2)):
+            self.commit({"app/store.py": body(a, b, c)})
+        out = self.run_script("change_coupling", "--functions", "--since", "10 years ago")
+        self.assertIn("3\tapp/store.py::save", out)
+        self.assertIn("3\t100%\tcode\tsame file\tinside\tnot given\tapp/store.py::load  <->  app/store.py::save", out)
+        self.assertNotIn("app/store.py::report  <->", out, "report changed with them only once")
+        attributes = SCRIPTS / "function-names.gitattributes"
+        history = self.git("-c", f"core.attributesFile={attributes}", "log", "--oneline", "-L", ":load:app/store.py")
+        self.assertEqual(len([line for line in history.splitlines() if re.match(r"^[0-9a-f]{7,} ", line)]), 4)
+
+
+class BreakProbeTests(Repository):
+    def test_breaks_are_classified_and_a_focused_miss_is_rerun_under_the_full_suite(self):
+        self.commit({"app/__init__.py": "",
+                     "app/rates.py": "GOLD = 10\nSILVER = 5\nBRONZE = 1\n",
+                     "tests/__init__.py": "",
+                     "tests/test_gold.py": "import unittest\nfrom app import rates\n\nclass T(unittest.TestCase):\n    def test_gold(self):\n        self.assertEqual(rates.GOLD, 10)\n",
+                     "tests/test_silver.py": "import unittest\nfrom app import rates\n\nclass T(unittest.TestCase):\n    def test_silver(self):\n        self.assertEqual(rates.SILVER, 5)\n"})
+        breaks = self.repo / "breaks.tsv"
+        breaks.write_text("# name\tpath\tline\treplacement\tfocused command\n"
+                          "gold\tapp/rates.py\t1\tGOLD = 11\tpython3 -m unittest tests.test_gold -q\n"
+                          "silver\tapp/rates.py\t2\tSILVER = 6\tpython3 -m unittest tests.test_gold -q\n"
+                          "bronze\tapp/rates.py\t3\tBRONZE = 2\tpython3 -m unittest tests.test_gold -q\n")
+        out = self.run_script("break_probe", str(breaks), "--full", "python3 -m unittest discover -s tests -q", "--out", str(self.repo / "runs"))
+        self.assertIn("focused red\tgold\tapp/rates.py:1", out)
+        self.assertIn("full red\tsilver\tapp/rates.py:2", out)
+        self.assertIn("green\tbronze\tapp/rates.py:3\tBRONZE = 1\tno test protects it", out)
+        self.assertIn("1 of 3 breaks left every test green", out)
+        self.assertEqual((self.repo / "app/rates.py").read_text(), "GOLD = 10\nSILVER = 5\nBRONZE = 1\n", "the checkout is never touched")
+        self.assertEqual(len(self.git("worktree", "list").splitlines()), 1, "the scratch worktree is removed")
+        self.assertTrue((self.repo / "runs/02-full.log").exists())
 
 
 class SharedDataTests(Repository):

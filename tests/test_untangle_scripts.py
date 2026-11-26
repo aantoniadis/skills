@@ -21,8 +21,8 @@ def load(name):
     return module
 
 
-coupling, imports, conformance, cases, tests_for_line, pinned = (load(name) for name in (
-    "change_coupling", "import_edges", "design_conformance", "special_cases", "tests_for_line", "pinned_lines"))
+coupling, imports, conformance, cases, tests_for_line, pinned, shared = (load(name) for name in (
+    "change_coupling", "import_edges", "design_conformance", "special_cases", "tests_for_line", "pinned_lines", "shared_data"))
 
 
 class Repository(unittest.TestCase):
@@ -243,6 +243,50 @@ class SpecialCasesTests(Repository):
         self.assertIn("app/untracked.py:1\tvalue = a or {}", out)
         self.assertIn("app/load.py:2\treturn opts.get('k', DEFAULT)", out)
         self.assertNotIn("time.sleep", out)
+
+
+class SharedDataTests(Repository):
+    RUBY = {
+        "lib/pricing.rb": ("def apply!(order)\n"
+                           "  subtotal = order[:total] || 0\n"
+                           "  order[:discount] = subtotal * RATES.fetch(order[:customer][:tier], 0)\n"
+                           "  order[:total] = subtotal - order[:discount]\n"
+                           "end\n"),
+        "lib/shipping.rb": "def add!(order)\n  order[:total] = order[:total] + 4.9\n  order.merge!(shipping: 4.9, \"carrier\" => \"post\")\nend\n",
+        "lib/notifier.rb": "def receipt(order)\n  currency = order.fetch(:currency, \"EUR\")\n  \"#{order[:total]} #{currency} #{order.dig(:customer, :email)}\"\nend\n",
+        "lib/report.rb": "class Report\n  @@totals = Hash.new(0)\n  def record(order)\n    order.fetch(:currency, \"USD\")\n    $last = order\n  end\nend\n",
+    }
+
+    def test_key_uses_tell_writes_reads_and_defaults_apart(self):
+        uses = shared.key_uses(self.RUBY["lib/pricing.rb"].splitlines())
+        self.assertIn((2, "total", "default", "0"), uses)
+        self.assertIn((3, "discount", "write", None), uses)
+        self.assertIn((3, "tier", "read", None), uses)  # the default belongs to RATES.fetch, whose key is an expression
+        self.assertIn((3, "customer", "read", None), uses)
+        self.assertIn((4, "total", "write", None), uses)
+        self.assertIn((4, "discount", "read", None), uses)
+        self.assertNotIn((4, "total", "read", None), uses, "the written key is not also a read")
+        python = shared.key_uses(['x = data.get("limit", 10)', 'data["limit"] = 5', "y = data['mode']", "data.setdefault('mode', 'a')"])
+        self.assertEqual(python, [(1, "limit", "default", "10"), (2, "limit", "write", None), (3, "mode", "read", None), (4, "mode", "write", None)])
+
+    def test_ledger_names_keys_no_one_place_declares(self):
+        self.commit(self.RUBY)
+        out = self.run_script("shared_data")
+        self.assertIn("lib/report.rb:2\t@@totals = Hash.new(0)", out)
+        self.assertIn("lib/report.rb:5\t$last = order", out)
+        self.assertIn("total\twritten in 2 files; read with a default at 1 site; written in one file, read in another", out)
+        self.assertIn('currency\tread with a default at 2 sites; defaults differ: "EUR" | "USD"', out)
+        self.assertIn("shipping\twritten, never read here", out)
+        self.assertIn("carrier\twritten, never read here", out)
+        self.assertNotIn("\nemail\t", out, "a key that is only read gives no sign")
+
+    def test_state_leads_cover_python_and_javascript_and_skip_comments(self):
+        python = ["_cache = {}", "def f():", "    global counter", "    # $x = 1 and @@y = 2", "LIMIT = 10"]
+        self.assertEqual([(n, kind) for n, kind, _ in shared.state_leads(python)],
+                         [(1, "module-level collection"), (1, "memo or cache"), (3, "global or class-level variable")])
+        script = ["let registry = new Map();", "window.app = {};", "const fixed = 1;", "private static int count = 0;", "private static final int MAX = 3;"]
+        self.assertEqual([(n, kind) for n, kind, _ in shared.state_leads(script)],
+                         [(1, "module-level collection"), (2, "global or class-level variable"), (4, "global or class-level variable")])
 
 
 class TestsForLineTests(unittest.TestCase):

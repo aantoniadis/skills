@@ -31,8 +31,11 @@ behavior nobody documented, guards and fallbacks nobody can explain.
    part of it; files that change together with no dependency between them
    often hold one rule twice; a decision broken on purpose while every test
    stays green is behavior no test protects. It also lists the scope's
-   special cases: guards, defaults, errors turned into values, retries,
-   compatibility paths.
+   special cases (guards, defaults, errors turned into values, retries,
+   compatibility paths) and its shared data: state several modules write,
+   and hashes or dicts passed between modules, with the writers and readers
+   of each key. It freezes such data where it is handed over and runs the
+   tests, to find what changes it afterwards.
 4. **Map and comparison.** Dependencies come from a resolver or from
    `import_edges.py`, and `design_conformance.py` marks each one *as stated*,
    *not stated*, or *not found*. Each stated rule is marked *holds*, *broken*,
@@ -43,8 +46,9 @@ behavior nobody documented, guards and fallbacks nobody can explain.
 5. **Findings.** What may be wrong or unwanted in what the component does, a
    possible defect or two sites that disagree, goes near the top of the map
    as behavior to decide, with its run and its handoff. Each structure
-   problem gets one of five names: scattered rule, misplaced logic, needless
-   link, surplus, unjustified special case. A special case is classified by
+   problem gets one of seven names: scattered rule, misplaced logic, needless
+   link, surplus, shared mutable state, shapeless data, unjustified special
+   case. A special case is classified by
    whether anything reaches it and by what it points to: a missing
    requirement, a producer emitting a state it should not, an implicit
    boundary, or a real outcome. What looked wrong and is fine is recorded, so
@@ -94,7 +98,7 @@ stays unless an adversarial probe that fails without it has been written.
 
 ## The scripts
 
-The first four print leads to read, not findings. None writes a file.
+The first five print leads to read, not findings. None writes a file.
 
 | Script | Prints |
 | --- | --- |
@@ -102,6 +106,7 @@ The first four print leads to read, not findings. None writes a file.
 | `import_edges.py` | Static import edges between tracked files in Python, JavaScript, TypeScript, and Java, as `from<TAB>to`. A floor: use the ecosystem's own resolver when there is one. |
 | `design_conformance.py` | Each dependency of a stated design, given as JSON, against those edges: *as stated*, *not stated*, or *not found*. |
 | `special_cases.py` | Lines that handle one situation apart from the main path: broad error handlers, errors turned into values, defaults for missing values, early returns, retries, status and version branches, compatibility paths, suppressed checks. |
+| `shared_data.py` | Globals, class-level variables, module-level collections, contexts, and memos; and a ledger of hash and dict keys: the files that write each key, the files that read it, and the reads that supply a default. |
 | `tests_for_line.py` | The tests that execute a source line, from coverage.py data recorded per test. |
 | `pinned_lines.py` | The source text behind every pinned line of a note, to read against what the note says. |
 

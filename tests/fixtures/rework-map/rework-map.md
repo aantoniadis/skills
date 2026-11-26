@@ -65,11 +65,15 @@ The design is stated in the project's architecture page: "The API layer only tra
 | "The API layer only translates requests; every price is decided in `pricing`" ([architecture.md](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/docs/architecture.md#L18)) | broken | [serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44) computes the discount; [builder.py:27](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L27) does too | drift |
 | "Totals are rounded to the currency once, in `pricing`" ([architecture.md](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/docs/architecture.md#L21)) | holds | search for `quantize` and `round(` in `shop/`: one site, [rounding.py:3](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/rounding.py#L3) | intended |
 
-## State and its writers
+## State and data
 
 | State | Written by | Read by | Evidence |
 | --- | --- | --- | --- |
 | `customer.tier` | [accounts.py:70](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/accounts.py#L70) | the three decision sites above | search for `tier`, read at the lines; writers outside `shop/` not inspected |
+
+| Data and key | Built or written at | Read at | Signs |
+| --- | --- | --- | --- |
+| the `order` dict, key `discount` | [views.py:36](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/views.py#L36), [serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44) | [views.py:41](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/views.py#L41) with the default 0 | written in 2 files; read with a default; changed after it is handed over: with the dict frozen in `views.py`, 2 tests failed ([baseline run](runs/baseline.md)) |
 
 ## Main flows
 
@@ -202,6 +206,8 @@ These labels describe separate judgments. Read each against its stated scope and
 | misplaced logic | A decision is made away from the module that owns the state or rule it decides. |
 | needless link | Pieces that change for different reasons are tied together. |
 | surplus | Code with no reason of its own to exist, such as a wrapper that only delegates, an option nothing varies, or code nothing reaches. |
+| shared mutable state | State that more than one module writes, or data a module changes after another module handed it over. What a value holds depends on every writer and the order they ran in. |
+| shapeless data | Data passed between modules with no declared shape, such as a hash or dict, so each site that reads or writes a key decides part of it. |
 | unjustified special case | Code for one situation with no caller, input, test, incident, or decision behind it. It stays until its removal has the evidence the map names. |
 
 ### Key: Diagram evidence

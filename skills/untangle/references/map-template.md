@@ -61,13 +61,17 @@ kind: rework-map
 | --- | --- | --- | --- |
 | {{the_rule_quoted_with_its_link}} | {{holds_broken_or_not_checked}} | {{the_search_or_run_that_covers_it_or_the_pinned_line_or_run_that_breaks_it}} | {{intended_drift_or_open}} |
 
-## State and its writers
+## State and data
 
-{{one_sentence_with_its_search_when_the_scope_keeps_no_state_of_its_own_else_the_table}}
+{{one_sentence_with_its_search_when_the_scope_keeps_no_state_of_its_own_and_passes_only_declared_values_else_the_tables}}
 
 | State | Written by | Read by | Evidence |
 | --- | --- | --- | --- |
-| {{table_file_cache_global_or_field}} | {{pinned_writers}} | {{pinned_readers}} | {{search_command_or_run_and_its_limits}} |
+| {{table_file_cache_global_class_variable_or_field}} | {{pinned_writers}} | {{pinned_readers}} | {{search_command_or_run_and_its_limits}} |
+
+| Data and key | Built or written at | Read at | Signs |
+| --- | --- | --- | --- |
+| {{the_hash_dict_or_object_and_one_key_of_it}} | {{pinned_sites_that_build_it_or_write_the_key}} | {{pinned_readers_and_the_default_each_supplies}} | {{written_in_several_files_read_with_a_default_defaults_differ_or_changed_after_handover_with_the_freeze_run}} |
 
 ## Main flows
 
@@ -85,7 +89,7 @@ kind: rework-map
 
 | Finding | Kind | Where | Cost today | Removed by |
 | --- | --- | --- | --- | --- |
-| {{consequence_as_a_short_name_linked_to_its_section}} | {{scattered_rule_misplaced_logic_needless_link_surplus_or_unjustified_special_case}} | {{pinned_lines}} | {{sites_one_change_to_the_rule_touches_and_how_often_the_rule_changed_or_no_action_with_reason}} | {{link_to_the_target_or_kept_with_the_cost_that_decided_it}} |
+| {{consequence_as_a_short_name_linked_to_its_section}} | {{scattered_rule_misplaced_logic_needless_link_surplus_shared_mutable_state_shapeless_data_or_unjustified_special_case}} | {{pinned_lines}} | {{sites_one_change_to_the_rule_touches_and_how_often_the_rule_changed_or_no_action_with_reason}} | {{link_to_the_target_or_kept_with_the_cost_that_decided_it}} |
 
 ### {{finding_name}}
 
@@ -110,6 +114,8 @@ kind: rework-map
 **Interface:** {{proposed_signatures_or_types_callers_need}}.
 
 **Guarantees at the boundary:** {{proposed_checks_made_once_and_the_inner_checks_by_line_that_become_unnecessary}}.
+
+**Data and state:** {{proposed_named_value_with_its_fields_built_once_and_not_changed_the_one_writer_of_each_state_and_the_defaults_that_become_unnecessary}}.
 
 **Failure behavior:** {{proposed_per_fallback_cannot_occur_fails_loudly_or_real_outcome}}.
 

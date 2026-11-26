@@ -14,3 +14,4 @@ Fictional record for the rework-map fixture.
 - Removal probe: `apply_legacy_rounding` deleted in a scratch worktree; 42 passed.
 - Break: quote rate for gold changed from 5% to 50% in `shop/quotes/builder.py`; 42 passed.
 - Break: checkout rate for gold changed in `shop/pricing/discounts.py`; 3 failed, 39 passed.
+- Freeze probe: the `order` dict made read-only where `views.py` hands it to the serializer; 2 failed, 40 passed.

@@ -53,14 +53,15 @@ has content, and an explicit unknown is content.
   source and pins the decisive file edges. Stated rules have *Result* one of
   *holds*, *broken*, *not checked*. When every dependency is as stated, one
   sentence with the count replaces the rows.
-- **State and its writers.** One row per piece of state. More than one writer
-  is not yet a finding; it is what the user is shown.
+- **State and data.** One row per piece of state, and one row per key of
+  each piece of shapeless data, with the default each reader supplies. More
+  than one writer is not yet a finding; it is what the user is shown.
 - **Special cases.** One row per classified case, with *Reach* one of
   *reached*, *not reached*, *unknown*, each followed by the caller, probe, or
   run that supports it.
 - **Findings.** One row per structure finding in rank order, with *Kind* one
-  of *scattered rule*, *misplaced logic*, *needless link*, *surplus*,
-  *unjustified special case*. Each row links to its section.
+  of *scattered rule*, *misplaced logic*, *needless link*, *surplus*, *shared
+  mutable state*, *shapeless data*, *unjustified special case*. Each row links to its section.
 
 ## Names
 

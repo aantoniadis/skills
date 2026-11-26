@@ -12,6 +12,7 @@ them together and read where they disagree. Label every result as
 - [Execution: which tests run a line](#execution-which-tests-run-a-line)
 - [History](#history)
 - [A deliberate break](#a-deliberate-break)
+- [State and data that travels](#state-and-data-that-travels)
 - [Read the disagreements](#read-the-disagreements)
 - [Edges for the dependency view](#edges-for-the-dependency-view)
 
@@ -94,6 +95,49 @@ the result.
 Break first what would hurt most if it changed silently: a check on who may
 do what, a rule about money or data, a value another system reads.
 
+## State and data that travels
+
+Code is hard to follow when a reader cannot tell what a value holds without
+knowing every piece of code that touched it. Two things cause that: state
+several modules write, and data passed between modules as a hash, dict, or
+untyped object. List both:
+
+```bash
+python3 <package>/skills/untangle/scripts/shared_data.py <scope>
+```
+
+The first table lists globals, class-level variables, module-level
+collections, thread or request contexts, and memos. For each one that more
+than one module writes, record every writer and reader.
+
+The second table is a ledger of keys: the files that write each key, the
+files that read it, and the reads that supply a default. Read it for these
+signs that no one place declares the data's shape:
+
+- a key written in more than one file: later writers change what earlier
+  readers saw;
+- a key read with a default: the reader does not know whether a writer set
+  it;
+- two reads of one key with different defaults: run one input through both,
+  because they give different results for the same data;
+- a key read and never written in scope: it comes from outside, or it is
+  never set and every reader takes its default.
+
+A key name is matched as text. Confirm at the sites that two rows concern the
+same data.
+
+Then find out what changes the data after it is handed over. In a scratch
+worktree, as for [a deliberate break](#a-deliberate-break), make the data
+immutable at the point where one module hands it to the next: freeze the hash
+and its nested values, wrap the dict in a read-only view, freeze the object.
+Run the baseline. Each test that fails with a "cannot modify" error names a
+site that changes shared data. Record the sites; a suite that stays green
+shows only that no test reaches a change.
+
+Changing a value a function built itself is not a finding. The finding is a
+change to data another module handed over, or to state another module also
+writes.
+
 ## Read the disagreements
 
 | The kinds disagree like this | Read it as a lead to |
@@ -105,6 +149,8 @@ do what, a rule about money or data, a value another system reads.
 | The same condition on the same discriminator at several sites | A scattered rule: list every site, then check that they agree. |
 | A test name states the behavior; no test fails when it is broken | Behavior no test protects. |
 | A document states a count, a list, or a rule; the code or a run shows another | A broken stated rule: record both values. |
+| Two reads of one key supply different defaults | Shapeless data, and behavior to decide: record what each reader does with the same input. |
+| Data frozen where it is handed over makes a test fail | A site that changes shared data: shared mutable state. |
 
 Sites that decide the same rule and disagree are the most valuable result of
 the census: record the inputs on which they differ, and run one. The result

@@ -250,7 +250,8 @@ RULE_RESULTS = ("holds", "broken", "not checked")
 SPECIAL_CASE_COLUMNS = ("Special case", "Kind", "Reach", "Why it exists", "Points to")
 REACH_STATUSES = ("reached", "not reached", "unknown")
 FINDING_COLUMNS = ("Finding", "Kind", "Where", "Cost today", "Removed by")
-FINDING_KINDS = ("scattered rule", "misplaced logic", "needless link", "surplus", "unjustified special case")
+FINDING_KINDS = ("scattered rule", "misplaced logic", "needless link", "surplus", "shared mutable state", "shapeless data",
+                 "unjustified special case")
 # columns -> (section label, index of the status cell, its values); the cell starts with its status.
 MAP_TABLES = {
     DESIGN_COLUMNS: ("Stated design and the code", 1, DESIGN_RESULTS),

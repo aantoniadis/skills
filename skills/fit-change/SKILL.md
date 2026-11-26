@@ -12,11 +12,12 @@ bounded by its [evidence](../EVIDENCE.md).
 
 Keep one change from eroding the design. Before the change, **place** it: say which module owns each rule it touches, what it reuses, and whether the structure has to be reshaped first. After the change, **check** it: find what the diff added in a second place, in the wrong module, or for no stated reason. A rule's **owner** is the one module that decides it. A **decision site** is a place that decides something about a rule: a condition, a default, a validation, a transformation.
 
-Four rules hold for the whole task:
+Five rules hold for the whole task:
 
 - **One change to a rule touches one decision site.** When it would touch two, the structure is what needs changing, and that is the user's decision to make before the code is written.
 - **Restructuring the placement names is in scope. Everything else stays as it is.** This is what lets a change include the refactoring it needs without growing into a rewrite.
 - **A check needs a producer; a fallback needs a decision.** A guard is added only with the caller, input, or stored value that produces the state it handles. A fallback or a caught error is added only where the request or the user says what the consumer should see on that failure; otherwise the error propagates.
+- **Data is built once, and state has one writer.** New code passes data between modules as a value with declared fields and returns a result; it does not add keys to a hash another module built, change an argument it was given, or write state another module owns.
 - **Facts come from the code and from runs; intent comes from the user.** Find where a rule is decided yourself. Ask which structure they want and what a consumer should see.
 
 A request, ticket, or plan with no code yet takes **Place**. A diff, a branch, a PR, or a changed working tree takes **Check**; when a placement exists for it, check against it. A change that touches one site of one rule in familiar code needs three lines of placement and no round.
@@ -32,6 +33,7 @@ A request, ticket, or plan with no code yet takes **Place**. A diff, a branch, a
    - the change adds one more branch to a chain that already tests the same discriminator, or a flag that has to stay in step with another;
    - a value has to be passed through layers that do not use it, to reach the one place that does;
    - a bug fix would put a check where the symptom appeared, while another place produces the bad state;
+   - the change needs one more key in a hash or dict that several modules read and write, or one more writer of state another module owns;
    - the rule's sites already disagree with each other.
 
 4. **Decide.** When the change fits, write the placement. When it does not, put the choice to the user as a checkpoint from [asking](../ASKING.md), recommendation first: **reshape first**, with the behavior-preserving steps that gather the rule at its owner before the change, or **patch**, with the number of sites the rule has afterwards and what the next change to it will cost. Order reshape steps as [rework](../untangle/references/rework.md#order-the-steps) says, each with the test that pins it. Recommend the reshape when it stays inside the rule's own sites; recommend the patch when the reshape would reach code the change has no other reason to touch, and record the reshape as a follow-up. When nobody answers, apply the recommendation and mark it as a default.
@@ -48,6 +50,7 @@ A request, ticket, or plan with no code yet takes **Place**. A diff, a branch, a
    **Change:** <the request in one sentence>.
    **Rules and owners:** <one line per rule: the rule, its owner with a pinned line, its decision sites today and after the change>.
    **Reuse:** <existing code the change calls, pinned; or none found, with the search>.
+   **Data and state:** <the value the change adds or extends, with its fields and the one place that builds it; the one writer of any state it touches; or none>.
    **Reshape first:** <the ordered steps, each structural with its pin; or none: the change fits>.
    **In scope:** <the files and the restructuring named above>. **Out of scope:** everything else.
    **Failure behavior:** <per failure: the quoted decision, or the open question and "the error propagates">.
@@ -78,15 +81,17 @@ Done when every rule the change touches has its decision sites listed with pinne
 
 4. **Account for every special case the change adds.** For each added guard, default, caught error, retry, or compatibility path, name its producer and its reason as [special cases](../untangle/references/special-cases.md) says. With no producer and no line of the request behind it, it is an **unjustified special case**. A check where data enters the system (user input, an external service, stored data, a file) has its producer by definition and is fine.
 
-5. **Look for surplus the change adds:** a wrapper that only delegates, an option nothing sets, an interface with one implementation, a compatibility path with no consumer outside the repository, and the old path left in place after its callers moved.
+5. **Look at the data and state the change touches.** Run `python3 <package>/skills/untangle/scripts/shared_data.py` on the changed files at the head, and read the added lines for these: a key added to a hash or dict that another module built, with the reads of that key that supply a default; an argument changed in place; a new writer of a global, a class-level variable, or a field another module owns. The first is **shapeless data** made worse, the other two are **shared mutable state**. Data a function builds and returns is fine.
 
-6. **Compare with the placement,** when one exists: files and restructuring outside its scope, and steps it named that the change skipped.
+6. **Look for surplus the change adds:** a wrapper that only delegates, an option nothing sets, an interface with one implementation, a compatibility path with no consumer outside the repository, and the old path left in place after its callers moved.
+
+7. **Compare with the placement,** when one exists: files and restructuring outside its scope, and steps it named that the change skipped.
 
 Keep the brief this narrow. A reviewer asked to find problems always finds some, and fixing all of them adds abstractions and tests for cases nothing produces. Report only the kinds above, each with its evidence. "Nothing found" is a result: say what was checked.
 
-When applying fixes, a fix deletes, moves, or reuses. It adds no abstraction, no check, and no test for a state nothing produces. Rerun the tests after each fix, and leave anything that changes behavior or reaches outside the change as a finding.
+When applying fixes, a fix deletes, moves, reuses, or returns a value in place of changing one. It adds no abstraction, no check, and no test for a state nothing produces. Rerun the tests after each fix, and leave anything that changes behavior or reaches outside the change as a finding.
 
-Deliver `## Structure findings`, numbered and ranked by how many future changes will pay for each: its name as a consequence, its kind, the pinned line at the head, the evidence (sites at base and head, the missing producer, the search that found no consumer), and the fix as a suggestion or as applied with the test result. Then `## Behavior to decide` with its runs and handoffs, `## Checked and fine` for what a reader would flag and the reason it stands, and the limits. Save the delivery as `structure.md` at the investigation location that `python3 <package>/skills/investigation_dir.py <topic> <project>` creates and prints, with the base and head in its first line. That location is ignored by Git and is no part of the change, so a report-only check writes there too.
+Deliver `## Structure findings`, numbered and ranked by how many future changes will pay for each: its name as a consequence, its kind, the pinned line at the head, the evidence (sites at base and head, the missing producer, the writers of a key or a state, the search that found no consumer), and the fix as a suggestion or as applied with the test result. Then `## Behavior to decide` with its runs and handoffs, `## Checked and fine` for what a reader would flag and the reason it stands, and the limits. Save the delivery as `structure.md` at the investigation location that `python3 <package>/skills/investigation_dir.py <topic> <project>` creates and prints, with the base and head in its first line. That location is ignored by Git and is no part of the change, so a report-only check writes there too.
 
 When the same kind of finding appears in a second change to the project, propose the matching line for the project's instructions, or a check the project runs, from [house rules](references/house-rules.md). Write it only within authorization, as [asking](../ASKING.md) says.
 

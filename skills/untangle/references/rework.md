@@ -20,7 +20,9 @@ them. Keep a grouping only when, after it:
 - pieces that change together sit together;
 - pieces that change for different reasons are no longer tied;
 - dependencies point toward the code that changes less;
-- the rule has fewer decision sites than before. Count them.
+- the rule has fewer decision sites than before. Count them;
+- data that crosses a module boundary has a declared shape and is not changed
+  after it is handed over, and each piece of state has one writer.
 
 A structure finding that no change removes at an acceptable cost is listed as
 kept, with the cost that decided it.
@@ -48,6 +50,13 @@ For the recommended target, state:
   indirection and removes neither is surplus.
 - **Guarantees at the boundary.** What is checked once where data enters, and
   the inner checks that become unnecessary as a result. List them by line.
+- **Data and state.** For shapeless data: the named value that replaces it,
+  with its declared fields, built once where the data enters and not changed
+  afterwards, in the form the language offers, such as a frozen struct, a
+  record, or a frozen data class. A step that needs to add something returns
+  its own result, or a new value. List the defaults and missing-key checks
+  that become unnecessary. For shared state: the one module that writes it,
+  and how the others get what they need from that module.
 - **Failure behavior.** For each fallback and each error turned into a value
   in scope: the failure cannot occur under the new shape, or it fails loudly,
   or it is a real outcome the caller receives. Each one that changes what a

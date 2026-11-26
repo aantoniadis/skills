@@ -25,7 +25,8 @@ to you, on evidence, before the code is written.
    change in a second file or layer, when the change adds one more branch to
    a chain on the same discriminator, when a value must be threaded through
    layers that do not use it, when a fix would sit at the symptom and not at
-   the producer, or when the rule's sites already disagree.
+   the producer, when the change needs one more key in a hash several
+   modules read and write, or when the rule's sites already disagree.
 4. **Decide.** A change that does not fit becomes a choice for you,
    recommendation first: reshape first, with behavior-preserving steps and
    the test that pins each, or patch, with what the next change will cost.
@@ -50,14 +51,16 @@ to you, on evidence, before the code is written.
 4. **Account for every added special case:** its producer and its reason, or
    it is an unjustified special case. A check where data enters the system is
    fine.
-5. **Look for added surplus:** a wrapper that only delegates, an option
+5. **Look at data and state:** a key added to a hash another module built,
+   an argument changed in place, a new writer of state another module owns.
+6. **Look for added surplus:** a wrapper that only delegates, an option
    nothing sets, an interface with one implementation, a compatibility path
    with no outside consumer, an old path left after its callers moved.
-6. **Compare with the placement,** when there is one.
+7. **Compare with the placement,** when there is one.
 
 The check reports only these kinds, each with its evidence, and "nothing
-found" is a result. When you ask it to apply fixes, a fix deletes, moves, or
-reuses; it adds no abstraction, no check, and no test for a state nothing
+found" is a result. When you ask it to apply fixes, a fix deletes, moves,
+reuses, or returns a value in place of changing one; it adds no abstraction, no check, and no test for a state nothing
 produces.
 
 Prompt shapes:
@@ -67,7 +70,7 @@ Prompt shapes:
 /aantoniadis-skills:fit-change Check <the branch, PR, or working tree> against <base>. <Report only | Apply the fixes that keep behavior.>
 ```
 
-## Two rules it applies
+## Three rules it applies
 
 - **Restructuring the placement names is in scope. Everything else stays as
   it is.** This is how a change includes the refactoring it needs without
@@ -76,6 +79,10 @@ Prompt shapes:
   only with the caller, input, or stored value that produces the state. A
   fallback is added only where the request or you say what the consumer
   should see.
+- **Data is built once, and state has one writer.** New code passes a value
+  with declared fields and returns a result. It does not add keys to a hash
+  another module built, change an argument, or write state another module
+  owns.
 
 ## In sessions that do not invoke it
 

@@ -63,7 +63,10 @@ A **decision site** is a place that decides something about a capability: a cond
 - Files that change together with no dependency between them are a lead to one rule kept in two places.
 - A decision you break on purpose while every test stays green is behavior no test protects. Break the decisions that matter most: a check on who may do what, a rule about money or data, a value another system reads.
 
-In the same pass, list the scope's special cases with [`special_cases.py`](scripts/special_cases.py) and your own reading. A **special case** is code that exists for one situation: a guard, a default, an error turned into a value, a retry, a compatibility path, a parameter one caller sets.
+In the same pass, list two more things, each with its script and your own reading:
+
+- The scope's special cases, with [`special_cases.py`](scripts/special_cases.py). A **special case** is code that exists for one situation: a guard, a default, an error turned into a value, a retry, a compatibility path, a parameter one caller sets.
+- The scope's shared data, with [`shared_data.py`](scripts/shared_data.py): state that more than one piece of code changes, and **shapeless data**, a hash, dict, or untyped object passed between modules whose keys are decided at the sites that use them. For each piece of shapeless data, record where it is built, and for each key the sites that write it and read it. Then freeze it where it is handed over, in a scratch worktree, and run the tests: each failure names a site that changes it afterwards. [Census](references/census.md#state-and-data-that-travels) has the steps.
 
 A **lead** is where to look. It enters the map only after you have read the code on both sides and, where a run decides it, run it.
 
@@ -77,10 +80,10 @@ Draw four views, each from extracted facts:
 
 - **Dependencies.** Get the edges between the scope's files from the ecosystem's resolver, or from [`import_edges.py`](scripts/import_edges.py) as a floor. Write the stated dependencies as the JSON that [`design_conformance.py`](scripts/design_conformance.py) reads, and run it: every relationship comes out *as stated*, *not stated* (the code has it and the design does not allow it), or *not found* (the design names it and no edge shows it). Read the file edges behind each result that is not *as stated*.
 - **Stated rules.** Check each quoted rule against the census: *holds*, with the search or run that covers it; *broken*, with the pinned line or run that breaks it; or *not checked*.
-- **State.** For each piece of state the scope keeps (a table, a file, a cache, a global, a field), list the code that writes it and the code that reads it. A component that keeps no state of its own says so in one sentence, with the search that shows it.
+- **State and data.** For each piece of state the scope keeps (a table, a file, a cache, a global, a class-level variable, a field), list the code that writes it and the code that reads it. For each piece of shapeless data, list its keys with their writers and readers, and the sites that change it after it is handed over. A component that keeps no state of its own and passes only declared values says so in one sentence, with the search that shows it.
 - **Flows.** Draw each main flow from the source, labeled *source*, and mark the steps a recorded run executed, with its source map as [evidence](../EVIDENCE.md#diagrams) says. Where an ordered trace is cheap, such as one end-to-end test under a tracer, record it.
 
-Checkpoint: lead with the differences, because a reviewer handed a whole map approves it unread. Show each *not stated* and *not found* dependency, each broken rule, each hidden part, each state with more than one writer, and each behavior no test protects, with its pinned line or run. For each difference, ask whether it is intended, in which case the stated design is what changes, or drift.
+Checkpoint: lead with the differences, because a reviewer handed a whole map approves it unread. Show each *not stated* and *not found* dependency, each broken rule, each hidden part, each state with more than one writer, each piece of data changed after it is handed over, and each behavior no test protects, with its pinned line or run. For each difference, ask whether it is intended, in which case the stated design is what changes, or drift.
 
 Done when every stated dependency and rule has a result with its evidence, every piece of state has its writers, and each difference carries the user's answer or is marked *open*.
 
@@ -90,12 +93,14 @@ Sort what you found into three places.
 
 **Behavior to decide** is what the component does that may be wrong or unwanted: a possible defect, two sites that give different results for the same input, a fallback that changes what a consumer sees. It is not a structure problem and gets no structure name. List each one near the top of the map with its run, and its handoff to [fix-bug](../fix-bug/SKILL.md) or [plan-change](../plan-change/SKILL.md). A user who no longer trusts the code reads these first.
 
-**Structure findings** each get one of five names, with the evidence that confirms it:
+**Structure findings** each get one of seven names, with the evidence that confirms it:
 
 - **Scattered rule:** one rule decided at more than one decision site. Nothing in the code says the sites must change together.
 - **Misplaced logic:** a decision made away from the owner of the state or rule it decides, such as a business rule in a serializer.
 - **Needless link:** pieces tied together that change for different reasons, such as stable code importing code that changes weekly, or a general function with a parameter one caller understands.
 - **Surplus:** code with no reason of its own to exist: a wrapper that only delegates, an extension point nothing varies, a setting nothing changes, code nothing reaches. Test it by deletion: if deleting it makes complexity vanish, it was surplus; if the complexity reappears in every caller, it was earning its place.
+- **Shared mutable state:** state that more than one module writes, or data that a module changes after another module handed it over. A reader cannot tell what a value holds without knowing every writer and the order they ran in.
+- **Shapeless data:** data passed between modules with no declared shape, so each site that reads or writes a key decides part of it. Its signs are a key written in several files, a key read with a default, and two readers whose defaults differ. Many unjustified special cases are its symptom: a reader defends itself because nothing says what the data holds.
 - **Unjustified special case:** a special case with no caller, input, test, incident, or decision behind it.
 
 Classify every special case that has a row in the map as [special cases](references/special-cases.md) says, by whether anything reaches it and by what it points to. A special case is first a lead to something larger: a requirement the design never accounted for, a producer that emits a state it should not, or a boundary nobody made explicit. Name that, and the local line second.

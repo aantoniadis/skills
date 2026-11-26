@@ -40,6 +40,11 @@ its own names: its owner modules, its boundary, its design document.
   only when you can name the caller or input that produces it.
 - Add a fallback or catch an error only where the task says what the consumer
   should see on that failure. Otherwise let the error propagate.
+- Pass data between modules as a value with declared fields, built once
+  where the data enters. Do not add keys to a hash or dict another module
+  built; return a result instead.
+- Do not change an argument you were given, and do not write state another
+  module owns. One module writes each piece of state.
 - When you replace a path, move its callers and delete it in the same change,
   unless something outside this repository uses it.
 - Search for existing code before writing a helper.

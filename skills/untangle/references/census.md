@@ -190,8 +190,10 @@ Use the most exact source available, and say which one produced the edges:
    `jdeps`, a module-graph command, or a bundler's graph output.
 2. The language server or a project code index, queried per file.
 3. [`import_edges.py`](../scripts/import_edges.py), which reads static
-   imports in Python, JavaScript, TypeScript, and Java, and leaves out edges
-   that start in a test file:
+   imports in Python, JavaScript, TypeScript, and Java, and in Ruby
+   `require_relative` and references to a constant one file defines, and
+   leaves out edges that start in a test file. With `--rev <commit>` it reads
+   the edges at that commit:
 
 ```bash
 python3 <package>/skills/untangle/scripts/import_edges.py <scope> > <runs>/edges.tsv

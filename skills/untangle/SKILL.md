@@ -98,7 +98,7 @@ Sort what you found into three places.
 - **Scattered rule:** one rule decided at more than one decision site. Nothing in the code says the sites must change together.
 - **Misplaced logic:** a decision made away from the owner of the state or rule it decides, such as a business rule in a serializer.
 - **Needless link:** pieces tied together that change for different reasons, such as stable code importing code that changes weekly, or a general function with a parameter one caller understands.
-- **Surplus:** code with no reason of its own to exist: a wrapper that only delegates, an extension point nothing varies, a setting nothing changes, code nothing reaches. Test it by deletion: if deleting it makes complexity vanish, it was surplus; if the complexity reappears in every caller, it was earning its place.
+- **Surplus:** code with no reason of its own to exist: a wrapper that only delegates, a module or subclass for each value of a discriminator whose members differ only by a constant, an extension point nothing varies, a setting nothing changes, code nothing reaches. Test it by deletion: if deleting it makes complexity vanish, it was surplus; if the complexity reappears in every caller, it was earning its place.
 - **Shared mutable state:** state that more than one module writes, or data that a module changes after another module handed it over. A reader cannot tell what a value holds without knowing every writer and the order they ran in.
 - **Shapeless data:** data passed between modules with no declared shape, so each site that reads or writes a key decides part of it. Its signs are a key written in several files, a key read with a default, and two readers whose defaults differ. Many unjustified special cases are its symptom: a reader defends itself because nothing says what the data holds.
 - **Unjustified special case:** a special case with no caller, input, test, incident, or decision behind it.
@@ -107,7 +107,7 @@ Classify every special case that has a row in the map as [special cases](referen
 
 Rank the structure findings by what they cost today: how many places one change to the rule must touch, and how often the rule itself has changed. Take that from the history of the rule's lines or its discriminator; a file's change count says how busy the file is, not the rule. A problem in code nobody changes is listed with *no action*.
 
-**Looks wrong, is fine** records what a reader would flag and the reason the user or the history gave, so that the next run does not raise it again.
+**Looks wrong, is fine** records what a reader would flag and the reason the user or the history gave, so that the next run does not raise it again. The reason is about structure or intent: a decision the code makes, a requirement, an incident. "The tests pass" says the code works; it does not say its shape is right.
 
 Done when every capability with more than one decision site for a rule, every difference the user called drift, and every special case with a row has a finding, a place under behavior to decide, or a stated reason it is fine.
 

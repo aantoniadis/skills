@@ -16,7 +16,9 @@ to you, on evidence, before the code is written.
 **Place**, before the change:
 
 1. **Name what the change decides:** the rules it adds or alters, the state it
-   writes, and the failures it can meet.
+   writes, the failures it can meet, and the modules, classes, or files it
+   adds, each with the decision only it makes. One that would decide nothing
+   stays out of the placement.
 2. **Find each rule's decision sites today:** every place that decides it,
    from search, references, and the history of its lines. Where two sites
    decide the same rule, the skill runs one input through both.
@@ -49,25 +51,58 @@ to you, on evidence, before the code is written.
 
 1. **Pin** the base and head and run the tests at the head.
 2. **Take leads on the added lines:** the guards, defaults, handlers, and
-   retries the change adds, the added lines no test executes, and any
-   dependency the stated design does not allow that is new at the head.
-3. **Count decision sites, base against head.** More sites for a rule is a
-   scattered rule. A decision outside the rule's owner is misplaced logic. A
+   retries the change adds; the classes, modules, and files it adds with
+   what each holds, its wrappers, its options nothing sets, and its
+   interfaces with one implementation; the added lines no test executes;
+   the values it adds in more than one file; and the dependencies it adds,
+   with the cycles they close. The skill then reads the diff of every changed file and keeps a
+   list of what it read. The leads and the author's description say where to
+   look first, not where to stop.
+3. **Count decision sites, base against head.** The rules come from the
+   diff first, every added or changed condition, constant, and list, and
+   then from the description. More sites for a rule is a scattered rule. When several sites hold the same list of kinds or types,
+   the skill asks what makes them several: one type added for each value is
+   then the finding, and the parallel lists are its evidence. A decision outside the rule's owner is misplaced logic. A
    rule changed at some sites and not at others is behavior to decide, handed
    to `find-bugs` or `fix-bug` with both results.
-4. **Account for every added special case:** its producer and its reason, or
-   it is an unjustified special case. A check where data enters the system is
+4. **Account for every added special case,** which includes a parameter or
+   flag one caller sets, a mode, and a clamp: its producer and its reason, or
+   it is an unjustified special case. The reason comes from the request, the
+   ticket, or you; the author's own commit message is an account to follow
+   to its source, not the reason. A check where data enters the system is
    fine. An added flag, branch, or state that serves one real case with no
    recorded decision comes to you as a corner-case question, not a finding.
-5. **Look at data and state:** a key added to a hash another module built,
-   an argument changed in place, a new writer of state another module owns.
-6. **Look for added surplus:** a wrapper that only delegates, an option
-   nothing sets, an interface with one implementation, a compatibility path
-   with no outside consumer, an old path left after its callers moved.
-7. **Compare with the placement,** when there is one.
+5. **Look at data and state.** For each piece the change adds or writes: one
+   place builds or writes it, and a reader can tell what it holds without
+   knowing which code ran before. The shapes include a key added to a hash
+   another module built, an argument changed in place, a new writer of state
+   another module owns, a memo or cache with no rule for when it is stale, a
+   new field on a request context, and a kept reference to an object the
+   caller still changes.
+6. **Look at added dependencies.** Against a stated design, a dependency
+   the design does not allow is a needless link. With no stated design, the
+   skill reads each added dependency that closes a cycle or is the first of
+   one part on another, and asks why the two must change together.
+7. **Look for added surplus.** For each module, class, type, or file the
+   change adds, the skill names the decision only it makes. One with none,
+   because it only delegates, only holds a constant, or only renames another,
+   is surplus, confirmed by a deletion test: if deleting it makes complexity
+   vanish, it was surplus; if the complexity reappears in every caller, it
+   was earning its place. The shapes include a wrapper that only delegates,
+   a module or subclass for each value that differs only by a constant, an
+   option nothing sets, an interface with one implementation, a compatibility
+   path with no outside consumer, and an old path left after its callers
+   moved. A new module or class that takes the name of an existing one comes
+   to you as a question.
+8. **Compare with the placement,** when there is one. A placement settles
+   scope, not structure, so the steps above apply to what it proposed too.
 
 The check reports only these kinds, each with its evidence, and "nothing
-found" is a result. When you ask it to apply fixes, a fix deletes, moves,
+found" is a result. What it records as checked and fine carries a structure
+reason; "behavior is unchanged" clears a behavior question, not a structure
+one. Findings that one change would remove are reported as one finding, cause
+first: five guards on one missing value are one producer. The limits say how
+many changed files were read and name any that were not. When you ask it to apply fixes, a fix deletes, moves,
 reuses, or returns a value in place of changing one; it adds no abstraction,
 no check, and no test for a state nothing produces.
 

@@ -138,16 +138,18 @@ stays unless an adversarial probe that fails without it has been written.
 
 ## The scripts
 
-The first five print leads to read, not findings. Only `break_probe.py`
+The first seven print leads to read, not findings. Only `break_probe.py`
 writes files: its run logs, in the directory you give it.
 
 | Script | Prints |
 | --- | --- |
 | `change_coupling.py` | The most changed files in scope, and the pairs of files that change in the same commits, including partners outside the scope, marked when no dependency links them. With `--functions`, the same for functions, which finds a rule scattered inside one large file. It warns on a shallow clone. |
-| `import_edges.py` | Static import edges between tracked files in Python, JavaScript, TypeScript, and Java, as `from<TAB>to`. A floor: use the ecosystem's own resolver when there is one. |
+| `import_edges.py` | Static import edges between tracked files in Python, JavaScript, TypeScript, and Java, and in Ruby `require_relative` and references to a constant one file defines, as `from<TAB>to`. With `--rev`, at a commit. With `--base`, only the edges a change adds, each with the cycle it closes and the first dependency of one directory on another. A floor: use the ecosystem's own resolver when there is one. |
 | `design_conformance.py` | Each dependency of a stated design, given as JSON, against those edges: *as stated*, *not stated*, or *not found*. |
 | `special_cases.py` | Lines that handle one situation apart from the main path: broad error handlers, errors turned into values, defaults for missing values, early returns, retries, status and version branches, compatibility paths, suppressed checks. |
-| `shared_data.py` | Globals, class-level variables, module-level collections, contexts, and memos; and a ledger of hash and dict keys: the files that write each key, the files that read it, and the reads that supply a default. |
+| `shared_data.py` | Globals, class-level variables, module-level collections, contexts, and memos; and a ledger of hash and dict keys: the files that write each key, the files that read it, and the reads that supply a default. With `--base`, only the state lines a change adds and the keys it uses on an added line. |
+| `added_units.py` | What a change adds that may decide nothing, in Python and Ruby: classes, modules, and files with no method or function of their own, grouped when they share a base or a directory and hold only constants; functions that only pass their parameters on; options no caller sets by keyword; units that exactly one unit extends; and units that take the name of another unit. It says what it does not look for, so the absence of a lead clears nothing. `fit-change` runs it on a diff. |
+| `added_values.py` | The values a change adds in more than one file: quoted words, symbols, and numbers, with the files that hold each at the head. A lead to one rule kept in several places. |
 | `break_probe.py` | Makes each listed break in a scratch worktree, runs the focused tests, reruns a break they miss under the full suite, and reports which behaviors no test protects. |
 | `tests_for_line.py` | The tests that execute a source line, from coverage.py data recorded per test. |
 | `pinned_lines.py` | The source text behind every pinned line of a note, to read against what the note says. |

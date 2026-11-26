@@ -48,6 +48,9 @@ its own names: its owner modules, its boundary, its design document.
 - When you replace a path, move its callers and delete it in the same change,
   unless something outside this repository uses it.
 - Search for existing code before writing a helper.
+- Add a module, class, or type only for a decision it alone makes. Values
+  that differ only by a constant go in one list or table, not in one type
+  for each value.
 - Before handling a rare input or state with a parameter through layers, a
   branch in the general path, new stored state, or a new abstraction, stop.
   Say who meets the case and what handling it costs the design, offer the

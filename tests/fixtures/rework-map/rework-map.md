@@ -354,6 +354,7 @@ The files by design part, the dependencies the code has, and where each rule is 
 - **Minimal shared state:** today two files write the `order` dict ([views.py:36](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/views.py#L36), [serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44)); proposed, `views.py` builds the `Order` value once and nothing changes it.
 - **One-way flow:** today the serializer reads customer records, against the order of the parts; proposed, calls move from API and quotes to pricing to storage.
 - **Intention-revealing names:** today `discounts.py` also names coupons, which it does not decide; proposed, it is renamed `loyalty.py`.
+- **Readable functions:** today the quote builder decides the tier rate inline, beside its layout code ([builder.py:27](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L27)); proposed, it calls `loyalty_discount` and keeps only layout.
 
 ### Lock tests
 
@@ -479,6 +480,7 @@ These labels describe separate judgments. Read each against its stated scope and
 | shapeless data | Data passed between modules with no declared shape, such as a hash or dict, so each site that reads or writes a key decides part of it. |
 | unjustified special case | Code for one situation with no caller, input, test, incident, or decision behind it. It stays until its removal has the evidence the map names. |
 | unclear name | A name that hides what the unit is for: it says less than the body does, describes the mechanism instead of the purpose, or is generic, such as manager, helper, or utils. |
+| hard-to-follow function | A function a reader cannot follow top to bottom, such as deep nesting, a compound condition with no name, blocks under heading comments, or a boolean argument that selects its behavior. Its fix stays inside its module. |
 | corner case | A rare input or state whose handling would bend the design. Whether it is worth that complexity is the developer's decision, weighed on its reach, harm, and options. |
 | behavior to decide | What the code does may be wrong or unwanted, such as two places that give different results for one input. It is not a structure problem; its fix is a behavior change that someone decides. |
 

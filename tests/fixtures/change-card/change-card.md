@@ -181,6 +181,7 @@ These labels describe separate judgments. Read each against its stated scope and
 | shapeless data | Data passed between modules with no declared shape, such as a hash or dict, so each site that reads or writes a key decides part of it. |
 | unjustified special case | Code for one situation with no caller, input, test, incident, or decision behind it. It stays until its removal has the evidence the map names. |
 | unclear name | A name that hides what the unit is for: it says less than the body does, describes the mechanism instead of the purpose, or is generic, such as manager, helper, or utils. |
+| hard-to-follow function | A function a reader cannot follow top to bottom, such as deep nesting, a compound condition with no name, blocks under heading comments, or a boolean argument that selects its behavior. Its fix stays inside its module. |
 | corner case | A rare input or state whose handling would bend the design. Whether it is worth that complexity is the developer's decision, weighed on its reach, harm, and options. |
 | behavior to decide | What the code does may be wrong or unwanted, such as two places that give different results for one input. It is not a structure problem; its fix is a behavior change that someone decides. |
 

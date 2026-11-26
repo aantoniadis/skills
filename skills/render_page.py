@@ -257,7 +257,7 @@ RULE_RESULTS = ("holds", "broken", "not checked")
 SPECIAL_CASE_COLUMNS = ("Special case", "Kind", "Reach", "Why it exists", "Points to")
 REACH_STATUSES = ("reached", "not reached", "unknown")
 FINDING_KINDS = ("scattered rule", "misplaced logic", "needless link", "two-way flow", "surplus", "shared mutable state",
-                 "shapeless data", "unjustified special case", "unclear name")
+                 "shapeless data", "unjustified special case", "unclear name", "hard-to-follow function")
 # columns -> (section label, index of the status cell, its values); the cell starts with its status.
 MAP_TABLES = {
     DESIGN_COLUMNS: ("Stated design and the code", 1, DESIGN_RESULTS),
@@ -1902,7 +1902,7 @@ PROBLEM_FIELDS = ("Kind", "How sure", "What is wrong", "Decision")
 VERIFIED = ("tested", "locked", "untested")
 MODULE_CHANGES = ("Rename", "Remove", "Merge", "Split", "Move")
 PRINCIPLES = ("Single responsibility", "Open–closed", "Liskov substitution", "Interface segregation", "Dependency inversion",
-              "YAGNI", "Minimal shared state", "One-way flow", "Intention-revealing names")  # CLEAN-STRUCTURE.md
+              "YAGNI", "Minimal shared state", "One-way flow", "Intention-revealing names", "Readable functions")  # CLEAN-STRUCTURE.md
 
 
 def spec_behaviors(document):

@@ -125,7 +125,7 @@ the paragraph in bold; the checker reads the first four.
 
 - **Kind:** one of *scattered rule*, *misplaced logic*, *needless link*,
   *two-way flow*, *surplus*, *shared mutable state*, *shapeless data*,
-  *unjustified special case*, *unclear name*, *corner case*, or *behavior to decide*; then **How sure:**, one of
+  *unjustified special case*, *unclear name*, *hard-to-follow function*, *corner case*, or *behavior to decide*; then **How sure:**, one of
   *observed* (a run showed it), *source* (read at the lines), or *inferred*,
   with what ran or was read; then **Cost today:**, what it costs each change
   or each user, with its evidence. The three share one line, joined by ` · `.
@@ -346,14 +346,14 @@ problem holds.
   words; a module with no decision of its own is removed or merged; a module
   that changes for two reasons is split. Draw each change in the structure
   view, as [pictures](#pictures) says.
-- **Design principles** is a list of nine items, one per principle of
+- **Design principles** is a list of ten items, one per principle of
   [clean structure](../../CLEAN-STRUCTURE.md), in its order. Each starts
   with the principle's name in bold, *Single responsibility*,
   *Open–closed*, *Liskov substitution*, *Interface segregation*,
   *Dependency inversion*, *YAGNI*, *Minimal shared state*, *One-way flow*,
-  or *Intention-revealing names*, then today's result with its evidence and the
+  *Intention-revealing names*, or *Readable functions*, then today's result with its evidence and the
   proposed result. *Not applicable* with its reason is a result. The checker
-  reads the names and requires all nine. A lead reads this list to see what
+  reads the names and requires all ten. A lead reads this list to see what
   the rework buys: each principle broken today and met after is a reason to
   do it. *What is sound* lists what works and should
 be kept, and what looks wrong and is fine, each with its reason.

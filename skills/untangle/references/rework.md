@@ -63,7 +63,9 @@ For the recommended target, state:
   and how the others get what they need from that module.
 - **Failure behavior.** For each fallback and each error turned into a value
   in scope: the failure cannot occur under the new shape, or it fails loudly,
-  or it is a real outcome the caller receives. Each one that changes what a
+  or it is a real outcome the caller receives. An error that fails loudly
+  names what failed with the values that identify it, keeps its cause, and
+  is a type specific enough for a caller to catch. Each one that changes what a
   consumer sees is behavior to decide, not part of the target.
 - **Cost and risk.** Files and call sites touched, the pins that exist and the
   pins to write, and what can go wrong.

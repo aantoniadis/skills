@@ -1,5 +1,5 @@
 ---
 type: regex
 target: trace
-pattern: "### Design principles(?:(?!\\\\n## )[\\s\\S])*?(?:\\*\\*(?:Single responsibility|Open–closed|Liskov substitution|Interface segregation|Dependency inversion|YAGNI|Minimal shared state|One-way flow|Intention-revealing names):\\*\\*(?:(?!\\\\n## )[\\s\\S])*?){6}"
+pattern: "### Design principles(?:(?!\\\\n## )[\\s\\S])*?(?:\\*\\*(?:Single responsibility|Open–closed|Liskov substitution|Interface segregation|Dependency inversion|YAGNI|Minimal shared state|One-way flow|Intention-revealing names|Readable functions):\\*\\*(?:(?!\\\\n## )[\\s\\S])*?){6}"
 ---

@@ -73,6 +73,8 @@ Output: `{{output_excerpt}}` · {{link_to_the_saved_script_under_runs_bugs}}
 
 {{applied_or_proposed_fix_with_its_pin_or_why_no_fix_was_attempted}}
 
+{{placement_the_owner_of_the_rule_the_fix_changes_and_whether_it_fits_at_one_site_or_the_reshape_or_patch_choice_and_who_made_it}}
+
 ```diff
 {{unified_diff_when_available_otherwise_remove_this_fence}}
 ```

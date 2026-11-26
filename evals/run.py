@@ -123,6 +123,20 @@ def grade(graders, final, trace, tool_calls, created, judge_model, changed=()):
     return results
 
 
+def regrade_saved(results, cases, judge_model, jobs):
+    """Re-judge the llm graders of the saved runs whose case is selected. Runs of other cases keep
+    their grades, so regrading one case never drops another's results."""
+    by_name = {c["name"]: c for c in cases}
+
+    def regrade(r):
+        llm = [g for g in by_name[r["case"]]["graders"] if g[1]["type"] == "llm"]
+        r["graders"].update(grade(llm, r["final"], "", [], [], judge_model))
+        return r
+    with concurrent.futures.ThreadPoolExecutor(jobs) as pool:
+        list(pool.map(regrade, [r for r in results if r["case"] in by_name]))
+    return results
+
+
 def run_one(case, run, args):
     work = Path(args.out) / f"{case['name']}-{run}"
     work.mkdir(parents=True)
@@ -161,15 +175,7 @@ def main():
              if (d / "prompt.md").exists() and fnmatch.fnmatch(d.name, args.case)]
     out = Path(args.out) / "results.json"
     if args.regrade:
-        results = json.loads(out.read_text())
-        by_name = {c["name"]: c for c in cases}
-
-        def regrade(r):
-            llm = [g for g in by_name[r["case"]]["graders"] if g[1]["type"] == "llm"]
-            r["graders"].update(grade(llm, r["final"], "", [], [], args.judge_model))
-            return r
-        with concurrent.futures.ThreadPoolExecutor(args.jobs) as pool:
-            results = list(pool.map(regrade, [r for r in results if r["case"] in by_name]))
+        results = regrade_saved(json.loads(out.read_text()), cases, args.judge_model, args.jobs)
     else:
         if not args.plugin_dir:
             parser.error("--plugin-dir is required unless --regrade")

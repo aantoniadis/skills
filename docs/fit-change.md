@@ -84,6 +84,13 @@ Prompt shapes:
   another module built, change an argument, or write state another module
   owns.
 
+## Called by other skills
+
+`plan-change` takes a placement for each slice that changes existing code
+and writes it into the slice's **Placement** field. `fix-bug` places a fix
+before it lands, so a bug whose cause is one rule decided in several places
+reaches you as a choice instead of a patch at the symptom.
+
 ## In sessions that do not invoke it
 
 A session that never runs the skill still reads the project's instruction

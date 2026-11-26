@@ -20,7 +20,7 @@ Five rules hold for the whole task:
 - **Data is built once, and state has one writer.** New code passes data between modules as a value with declared fields and returns a result; it does not add keys to a hash another module built, change an argument it was given, or write state another module owns.
 - **Facts come from the code and from runs; intent comes from the user.** Find where a rule is decided yourself. Ask which structure they want and what a consumer should see.
 
-A request, ticket, or plan with no code yet takes **Place**. A diff, a branch, a PR, or a changed working tree takes **Check**; when a placement exists for it, check against it. A change that touches one site of one rule in familiar code needs three lines of placement and no round.
+When [plan-change](../plan-change/SKILL.md) or [fix-bug](../fix-bug/SKILL.md) calls the place step as a helper, hold no round of your own: return the placement for the caller's slice or fix, and pass any reshape-or-patch choice back to the caller, which puts it to the user. A request, ticket, or plan with no code yet takes **Place**. A diff, a branch, a PR, or a changed working tree takes **Check**; when a placement exists for it, check against it. A change that touches one site of one rule in familiar code needs three lines of placement and no round.
 
 ## Place
 

@@ -348,7 +348,8 @@ After the change, check the diff:
 It reports a rule added in a second place, a decision made in the wrong
 module, and each added guard, fallback, or wrapper that has no producer and
 no line of the request behind it. It runs beside `find-bugs`, which looks for
-defects. [How it works](fit-change.md).
+defects. `plan-change` and `fix-bug` call the place step themselves.
+[How it works](fit-change.md).
 
 ## 11. Untangle code that has degraded
 

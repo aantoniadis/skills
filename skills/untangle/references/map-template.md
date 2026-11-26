@@ -5,9 +5,9 @@ kind: rework-map
 
 ## In short
 
-**The problem:** {{the_most_consequential_problem_in_the_readers_terms_what_it_costs_and_its_evidence}}
+**The problem:** {{the_structure_problem_that_costs_most_in_the_readers_terms_what_it_costs_and_its_evidence}}
 
-**What we propose:** {{the_recommended_target_in_one_or_two_sentences_with_what_changes_and_what_protects_it_proposed_or_leave_the_structure_as_it_is_with_the_reason}}
+**What we propose:** {{the_recommended_target_in_one_or_two_sentences_with_the_module_changes_and_what_protects_the_rework_proposed_or_leave_the_structure_as_it_is_with_the_reason}}
 
 **What you decide:** {{each_decision_that_waits_for_the_user_in_one_line_with_its_default_or_none}}
 
@@ -15,11 +15,25 @@ kind: rework-map
 
 {{when_nobody_answered_say_so_and_that_every_open_decision_is_marked_with_its_default}}
 
+## What it does
+
+{{one_sentence_this_is_the_behavior_the_rework_keeps_and_the_tests_that_verify_it}}
+
+### {{feature_in_domain_words}}
+
+- **{{behavior_as_a_short_name}}.** {{when_condition_then_result_as_a_consumer_sees_it_with_its_entry_point_pinned}} *Verified by:* {{tested_locked_or_untested_then_the_test_names_pinned_or_the_reason_none_protects_it}}
+
+{{repeat_for_each_feature_and_behavior_in_the_users_order_of_importance}}
+
+## How the code carries it
+
+{{one_sentence_takeaway_how_many_behaviors_are_decided_in_more_than_one_file_then_a_behavior_map_fence_per_map_format}}
+
 ## Problems
 
 ### 1. {{the_problem_as_a_consequence_a_lead_understands}}
 
-**Kind:** {{behavior_to_decide_corner_case_or_a_structure_kind}} · **How sure:** {{observed_source_or_inferred_with_what_ran_or_was_read}} · **Cost today:** {{what_it_costs_each_change_or_each_user_with_its_evidence}}
+**Kind:** {{a_structure_kind_corner_case_or_behavior_to_decide}} · **How sure:** {{observed_source_or_inferred_with_what_ran_or_was_read}} · **Cost today:** {{what_it_costs_each_change_or_each_user_with_its_evidence}}
 
 **What is wrong:** {{what_happens_and_why_it_hurts_with_pinned_lines_and_runs_in_as_many_paragraphs_as_it_needs}}
 
@@ -42,7 +56,7 @@ kind: rework-map
 
 **Decision:** {{open_default_applied_decided_or_none_needed_then_the_recommendation_and_what_holds_until_answered_or_the_answer_with_its_date}}
 
-{{repeat_for_each_problem_in_rank_order}}
+{{repeat_for_each_problem_in_rank_order_structure_problems_by_cost_first_and_behavior_to_decide_last}}
 
 ## The plan
 
@@ -60,9 +74,15 @@ kind: rework-map
 
 **Data and state:** {{proposed_named_value_with_its_fields_built_once_and_not_changed_the_one_writer_of_each_state_and_the_defaults_that_become_unnecessary}}.
 
+**Flow:** {{proposed_the_one_direction_calls_and_state_move_in_the_order_of_the_parts_and_the_back_edges_the_target_removes}}.
+
 **Failure behavior:** {{proposed_per_fallback_cannot_occur_fails_loudly_or_real_outcome}}.
 
 **Measure:** {{decision_sites_per_rule_before_and_proposed_after_and_stated_dependencies_and_rules_that_become_true}}.
+
+### Module changes
+
+- **{{Rename_Remove_Merge_Split_or_Move}}** {{the_modules_and_what_they_become_proposed}}: {{the_reason_and_the_problems_it_removes}}
 
 ### Lock tests
 
@@ -86,13 +106,9 @@ kind: rework-map
 
 ## How it works today
 
-### Capabilities
+### Deliberate breaks
 
-{{one_list_item_per_capability_what_it_does_for_which_consumer_its_entry_points_and_its_decision_sites_pinned_with_the_kinds_of_evidence_that_found_each_or_partly_or_not_inspected_with_reason}}
-
-### Behavior no test protects
-
-{{one_list_item_per_deliberate_break_that_left_every_test_green_what_was_changed_at_which_pinned_line_the_tests_run_and_the_run_record}}
+{{one_list_item_per_deliberate_break_what_was_changed_at_which_pinned_line_the_tests_run_whether_any_turned_red_and_the_run_record}}
 
 ### Stated design and the code
 

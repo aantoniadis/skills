@@ -1,14 +1,17 @@
 """The page layout of the structure skills' notes: a rework map (untangle) and a change card (fit-change).
 
-The note leads with *In short* (the problem, what we propose, what you decide), then one section per
-problem, each with its picture, its evidence, its proposed fix, and its decision. This module arranges the
-rendered page around that reading order:
+The note leads with *In short* (the problem, what we propose, what you decide), then *What it does*, the
+component's behavior as a spec with the tests that verify each behavior, then the map of each behavior to
+the code, then one section per problem, each with its picture, its evidence, its proposed fix, and its
+decision. This module arranges the rendered page around that reading order:
 
 - the sidebar lists the problems under *Problems*, each with the state of its decision;
 - the header carries counts: problems, possible bugs, and decisions that wait for the reader;
 - *In short* gathers every decision still open, each linked to its problem;
 - each problem becomes an article: its kind and how sure the note is as tags, labelled paragraphs, code
   excerpts side by side, and the decision set apart;
+- each behavior of the spec is marked by how it is verified: tested, locked, or untested;
+- each row of the behavior map links to the problem that holds its weak point;
 - *How it works today* is reference, folded until opened.
 
 It moves and copies the note's own elements; it writes no claim of its own. The theme is light; a button
@@ -213,10 +216,31 @@ def reference(soup):
     holder.append(details)
 
 
+def spec(soup):
+    """Mark each behavior of *What it does* by its verification, so untested behavior stands out."""
+    holder = section(soup, "what-it-does")
+    if not holder:
+        return
+    for item in holder.find_all("li"):
+        verified = re.search(r"Verified by:\s*(tested|locked|untested)", item.get_text(" ", strip=True), re.I)
+        if verified:
+            item["class"] = item.get("class", []) + ["behavior", f"verified-{verified.group(1).lower()}"]
+
+
+def problem_links(soup, found):
+    """A behavior-map row names its problem by number; point it at the problem's section."""
+    by_number = {f["number"]: f["id"] for f in found}
+    for link in soup.select("a.bm-problem[data-problem]"):
+        if link["data-problem"] in by_number:
+            link["href"] = f"#{by_number[link['data-problem']]}"
+
+
 def build(soup, kind):
     """Arrange a rendered page of a structure note in place."""
     soup.body["class"] = soup.body.get("class", []) + ["report", kind]
     found = problems(soup)
+    spec(soup)
+    problem_links(soup, found)
     rail(soup, found)
     header(soup, found)
     in_short(soup, found)

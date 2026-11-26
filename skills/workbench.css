@@ -97,6 +97,14 @@ article.problem :is(ul,ol){margin-top:4px}
 .decision.decided{background:var(--good-tint);border-color:var(--good-line)}
 .decision.decided p>strong:first-child{color:var(--good)}
 
+/* What it does: each behavior with how it is verified */
+section#what-it-does li.behavior{margin:0 0 10px}
+section#what-it-does li.behavior::marker{font-weight:800}
+section#what-it-does li.verified-tested::marker{color:var(--good)}
+section#what-it-does li.verified-locked::marker{color:var(--accent)}
+section#what-it-does li.verified-untested::marker{color:var(--bad)}
+section#what-it-does li.verified-untested em:first-of-type,section#what-it-does li.verified-untested strong:last-of-type{color:var(--bad)}
+
 /* Pictures: today and proposed side by side; a change history as a strip */
 .sv-focus{margin:8px 0 22px;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:14px}
 .sv-pane{min-width:0;border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:10px 12px}

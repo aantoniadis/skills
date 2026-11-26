@@ -26,10 +26,10 @@ behavior nobody documented, guards and fallbacks nobody can explain.
    allow, and the rules they quote, such as "the API layer decides nothing
    about money". **Checkpoint:** you correct these, and say which flows matter
    and which oddities are deliberate.
-3. **Census.** For each capability it lists every place that decides something
+3. **Census.** For each feature it lists every place that decides something
    about it, from five kinds of evidence: text search, references, execution,
    history, and a deliberate break. Where they disagree is the lead: code a
-   run executes that no search for the capability's words found is a hidden
+   run executes that no search for the feature's words found is a hidden
    part of it; files that change together with no dependency between them
    often hold one rule twice; a decision broken on purpose while every test
    stays green is behavior no test protects. It also lists the scope's
@@ -99,7 +99,23 @@ worth it, and the author who carries it out.
 - **In short**, at the top: the problem that matters most, what we propose,
   and what you decide. A lead can stop there. Every decision that waits for
   you is gathered under it, linked to its problem.
-- **Problems**, ranked. Each problem is one section that holds everything
+- **What it does**, written as a spec: each feature in your words, and
+  under it each behavior a consumer sees, with what verifies it: *tested*
+  (a test fails when it breaks), *locked* (a lock test written for the
+  rework), or *untested*. The spec and the tests together are what the
+  rework must keep; a behavior marked *untested* gets a lock test before
+  any code moves.
+- **How the code carries it**: a behavior map, one row per behavior and one
+  column per file, marking where it is decided, called, or stored. A row
+  decided in more than one file is red and links to the problem that holds
+  it, so the weak points are the rows a reader sees first.
+- **Problems**, ranked by what the structure costs: scattered rules,
+  misplaced logic, needless links, two-way flow (calls or state that go
+  back up the layers, or files that depend on each other), surplus,
+  shared mutable state, shapeless data, unjustified special cases. The
+  map is for making code readable; a possible bug it finds on the way is a
+  *behavior to decide*, ranked last and handed to `find-bugs` or `fix-bug`.
+  Each problem is one section that holds everything
   about it: what is wrong and what it costs, how sure the map is (we ran it,
   read it at the lines, or inferred it), a picture, the evidence, the
   proposed fix with its cost and what you get, the other options with
@@ -111,8 +127,14 @@ worth it, and the author who carries it out.
   changed the rate; 2 of them changed only some of its places". Code
   excerpts sit side by side, so three places that decide one rule are read
   at once.
-- **The plan**, for the author: the target, the whole structure with a
-  switch between today and the proposal, the lock tests, and the steps.
+- **The plan**, for the author: the target, the direction its calls and
+  state move in, one way from the entry points down to storage, and the
+  module changes: each rename, removal, merge, split, or move, with the
+  reason. A module is named for the one decision it owns, one with no
+  decision of its own is removed or merged, and one with two reasons to
+  change is split. The whole structure has a switch between today and the
+  proposal, which shows renamed, removed, and added modules; then come the
+  lock tests and the steps.
 - **What is sound**, and **How it works today** as the reference the
   problems cite, folded on the page until opened.
 
@@ -162,7 +184,7 @@ writes files: its run logs, in the directory you give it.
 | Script | Prints |
 | --- | --- |
 | `change_coupling.py` | The most changed files in scope, and the pairs of files that change in the same commits, including partners outside the scope, marked when no dependency links them. With `--functions`, the same for functions, which finds a rule scattered inside one large file. It warns on a shallow clone. |
-| `import_edges.py` | Static import edges between tracked files in Python, JavaScript, TypeScript, and Java, and in Ruby `require_relative` and references to a constant one file defines, as `from<TAB>to`. With `--rev`, at a commit. With `--base`, only the edges a change adds, each with the cycle it closes and the first dependency of one directory on another. A floor: use the ecosystem's own resolver when there is one. |
+| `import_edges.py` | Static import edges between tracked files in Python, JavaScript, TypeScript, and Java, and in Ruby `require_relative` and references to a constant one file defines, as `from<TAB>to`. With `--rev`, at a commit. With `--base`, only the edges a change adds, each with the cycle it closes and the first dependency of one directory on another. With `--cycles`, every group of files that depend on each other, with an example loop, and every pair of directories that do. A floor: use the ecosystem's own resolver when there is one. |
 | `design_conformance.py` | Each dependency of a stated design, given as JSON, against those edges: *as stated*, *not stated*, or *not found*. |
 | `special_cases.py` | Lines that handle one situation apart from the main path: broad error handlers, errors turned into values, defaults for missing values, early returns, retries, status and version branches, compatibility paths, suppressed checks. |
 | `shared_data.py` | Globals, class-level variables, module-level collections, contexts, and memos; and a ledger of hash and dict keys: the files that write each key, the files that read it, and the reads that supply a default. With `--base`, only the state lines a change adds and the keys it uses on an added line. |
@@ -185,7 +207,7 @@ change; `untangle` fits code that has already degraded.
 ## Limits
 
 - One component or flow per run. For a large scope the map says which
-  capabilities were not inspected.
+  features were not inspected.
 - The map proposes; it does not carry out the rework.
 - Edges from static imports miss dependency injection, reflection, and
   lookups by string. The map names its edge source beside each result.

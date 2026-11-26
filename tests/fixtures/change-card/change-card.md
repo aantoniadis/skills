@@ -172,15 +172,16 @@ These labels describe separate judgments. Read each against its stated scope and
 
 | Option | Meaning |
 | --- | --- |
-| behavior to decide | What the code does may be wrong or unwanted, such as two places that give different results for one input. It is not a structure problem; its fix is a behavior change that someone decides. |
-| corner case | A rare input or state whose handling would bend the design. Whether it is worth that complexity is the developer's decision, weighed on its reach, harm, and options. |
 | scattered rule | One rule is decided at more than one place, and nothing in the code says the places must change together. |
 | misplaced logic | A decision is made away from the module that owns the state or rule it decides. |
 | needless link | Pieces that change for different reasons are tied together. |
+| two-way flow | Calls or state move in both directions between parts: a cycle of dependencies, a call against the order of the parts, or a callback, event, or shared object through which a later step writes back into an earlier one. A reader can no longer follow the code in one direction. |
 | surplus | Code with no reason of its own to exist, such as a wrapper that only delegates, an option nothing varies, or code nothing reaches. |
 | shared mutable state | State that more than one module writes, or data a module changes after another module handed it over. What a value holds depends on every writer and the order they ran in. |
 | shapeless data | Data passed between modules with no declared shape, such as a hash or dict, so each site that reads or writes a key decides part of it. |
 | unjustified special case | Code for one situation with no caller, input, test, incident, or decision behind it. It stays until its removal has the evidence the map names. |
+| corner case | A rare input or state whose handling would bend the design. Whether it is worth that complexity is the developer's decision, weighed on its reach, harm, and options. |
+| behavior to decide | What the code does may be wrong or unwanted, such as two places that give different results for one input. It is not a structure problem; its fix is a behavior change that someone decides. |
 
 ### Key: How sure
 

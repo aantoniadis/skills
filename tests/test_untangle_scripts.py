@@ -178,6 +178,16 @@ class ImportEdgesTests(Repository):
                          "the working tree counts an untracked file")
 
 
+    def test_cycles_lists_files_and_directories_that_depend_on_each_other(self):
+        self.commit({"app/a.py": "from app import b\n", "app/b.py": "from app import a\nfrom lib import c\n",
+                     "lib/c.py": "from app import a\n", "lib/d.py": "x = 1\n"})
+        out = self.run_script("import_edges", "--cycles")
+        self.assertIn("Cycles: 1 groups of files that depend on each other; 1 pairs of directories that do.", out)
+        self.assertIn("3 files: app/a.py, app/b.py, lib/c.py", out)
+        self.assertIn("app/ <-> lib/", out)
+        self.assertNotIn("lib/d.py", out)
+
+
 class DesignConformanceTests(unittest.TestCase):
     def test_every_relationship_gets_one_result_and_unmapped_files_are_listed(self):
         components = {name: [conformance.pattern_regex(p) for p in patterns] for name, patterns in

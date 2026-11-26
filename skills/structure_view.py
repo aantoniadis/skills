@@ -7,6 +7,14 @@
   those, today and proposed side by side, beside the problem they belong to.
 - A change history: a `change-history` fence lists the places that decide one rule and the commits that
   changed it; the page draws which places each commit changed, and marks the places it missed.
+- A behavior map: a `behavior-map` fence lists the component's behaviors and the files that decide, call
+  through, or store state for each; the page draws one row per behavior and one column per file, and names
+  each row's weak point.
+
+A file of the structure view can carry a module change the plan proposes: `"renamed": "<new path>"`,
+`"removed": true`, or `"added": true`. Today shows a file to be added as an outline; the proposal shows a
+removed file struck through and a renamed file under its new path. A merge removes files and adds or keeps
+one; a split removes one and adds several.
 
 render_page.py lays them out here as static SVG, so the page reads without scripts; structure-view.js adds
 the Today/Proposed switch and rule selection to the full view. check() is the Markdown check of the fences.
@@ -46,6 +54,11 @@ def problems(data):
             found.append(f"file {f.get('id')}: `part` must be a part id or \"outside\"")
         if not f.get("path"):
             found.append(f"file {f.get('id')}: give its `path`")
+        changes = [key for key in ("renamed", "removed", "added") if f.get(key)]
+        if len(changes) > 1:
+            found.append(f"file {f.get('id')}: give one of `renamed`, `removed`, `added`")
+        if f.get("renamed") is not None and not isinstance(f.get("renamed"), str):
+            found.append(f"file {f.get('id')}: `renamed` is the new path")
     for d in data.get("dependencies", []):
         name = f"dependency {d.get('from')} -> {d.get('to')}"
         if d.get("from") not in file_ids or d.get("to") not in file_ids:
@@ -271,6 +284,28 @@ def follows(present, view):
     return text + (": " + ", ".join(breaks) if breaks else "")
 
 
+def module_changes(data):
+    """(kind, file) for each file the plan renames, removes, or adds."""
+    return [(kind, f) for f in data["files"] for kind in ("renamed", "removed", "added") if f.get(kind)]
+
+
+def file_label(f, view):
+    """A file's path as a view shows it: a renamed file under its new path in the proposal."""
+    path = f["renamed"] if view == "proposed" and f.get("renamed") else f["path"]
+    return path if len(path) <= 24 else "…" + path[-23:]
+
+
+def file_state(f, view):
+    """How a file stands in a view: present, ghost (not there yet, or gone), or renamed."""
+    if f.get("added") and view == "today":
+        return "ghost"
+    if f.get("removed") and view == "proposed":
+        return "gone"
+    if f.get("renamed") and view == "proposed":
+        return "renamed"
+    return ""
+
+
 def facts(data, view):
     present = [d for d in data.get("dependencies", []) if d.get(view)]
     ok = sum(1 for d in present if d[view] == "as stated")
@@ -281,9 +316,15 @@ def facts(data, view):
     waiting = sum(1 for r in data.get("rules", []) if r["outcome"] == "waits" or any(s.get("waits") for s in r["sites"]))
     deps = (f'<span class="sv-fact {"good" if ok == len(present) else "bad"}">{follows(present, view)}</span>'
             if present else '<span class="sv-fact"><b>0</b> dependencies drawn in this view</span>')
+    changes = module_changes(data)
+    moved = ""
+    if view == "proposed" and changes:
+        counts = {kind: sum(1 for k, _ in changes if k == kind) for kind in ("renamed", "removed", "added")}
+        moved = ('<span class="sv-fact">' + ", ".join(f'<b>{n}</b> {"module" if n == 1 else "modules"} {kind}'
+                                                       for kind, n in counts.items() if n) + '</span>')
     return (deps
             + f'<span class="sv-fact {"bad" if spread else "good"}"><b>{spread}</b> {"rule" if spread == 1 else "rules"} decided in more than one file</span>'
-            f'<span class="sv-fact wait"><b>{waiting}</b> waiting for your answer</span>')
+            f'<span class="sv-fact wait"><b>{waiting}</b> waiting for your answer</span>' + moved)
 
 
 def state_of(rule):
@@ -326,10 +367,16 @@ def figure(data, index):
                    f'data-proposed="{escape(side.get("proposed", side.get("today", "Not named in the design")))}">{escape(side.get("today", "Not named in the design"))}</text>')
     out.append('</g><g class="sv-files">')
     for fid, box in plan["boxes"].items():
-        path = files[fid]["path"]
-        shown = path if len(path) <= 24 else "…" + path[-23:]
-        out.append(f'<g class="sv-file" data-file="{escape(fid)}" data-path="{escape(path)}" tabindex="0"><rect x="{box["x"]}" y="{box["y"]}" width="{box["w"]}" height="{box["h"]}" rx="10"/>'
-                   f'<text x="{box["x"] + 12}" y="{box["y"] + 24}">{escape(shown)}</text><title>{escape(path)}</title></g>')
+        f = files[fid]
+        path = f["path"]
+        change = next((kind for kind in ("renamed", "removed", "added") if f.get(kind)), "")
+        state = file_state(f, "today")
+        title = path + {"renamed": f' (proposed: renamed to {f.get("renamed")})', "removed": " (proposed: removed)",
+                        "added": " (proposed: new)"}.get(change, "")
+        out.append(f'<g class="sv-file{" " + state if state else ""}" data-file="{escape(fid)}" data-path="{escape(path)}" data-change="{change}" tabindex="0">'
+                   f'<rect x="{box["x"]}" y="{box["y"]}" width="{box["w"]}" height="{box["h"]}" rx="10"/>'
+                   f'<text x="{box["x"] + 12}" y="{box["y"] + 24}" data-today="{escape(file_label(f, "today"))}" data-proposed="{escape(file_label(f, "proposed"))}">'
+                   f'{escape(file_label(f, "today"))}</text><title>{escape(title)}</title></g>')
     out.append('</g><g class="sv-dots">')
     for ri, r in enumerate(rules):
         color = COLORS[ri % len(COLORS)]
@@ -412,10 +459,10 @@ def view_svg(data, index, view):
     for lane in plan["lanes"]:
         out.append(f'<text class="sv-lane-name" x="{lane["x"] + 14}" y="{lane["y"] + 21}">{escape(lane["label"])}</text>')
     for fid, box in plan["boxes"].items():
-        path = files[fid]["path"]
-        shown = path if len(path) <= 24 else "…" + path[-23:]
-        out.append(f'<g class="sv-file"><rect x="{box["x"]}" y="{box["y"]}" width="{box["w"]}" height="{box["h"]}" rx="10"/>'
-                   f'<text x="{box["x"] + 12}" y="{box["y"] + 24}">{escape(shown)}</text><title>{escape(path)}</title></g>')
+        f = files[fid]
+        state = file_state(f, view)
+        out.append(f'<g class="sv-file{" " + state if state else ""}"><rect x="{box["x"]}" y="{box["y"]}" width="{box["w"]}" height="{box["h"]}" rx="10"/>'
+                   f'<text x="{box["x"] + 12}" y="{box["y"] + 24}">{escape(file_label(f, view))}</text><title>{escape(f["path"])}</title></g>')
     for ri, r in enumerate(data.get("rules", [])):
         number = r.get("index", ri)
         for si, s in enumerate(r["sites"]):
@@ -442,6 +489,9 @@ def summary(data, view):
         parts.append(f'{forbidden} {"dependency" if forbidden == 1 else "dependencies"} the design forbids')
     if missing:
         parts.append(f'{missing} {"dependency" if missing == 1 else "dependencies"} the design expects {"is" if missing == 1 else "are"} missing')
+    if view == "proposed":
+        for kind, f in module_changes(data):
+            parts.append(f'{escape(f["path"].rsplit("/", 1)[-1])} {kind}' + (f' to {escape(f["renamed"].rsplit("/", 1)[-1])}' if kind == "renamed" else ""))
     return "; ".join(parts) or "no rule drawn"
 
 
@@ -502,6 +552,62 @@ def history_figure(data, index):
     return (f'<figure class="history-view" role="group" aria-label="Change history"><div class="hx-canvas">{"".join(out)}</div>'
             f'<figcaption><span><span class="hx-key changed"></span>changed in this commit</span><span><span class="hx-key missed"></span>'
             f'not changed, while another place was</span><b>{caption}.</b></figcaption></figure>')
+
+
+ROLES = {"decides": "●", "calls": "○", "stores": "■"}
+
+
+def behavior_problems(data):
+    """What makes a behavior-map fence unusable."""
+    if not isinstance(data, dict) or not data.get("files") or not data.get("behaviors"):
+        return ["give `files` (each with `id` and `path`) and `behaviors` (each with `feature`, `name`, and `sites`)"]
+    found, ids = [], [f.get("id") for f in data["files"]]
+    if len(set(ids)) != len(ids) or not all(ids) or not all(f.get("path") for f in data["files"]):
+        found.append("every file needs a unique `id` and its `path`")
+    for b in data["behaviors"]:
+        name = f"behavior {b.get('name')!r}"
+        if not b.get("feature") or not b.get("name") or not b.get("sites"):
+            found.append(f"{name}: give its `feature`, `name`, and `sites`")
+        for site in b.get("sites", []):
+            if site.get("file") not in ids:
+                found.append(f"{name}: site file {site.get('file')!r} is not a file id")
+            if site.get("role") not in ROLES:
+                found.append(f"{name}: each site's `role` is one of {', '.join(ROLES)}")
+            if not PIN.match(str(site.get("at", ""))):
+                found.append(f"{name}: each site's `at` is its pinned line, as path.ext:12")
+        if b.get("problem") is not None and not isinstance(b.get("problem"), int):
+            found.append(f"{name}: `problem` is the number of the problem that holds its weak point")
+    return found
+
+
+def behavior_figure(data, index):
+    """One row per behavior, grouped by feature; one column per file; each cell what that file does for the
+    behavior; and each row's weak point, linked to its problem."""
+    files = data["files"]
+    head = "".join(f'<th scope="col" title="{escape(f["path"])}"><span class="bm-file">{escape(f["path"].rsplit("/", 1)[-1])}</span></th>' for f in files)
+    rows, spread, feature = [], 0, None
+    for b in data["behaviors"]:
+        if b["feature"] != feature:
+            feature = b["feature"]
+            rows.append(f'<tr class="bm-feature"><th scope="rowgroup" colspan="{len(files) + 2}">{escape(feature)}</th></tr>')
+        deciders = {s["file"] for s in b["sites"] if s["role"] == "decides"}
+        spread += len(deciders) > 1
+        cells = []
+        for f in files:
+            mine = [s for s in b["sites"] if s["file"] == f["id"]]
+            role = next((r for r in ROLES if any(s["role"] == r for s in mine)), "")
+            title = "; ".join(f'{s["role"]} at {s["at"]}' for s in mine)
+            cells.append(f'<td class="bm-{role}" title="{escape(title)}">{ROLES.get(role, "")}</td>' if role else '<td></td>')
+        weak = escape(b.get("weak", ""))
+        link = (f' <a class="bm-problem" href="#problems" data-problem="{b["problem"]}">problem {b["problem"]}</a>' if b.get("problem") else "")
+        rows.append(f'<tr class="{"bm-spread" if len(deciders) > 1 else ""}"><th scope="row">{escape(b["name"])}</th>{"".join(cells)}'
+                    f'<td class="bm-weak">{weak}{link}</td></tr>')
+    total = len(data["behaviors"])
+    caption = (f'{total} {"behavior" if total == 1 else "behaviors"}; {spread} decided in more than one file')
+    return (f'<figure class="behavior-map" role="group" aria-label="Behavior map {index}"><div class="table-scroll"><table class="bm-table">'
+            f'<thead><tr><th scope="col">Behavior</th>{head}<th scope="col">Weak point</th></tr></thead><tbody>{"".join(rows)}</tbody></table></div>'
+            f'<figcaption><span><b class="bm-key">●</b> decides</span><span><b class="bm-key">○</b> calls through</span>'
+            f'<span><b class="bm-key">■</b> stores state</span><b>{caption}.</b></figcaption></figure>')
 
 
 def data_view(data, files):
@@ -615,6 +721,13 @@ def check(source):
             messages.append(f"Structure focus at line {line}: the fence is not valid JSON ({error}).")
             continue
         messages.extend(f"Structure focus at line {line}: {message}." for message in focus_problems(spec, views[0] if views else None))
+    for line, text in fences(source, "behavior-map"):
+        try:
+            data = json.loads(text)
+        except ValueError as error:
+            messages.append(f"Behavior map at line {line}: the fence is not valid JSON ({error}).")
+            continue
+        messages.extend(f"Behavior map at line {line}: {message}." for message in behavior_problems(data))
     for line, text in fences(source, "change-history"):
         try:
             data = json.loads(text)

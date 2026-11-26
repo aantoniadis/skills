@@ -4,14 +4,17 @@ Read when filling or updating a rework map, or the change card of
 [fit-change](../../fit-change/SKILL.md), which has the same shape. The map is
 one note, `rework-map.md`, written for two readers who were not there: a lead
 who decides whether the rework is worth it, and the author who carries it
-out. Each must find what is wrong and what to do about it without reading the
-rest. Follow the [shared page workflow](../../HTML-PAGES.md) for rendering,
+out. Its purpose is code that reads and changes easily: it states what the
+component does, shows how the code carries each behavior and where that is
+weak, and proposes the restructuring. Possible bugs are a side result. Follow the [shared page workflow](../../HTML-PAGES.md) for rendering,
 and [evidence](../../EVIDENCE.md) for every claim and diagram.
 
 ## Contents
 
 - [Order and growth](#order-and-growth)
 - [In short](#in-short)
+- [What it does](#what-it-does)
+- [How the code carries it](#how-the-code-carries-it)
 - [Problems](#problems)
 - [A worked problem](#a-worked-problem)
 - [Pins](#pins)
@@ -22,13 +25,14 @@ and [evidence](../../EVIDENCE.md) for every claim and diagram.
 
 ## Order and growth
 
-Keep the template's order: *In short*, then the problems, then the plan, then
-what is sound, then *How it works today* as reference. The argument comes
-first and the description last, because the description is the evidence and
-the reader reaches it from a problem. The map grows through the task: after
-step 2 it holds *In short* as far as it is known, the capabilities, and the
-stated design; steps 3 and 4 fill the reference; steps 5 and 6 write the
-problems and the plan. Remove a section that has nothing to hold, and say in
+Keep the template's order: *In short*; *What it does*, the behavior as a spec;
+*How the code carries it*, each behavior mapped to the code; the problems;
+the plan; what is sound; and *How it works today* as reference. The spec and
+the map come before the problems because each problem is a weak point of
+that map. The map grows through the task: after step 2 it holds *In short*
+as far as it is known, the spec, and the stated design; steps 3 and 4 add
+the behavior map and the reference; steps 5 and 6 write the problems and the
+plan. Remove a section that has nothing to hold, and say in
 *Limits* what was left out. A map delivered at a checkpoint passes the check
 as it stands.
 
@@ -47,26 +51,81 @@ Three labelled paragraphs, a few sentences each, that a lead reads and stops:
 Then the scope, the inspected source, and what ran. When the scope could not
 run, the *What ran* line says so first.
 
+## What it does
+
+The component's behavior, written as a spec: what a consumer can rely on, in
+the project's domain words, grouped under one `###` heading per feature in
+the user's order of importance. Each behavior is one list item:
+
+```markdown
+- **A gold customer gets 10% off at checkout.** When a gold customer checks out, the total is the subtotal less 10%, from [views.py:31](...). *Verified by:* tested, `test_gold_checkout_total` ([test_shop.py:12](...)).
+```
+
+- Write each behavior as a condition and its result, as a consumer sees it,
+  with its entry point pinned. State what the code does today, not what it
+  should do; a result that may be wrong is still stated, and the problem
+  that questions it names it.
+- **Verified by:** starts with *tested* (an existing test fails when the
+  behavior changes, seen under a deliberate break or asserted at a pinned
+  line), *locked* (a lock test of this rework records it), or *untested*,
+  then the test names or the reason no test protects it.
+
+This spec and the tests it names are what the rework is verified against: a
+step is done when every behavior still holds and every test that verifies
+one still passes. A behavior marked *untested* is unprotected until a lock
+test records it. A feature the code performs and no document or person
+named is marked *not stated anywhere* in its first behavior.
+
+## How the code carries it
+
+One sentence with the takeaway, then a `behavior-map` fence: one row per
+behavior of the spec, one column per file that takes part, each cell what
+that file does for it, and the row's weak point linked to its problem. A
+behavior decided in more than one file stands out on the page.
+
+```json
+{"files": [{"id": "views", "path": "shop/api/views.py"},
+           {"id": "discounts", "path": "shop/pricing/discounts.py"},
+           {"id": "serializers", "path": "shop/api/serializers.py"}],
+ "behaviors": [{"feature": "Loyalty discount", "name": "A gold customer gets 10% off at checkout",
+                "sites": [{"file": "views", "at": "shop/api/views.py:31", "role": "calls"},
+                          {"file": "discounts", "at": "shop/pricing/discounts.py:12", "role": "decides"},
+                          {"file": "serializers", "at": "shop/api/serializers.py:44", "role": "decides"}],
+                "weak": "the rate is decided twice", "problem": 1}]}
+```
+
+`role` is *decides* (the file makes a decision of the behavior), *calls*
+(the behavior passes through it), or *stores* (it writes the behavior's
+state). `weak` names the weak point in a few words, and `problem` is the
+number of the problem that holds it; a behavior with none leaves both out.
+Keep the columns to the files the behaviors touch, in the order of the
+design's parts, so a row that jumps back and forth shows calls that do not
+move one way.
+
 ## Problems
 
 A **problem** is one thing that makes the component costly to change or
 possibly wrong, with what to do about it. It is the unit of the map: each
 problem holds its own evidence, picture, fix, and decision, so a reader
-never assembles one from several sections. Rank them by what they cost:
-behavior to decide first, then structure problems by how many places one
-change must touch times how often the rule changes. Number them in their
+never assembles one from several sections. Rank them by what they cost
+the people who change the code: structure problems and corner cases first,
+by how many places one change must touch times how often the rule changes;
+problems of the kind *behavior to decide*, possible bugs, last, because this
+map is for restructuring and each of them goes to fix-bug or plan-change. Number them in their
 headings, `### 1. <title>`, and refer to them as *problem 1*.
 
-The title states the consequence a lead understands, such as *A gold
-customer is quoted 38.00 and charged 36.00* or *Changing a loyalty rate takes
-three edits*; not the mechanism, such as *Discount logic in serializer*.
+The title states the consequence a lead understands, such as *Changing a
+loyalty rate takes three edits*, not the mechanism, such as *Discount logic in
+serializer*. A behavior to decide whose recommended answer keeps today's
+behavior is titled as its question, such as *Should a failed rebuild keep
+serving its old data?*
 
 Each problem has these labelled paragraphs, in this order. The label starts
 the paragraph in bold; the checker reads the first four.
 
-- **Kind:** one of *behavior to decide*, *corner case*, *scattered rule*,
-  *misplaced logic*, *needless link*, *surplus*, *shared mutable state*,
-  *shapeless data*, *unjustified special case*; then **How sure:**, one of
+- **Kind:** one of *scattered rule*, *misplaced logic*, *needless link*,
+  *two-way flow*, *surplus*, *shared mutable state*, *shapeless data*,
+  *unjustified special case*, *corner case*, or *behavior to decide*; then **How sure:**, one of
   *observed* (a run showed it), *source* (read at the lines), or *inferred*,
   with what ran or was read; then **Cost today:**, what it costs each change
   or each user, with its evidence. The three share one line, joined by ` · `.
@@ -217,6 +276,12 @@ states the takeaway and the evidence kind, as
   a problem names. A picture of every file reads like none.
 - **dependencies** have `today` and `proposed`, each *as stated*, *not
   stated*, *not found*, or `null` where it does not exist in that view.
+- A file can carry the module change the plan proposes: `"renamed": "<new
+  path>"`, `"removed": true`, or `"added": true` for a file the target
+  creates. The proposal draws a renamed file under its new name and a
+  removed one struck through; today draws a file to be added as an outline.
+  A merge is files removed and one kept or added; a split is one removed
+  and several added.
 - **rules** are the rules the problems name, at most 26. `outcome` is
   *moves* (its sites go to the owner), *stays*, or *waits*. A site with
   `"waits": true` keeps its place until the user answers.
@@ -261,9 +326,21 @@ exist, and the commit that creates it is not counted as missing the others.
 ## The plan and the reference
 
 *The plan* holds the recommended target and the user's choice, the structure
-view, the target's owners, interface, boundary checks, data and state,
-failure behavior, and measure, then the lock tests as a list, the steps, and
-questions that no problem holds. *What is sound* lists what works and should
+view, the target's owners, interface, boundary checks, data and state, flow,
+failure behavior, and measure, then the module changes, the lock tests as a
+list, the steps, and questions that no problem holds.
+
+- **Flow** states the one direction calls and state move in the target, in
+  the order of the parts, and each edge against it that the target removes:
+  a cycle, a call from a later part back to an earlier one, a callback or
+  event through which a later step writes into an earlier one's state.
+- **Module changes** is a list. Each item starts with **Rename**,
+  **Remove**, **Merge**, **Split**, or **Move**, names the modules and what
+  they become, labelled proposed, and gives the reason and the problems it
+  removes. A name follows the decision the module owns in the project's
+  words; a module with no decision of its own is removed or merged; a module
+  that changes for two reasons is split. Draw each change in the structure
+  view, as [pictures](#pictures) says. *What is sound* lists what works and should
 be kept, and what looks wrong and is fine, each with its reason.
 
 *How it works today* is the reference the problems cite. Two tables keep
@@ -278,14 +355,15 @@ their columns exactly, because the checker reads them:
   *reached*, *not reached*, *unknown*, each followed by the caller, probe,
   or run that supports it. A case that is a problem names it in *Points to*.
 
-Capabilities, state and data, and behavior no test protects are lists and
-prose. Every cell of a table has content, and an explicit unknown is
+State and data, and the deliberate breaks with their results, are lists and
+prose; the features and the behavior no test protects are in *What it
+does*. Every cell of a table has content, and an explicit unknown is
 content; text that needs more than a line goes in a list instead.
 
 ## Names
 
 Name a problem by its consequence and a target by its shape, such as
-*Pricing owns discounts*. Use the project's glossary terms for capabilities
+*Pricing owns discounts*. Use the project's glossary terms for features
 and state. Steps are numbered in their list and referred to by what they do.
 
 ## Diagrams

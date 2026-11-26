@@ -134,7 +134,8 @@ def fence_languages(soup):
     diagrams render on their own, so neither counts. Render and check derive the embedded grammars from this."""
     return sorted({name[len("language-"):] for code in soup.select("main pre > code") for name in code.get("class", [])
                    if name.startswith("language-") and name not in ("language-diff", "language-mermaid", "language-structure-view",
-                                                                     "language-structure-focus", "language-change-history")})
+                                                                     "language-structure-focus", "language-change-history",
+                                                                     "language-behavior-map")})
 
 
 def check_prompts(source):
@@ -255,8 +256,8 @@ RULE_COLUMNS = ("Stated rule", "Result", "Evidence", "What the user said")
 RULE_RESULTS = ("holds", "broken", "not checked")
 SPECIAL_CASE_COLUMNS = ("Special case", "Kind", "Reach", "Why it exists", "Points to")
 REACH_STATUSES = ("reached", "not reached", "unknown")
-FINDING_KINDS = ("scattered rule", "misplaced logic", "needless link", "surplus", "shared mutable state", "shapeless data",
-                 "unjustified special case")
+FINDING_KINDS = ("scattered rule", "misplaced logic", "needless link", "two-way flow", "surplus", "shared mutable state",
+                 "shapeless data", "unjustified special case")
 # columns -> (section label, index of the status cell, its values); the cell starts with its status.
 MAP_TABLES = {
     DESIGN_COLUMNS: ("Stated design and the code", 1, DESIGN_RESULTS),
@@ -315,6 +316,8 @@ def label_groups(source):
         groups.add("design-results")
     if problem_sections(document):
         groups.update(("structure-findings", "problem-evidence", "decision-status"))
+    if spec_behaviors(document):
+        groups.add("behavior-verification")
     if bug_card_headings(document):
         groups.update(("bug-evidence", "bug-origin"))
     cause = bool(bug_card_headings(document, CAUSE_SECTION))
@@ -970,6 +973,8 @@ def render(source, source_name, diagram_renderer="auto", repo=None, directory=No
     for index, code in enumerate(soup.select("pre > code.language-structure-focus"), 1):
         keep_source(parse(structure_view.focus_figure(json.loads(full.get_text()), json.loads(code.get_text()), index)).figure,
                     code.parent, "Data behind this picture")
+    for index, code in enumerate(soup.select("pre > code.language-behavior-map"), 1):
+        keep_source(parse(structure_view.behavior_figure(json.loads(code.get_text()), index)).figure, code.parent, "Data behind this map")
     for index, code in enumerate(soup.select("pre > code.language-change-history"), 1):
         keep_source(parse(structure_view.history_figure(json.loads(code.get_text()), index)).figure, code.parent, "Data behind this history")
     for index, code in enumerate(soup.select("pre > code.language-structure-view"), 1):
@@ -984,7 +989,7 @@ def render(source, source_name, diagram_renderer="auto", repo=None, directory=No
         view.append(details)
         if index == 1:
             soup.body.extend(list(parse(structure_view.assets()).contents))
-    if not full and soup.select(".sv-focus, .history-view"):
+    if not full and soup.select(".sv-focus, .history-view, .behavior-map"):
         soup.body.extend(list(parse(structure_view.assets()).contents))
     explicit = diagram_renderer != "auto"
     for index, code in enumerate(soup.select("pre > code.language-mermaid"), 1):
@@ -1894,7 +1899,27 @@ def check_learning_plan(source):
 
 
 PROBLEM_FIELDS = ("Kind", "How sure", "What is wrong", "Decision")
-PROBLEM_KINDS = ("behavior to decide", "corner case", *FINDING_KINDS)
+VERIFIED = ("tested", "locked", "untested")
+MODULE_CHANGES = ("Rename", "Remove", "Merge", "Split", "Move")
+
+
+def spec_behaviors(document):
+    """The list items under the h2 *What it does* that state a behavior: each carries *Verified by:*."""
+    heading = next((h for h in document.find_all("h2") if h.get_text(strip=True) == "What it does"), None)
+    items = []
+    for element in (heading.find_next_siblings() if heading else []):
+        if element.name == "h2":
+            break
+        if element.name in ("ul", "ol"):
+            items += element.find_all("li", recursive=False)
+    return items
+
+
+def section_items(document, title, level="h3"):
+    heading = next((h for h in document.find_all(level) if h.get_text(strip=True) == title), None)
+    following = heading.find_next_sibling() if heading else None
+    return following.find_all("li", recursive=False) if following is not None and following.name in ("ul", "ol") else []
+PROBLEM_KINDS = (*FINDING_KINDS, "corner case", "behavior to decide")
 HOW_SURE = ("observed", "source", "inferred")
 DECISIONS = ("open", "default applied", "decided", "none needed")
 
@@ -1935,6 +1960,17 @@ def check_rework_map(source):
     not whether the note found everything."""
     document = parse(MARKDOWN.render(source))
     problems = []
+    for item in spec_behaviors(document):
+        text = item.get_text(" ", strip=True)
+        verified = re.search(r"Verified by:\s*(\S+(?: \S+)?)", text)
+        if not verified:
+            problems.append(f"What it does: each behavior carries *Verified by:* — {text[:60]!r}.")
+        elif not any(verified.group(1).lower().startswith(word) for word in VERIFIED):
+            problems.append(f"What it does: start *Verified by:* with one of: {', '.join(VERIFIED)} — {text[:60]!r}.")
+    for item in section_items(document, "Module changes"):
+        text = item.get_text(" ", strip=True)
+        if not any(text.startswith(verb) for verb in MODULE_CHANGES):
+            problems.append(f"Module changes: start each item with one of: {', '.join(MODULE_CHANGES)} — {text[:60]!r}.")
     for heading, elements in problem_sections(document):
         name = f"Problem {heading.get_text(' ', strip=True)!r}"
         fields = problem_fields(elements)

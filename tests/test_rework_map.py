@@ -45,12 +45,14 @@ class ReworkMapTests(unittest.TestCase):
 
     def test_label_key_defines_the_map_vocabularies(self):
         self.assertEqual([group for group in page.label_groups(self.source) if group != "diagram-evidence"],
-                         ["design-results", "rule-results", "special-case-reach", "structure-findings", "problem-evidence", "decision-status"])
+                         ["design-results", "rule-results", "special-case-reach", "structure-findings", "problem-evidence", "decision-status",
+                          "behavior-verification"])
         for group, values in (("design-results", page.DESIGN_RESULTS), ("rule-results", page.RULE_RESULTS),
                               ("special-case-reach", page.REACH_STATUSES), ("structure-findings", page.PROBLEM_KINDS),
                               ("problem-evidence", page.HOW_SURE)):
             self.assertEqual(tuple(page.LABELS[group]["options"]), tuple(values))
         self.assertEqual(set(page.LABELS["decision-status"]["options"]), set(page.DECISIONS))
+        self.assertEqual(tuple(page.LABELS["behavior-verification"]["options"]), page.VERIFIED)
 
     def test_status_cells_start_with_a_known_word(self):
         for old, new, message in (
@@ -61,7 +63,9 @@ class ReworkMapTests(unittest.TestCase):
                 ("**How sure:** observed, removal probe", "**How sure:** fairly sure, removal probe", "start **How sure:** with one of"),
                 ("**Decision:** open. Recommended: delete it.", "**Decision:** pending. Recommended: delete it.", "start **Decision:** with one of"),
                 ("**Proposed fix:** Delete it once you confirm", "**Fix later:** Delete it once you confirm", "needs **Proposed fix:**"),
-                ("**What is wrong:** [rounding.py:8]", "**The issue:** [rounding.py:8]", "add **What is wrong:**")):
+                ("**What is wrong:** [rounding.py:8]", "**The issue:** [rounding.py:8]", "add **What is wrong:**"),
+                ("*Verified by:* tested, `test_guest_pays_full_price`", "*Verified by:* probably, `test_guest_pays_full_price`", "start *Verified by:* with one of"),
+                ("- **Rename** `shop/pricing/discounts.py`", "- **Rework** `shop/pricing/discounts.py`", "Module changes: start each item with one of")):
             with self.subTest(new=new):
                 self.assertIn(old, self.source)
                 self.note.write_text(self.source.replace(old, new))

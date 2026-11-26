@@ -16,6 +16,9 @@ printed, from that commit to --head, or to the working tree with its untracked f
 between files, and the first dependency of one directory on another, with a note when the two
 directories then depend on each other. These are leads to read, not findings.
 
+With --cycles, it prints each group of files that depend on each other in a circle, with one path that
+closes it, and each pair of directories that depend on each other: where calls do not move one way.
+
 Run from the repository root, or pass --repo. Exit 2 for invalid inputs or failed Git
 operations. Output goes to stdout; no files are written.
 """
@@ -257,6 +260,41 @@ def chain(start, goal, graph):
     return None
 
 
+def cycles(pairs):
+    """Groups of two or more files that reach each other (strongly connected components), largest first."""
+    graph = {}
+    for source, target in pairs:
+        graph.setdefault(source, set()).add(target)
+        graph.setdefault(target, set())
+    index, low, stack, on_stack, groups, counter = {}, {}, [], set(), [], [0]
+    for start in sorted(graph):
+        if start in index:
+            continue
+        work = [(start, iter(sorted(graph[start])))]
+        index[start] = low[start] = counter[0]; counter[0] += 1; stack.append(start); on_stack.add(start)
+        while work:
+            node, children = work[-1]
+            child = next(children, None)
+            if child is None:
+                work.pop()
+                if work:
+                    low[work[-1][0]] = min(low[work[-1][0]], low[node])
+                if low[node] == index[node]:
+                    group = []
+                    while True:
+                        member = stack.pop(); on_stack.discard(member); group.append(member)
+                        if member == node:
+                            break
+                    if len(group) > 1:
+                        groups.append(sorted(group))
+            elif child not in index:
+                index[child] = low[child] = counter[0]; counter[0] += 1; stack.append(child); on_stack.add(child)
+                work.append((child, iter(sorted(graph[child]))))
+            elif child in on_stack:
+                low[node] = min(low[node], index[child])
+    return sorted(groups, key=lambda g: (-len(g), g)), graph
+
+
 def added(base_edges, head_edges):
     """(from, to, notes) for each edge the head has and the base lacks."""
     graph, directory = {}, lambda path: str(PurePosixPath(path).parent)
@@ -290,6 +328,7 @@ def main():
     parser.add_argument("--rev", help="read the edges at this commit; default is the working tree")
     parser.add_argument("--base", help="print only the edges added since this commit")
     parser.add_argument("--head", help="with --base: the commit that holds the change; default is the working tree")
+    parser.add_argument("--cycles", action="store_true", help="print the groups of files and the directories that depend on each other")
     args = parser.parse_args()
     if args.head and not args.base:
         parser.error("--head needs --base")
@@ -314,6 +353,23 @@ def main():
     except ValueError as error:
         print(f"import_edges: {error}", file=sys.stderr)
         return 2
+    if args.cycles:
+        groups, graph = cycles(rows)
+        directory = lambda path: str(PurePosixPath(path).parent)
+        between = {(directory(a), directory(b)) for a, b in rows if directory(a) != directory(b)}
+        mutual = sorted({tuple(sorted(pair)) for pair in between if pair[::-1] in between})
+        print(f"Cycles: {len(groups)} groups of files that depend on each other; {len(mutual)} pairs of directories that do.")
+        for group in groups:
+            members = set(group)
+            first = group[0]
+            back = next((chain(t, first, {n: graph[n] & members for n in members}) for t in sorted(graph[first] & members)), None)
+            loop = " -> ".join([first, *back]) if back else ""
+            print(f"\n{len(group)} files: {', '.join(group)}\n\tfor example {loop}")
+        if mutual:
+            print("\nDirectories that depend on each other:")
+            for a, b in mutual:
+                print(f"{a}/ <-> {b}/")
+        return 0
     if args.base:
         rows = added(before, rows)
         print(f"# from\tto\twhat the edge changes  (edges added since {args.base}; an absent edge proves nothing)")

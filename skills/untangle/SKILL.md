@@ -1,6 +1,6 @@
 ---
 name: untangle
-description: Maps how an existing component really works, finds one rule's logic scattered across modules and layers, capabilities nobody documented, behavior no test protects, and guards or fallbacks nobody can justify, and proposes a rework that gives each rule one owner. Use when existing code has become hard to follow or change, when the user asks to de-slop, clean up, untangle, or restructure a component, to map the architecture as it is today, or to compare the code with its documented design. Not for explaining one flow (explain), planning a behavior change (plan-change), or finding defects in a diff (find-bugs).
+description: Maps how an existing component really works, finds one rule's logic scattered across modules and layers, features nobody documented, behavior no test protects, and guards or fallbacks nobody can justify, and proposes a rework that gives each rule one owner. Use when existing code has become hard to follow or change, when the user asks to de-slop, clean up, untangle, or restructure a component, to map the architecture as it is today, or to compare the code with its documented design. Not for explaining one flow (explain), planning a behavior change (plan-change), or finding defects in a diff (find-bugs).
 argument-hint: "<component, directory, or flow to untangle; what hurts about it, if you know>"
 ---
 
@@ -10,7 +10,7 @@ bounded by its [evidence](../EVIDENCE.md).
 
 # Untangle
 
-Produce the **rework map** of one component: what is wrong with it, what to do about each problem, and how it is built today, for a lead who decides whether the rework is worth it and an author who carries it out. In the target, every rule and every piece of state has one **owner**: the module that decides the rule or writes the state. Application code stays as it is. The only change to the project is the **lock tests** of step 7, which come with every rework proposal: tests that record what the code does today, so the rework that follows cannot change it unnoticed. Probes and scratch copies live in the investigation location.
+Produce the **rework map** of one component, so its code reads and changes easily: what it does, as a spec its tests verify; how the code carries each behavior and where that is weak; and the restructuring that fixes it, down to the modules to rename, remove, merge, or split. It is written for a lead who decides whether the rework is worth it and an author who carries it out. Possible bugs are a side result, listed last. In the target, every rule and every piece of state has one **owner**: the module that decides the rule or writes the state. Application code stays as it is. The only change to the project is the **lock tests** of step 7, which come with every rework proposal: tests that record what the code does today, so the rework that follows cannot change it unnoticed. Probes and scratch copies live in the investigation location.
 
 Three rules hold for the whole task:
 
@@ -40,25 +40,25 @@ When the scope cannot run here, try the repair route of [setup-tools](../setup-t
 
 Done when the scope is a named set of paths, the revision is recorded, and the baseline has a recorded result or a named obstruction.
 
-## 2. Record the stated design
+## 2. Write what it does, and the stated design
 
-Work from the outside in, before reading internals: the structure you find is evidence, and the stated design is what it is measured against.
+Work from the outside in, before reading internals: the structure you find is evidence, and the spec and the stated design are what it is measured against.
 
-- **Capabilities.** List what the component does for its consumers, in the project's own domain words, from its entry points (routes, commands, exported functions, jobs, event handlers), its callers, its documentation, and its test names. Aim for 5 to 15. Give a capability of its own to what every entry point passes through, such as authentication, authorization, error translation, or a mode switch, even though no entry point is named after it: scattered rules collect there. A test name states intent; the code under it establishes behavior.
+- **What it does.** Write the component's behavior as a spec, as [map format](references/map-format.md#what-it-does) says: one heading per feature, one item per behavior, each a condition and its result as a consumer sees it, with its entry point pinned and the tests that verify it. Take the features from what the component does for its consumers, in the project's own domain words, from its entry points (routes, commands, exported functions, jobs, event handlers), its callers, its documentation, and its test names. Aim for 5 to 15. Give a capability of its own to what every entry point passes through, such as authentication, authorization, error translation, or a mode switch, even though no entry point is named after it: scattered rules collect there. A test name states intent; the code under it establishes behavior. Mark each behavior *tested* only when a test asserts it at a pinned line or a deliberate break of step 3 turns a test red, and *untested* otherwise. The spec and its tests are what the rework is verified against.
 - **Stated dependencies.** Collect the components the documentation, decision records, instruction files, and directory layout name, and the dependencies allowed between them.
 - **Stated rules.** Quote, with its link, each sentence that says what a part must or must not do, such as "the API layer decides nothing about money" or "every backend path is built in the client module". A design is often stated more in rules than in dependencies.
 
 When nothing states a design, write the one the entry points and layout imply, label it *inferred*, and make it the first thing the user corrects.
 
-Checkpoint: show the capability list, the stated dependencies, and the stated rules. Ask what is missing or wrong, which flows matter most, where the code hurts, and which oddities are deliberate, such as a guard added after an incident.
+Checkpoint: show the spec, the stated dependencies, and the stated rules. Ask what is missing or wrong, which flows matter most, where the code hurts, and which oddities are deliberate, such as a guard added after an incident.
 
-Done when every entry point in scope belongs to a capability or is listed as unassigned, and every stated dependency and rule has its source: a quote, the user's answer, or *inferred*.
+Done when every entry point in scope belongs to a feature of the spec or is listed as unassigned, and every stated dependency and rule has its source: a quote, the user's answer, or *inferred*.
 
-## 3. Take a census of each capability
+## 3. Take a census of each feature
 
-A **decision site** is a place that decides something about a capability: a condition, a default, a validation, a transformation, or a write to its state. The **census** of a capability is every decision site, wherever it lives: helpers, validators, serializers, middleware, configuration, queries, templates. Take it as [census](references/census.md) says, from five kinds of evidence (text, references, execution, history, and a deliberate break), and read where they disagree:
+A **decision site** is a place that decides something about a feature: a condition, a default, a validation, a transformation, or a write to its state. The **census** of a feature is every decision site, wherever it lives: helpers, validators, serializers, middleware, configuration, queries, templates. Take it as [census](references/census.md) says, from five kinds of evidence (text, references, execution, history, and a deliberate break), and read where they disagree:
 
-- Code a scenario executes that no search for the capability's words found is a hidden part of it.
+- Code a scenario executes that no search for the feature's words found is a hidden part of it.
 - Code those words find that no scenario executes is a lead to dead code.
 - Files that change together with no dependency between them are a lead to one rule kept in two places.
 - A decision you break on purpose while every test stays green is behavior no test protects. Break the decisions that matter most: a check on who may do what, a rule about money or data, a value another system reads.
@@ -70,9 +70,11 @@ In the same pass, list two more things, each with its script and your own readin
 
 A **lead** is where to look. It enters the map only after you have read the code on both sides and, where a run decides it, run it.
 
-Take the capabilities in the user's order of importance, or, when nobody has said, by how often their files change. Inspect each as far as the session allows and say how far: *inspected*, *partly inspected* with what was read, or *not inspected* with the reason. Where text is itself the interface, such as a prompt, a tool description, or generated help, say whether it was compared with the code. When one session cannot inspect every capability, give each remaining one to an [investigator](../INVESTIGATE.md) through [native delegation](../WORKERS.md), with the stated design, the baseline, and the census reference; the map is the shared record. Split the work by capability, because a split by layer hides exactly the scattering this step looks for.
+Take the features in the user's order of importance, or, when nobody has said, by how often their files change. Inspect each as far as the session allows and say how far: *inspected*, *partly inspected* with what was read, or *not inspected* with the reason. Where text is itself the interface, such as a prompt, a tool description, or generated help, say whether it was compared with the code. When one session cannot inspect every feature, give each remaining one to an [investigator](../INVESTIGATE.md) through [native delegation](../WORKERS.md), with the stated design, the baseline, and the census reference; the map is the shared record. Split the work by feature, because a split by layer hides exactly the scattering this step looks for.
 
-Done when every capability has its decision sites listed with pinned lines and the kinds of evidence taken for it, or says how far it was inspected and why; every lead the map relies on is confirmed by reading or a run; and the leads not followed are counted in the map's limits.
+Write the result as the behavior map, as [map format](references/map-format.md#how-the-code-carries-it) says: each behavior of the spec, the files that decide, call through, or store state for it, and its weak point.
+
+Done when every behavior of the spec has its decision sites listed with pinned lines and the kinds of evidence taken for it, or says how far it was inspected and why; every lead the map relies on is confirmed by reading or a run; and the leads not followed are counted in the map's limits.
 
 ## 4. Draw the map as it is, and compare
 
@@ -81,6 +83,7 @@ Draw four views, each from extracted facts:
 - **Dependencies.** Get the edges between the scope's files from the ecosystem's resolver, or from [`import_edges.py`](scripts/import_edges.py) as a floor. Write the stated dependencies as the JSON that [`design_conformance.py`](scripts/design_conformance.py) reads, and run it: every relationship comes out *as stated*, *not stated* (the code has it and the design does not allow it), or *not found* (the design names it and no edge shows it). Read the file edges behind each result that is not *as stated*.
 - **Stated rules.** Check each quoted rule against the census: *holds*, with the search or run that covers it; *broken*, with the pinned line or run that breaks it; or *not checked*.
 - **State and data.** For each piece of state the scope keeps (a table, a file, a cache, a global, a class-level variable, a field), list the code that writes it and the code that reads it. For each piece of shapeless data, list its keys with their writers and readers, and the sites that change it after it is handed over. A component that keeps no state of its own and passes only declared values says so in one sentence, with the search that shows it.
+- **Flow direction.** Run `python3 <package>/skills/untangle/scripts/import_edges.py --cycles <scope>`: every group of files that depend on each other in a circle, and every pair of directories that do. Read each one, and each call or write that goes from a later part back to an earlier one in the order of the stated design: a callback, a listener, or an event that changes the caller's state. Readable code has calls and state that move one way.
 - **Flows.** Draw each main flow from the source, labeled *source*, and mark the steps a recorded run executed, with its source map as [evidence](../EVIDENCE.md#diagrams) says. Where an ordered trace is cheap, such as one end-to-end test under a tracer, record it.
 
 Checkpoint: lead with the differences, because a reviewer handed a whole map approves it unread. Show each *not stated* and *not found* dependency, each broken rule, each hidden part, each state with more than one writer, each piece of data changed after it is handed over, and each behavior no test protects, with its pinned line or run. For each difference, ask whether it is intended, in which case the stated design is what changes, or drift.
@@ -91,13 +94,12 @@ Done when every stated dependency and rule has a result with its evidence, every
 
 Write what you found as **problems**: each one thing that makes the component costly to change or possibly wrong, with its evidence, its picture, its proposed fix, and its decision in one place, as [map format](references/map-format.md#problems) says. A problem is one of three things.
 
-**Behavior to decide** is what the component does that may be wrong or unwanted: a possible defect, two sites that give different results for the same input, a fallback that changes what a consumer sees. It is not a structure problem and gets no structure name. Its fix is the handoff to [fix-bug](../fix-bug/SKILL.md) or [plan-change](../plan-change/SKILL.md) with the question that decides it. These problems come first: a user who no longer trusts the code reads them first.
-
-**A structure problem** gets one of seven names, with the evidence that confirms it:
+**A structure problem** is a weak point of the behavior map: a place where the code makes a behavior hard to find, follow, or change. It gets one of eight names, with the evidence that confirms it:
 
 - **Scattered rule:** one rule decided at more than one decision site. Nothing in the code says the sites must change together.
 - **Misplaced logic:** a decision made away from the owner of the state or rule it decides, such as a business rule in a serializer.
 - **Needless link:** pieces tied together that change for different reasons, such as stable code importing code that changes weekly, or a general function with a parameter one caller understands.
+- **Two-way flow:** calls or state that move in both directions between parts: a cycle of dependencies, a call from a later part back to an earlier one, or a callback, listener, event, or shared object through which a later step writes into an earlier one's state. A reader can no longer follow the code in one direction.
 - **Surplus:** code with no reason of its own to exist: a wrapper that only delegates, a module or subclass for each value of a discriminator whose members differ only by a constant, an extension point nothing varies, a setting nothing changes, code nothing reaches. Test it by deletion: if deleting it makes complexity vanish, it was surplus; if the complexity reappears in every caller, it was earning its place.
 - **Shared mutable state:** state that more than one module writes, or data that a module changes after another module handed it over. A reader cannot tell what a value holds without knowing every writer and the order they ran in.
 - **Shapeless data:** data passed between modules with no declared shape, so each site that reads or writes a key decides part of it. Its signs are a key written in several files, a key read with a default, and two readers whose defaults differ. Many unjustified special cases are its symptom: a reader defends itself because nothing says what the data holds.
@@ -105,15 +107,17 @@ Write what you found as **problems**: each one thing that makes the component co
 
 Classify every special case that has a row in the map as [special cases](references/special-cases.md) says, by whether anything reaches it and by what it points to. A special case is first a lead to something larger: a requirement the design never accounted for, a producer that emits a state it should not, or a boundary nobody made explicit. Name that, and the local line second. A special case that is *reached* and whose handling bends the design, as [corner cases](../CORNER-CASES.md) lists, is a **corner case**, the third kind of problem: its reach and harm, what each change to the general path pays for it, and the options, such as isolating it at the edge or rejecting the case at the boundary. Until the user chooses, it stays as it is.
 
-Rank the structure problems by what they cost today: how many places one change to the rule must touch, and how often the rule itself has changed. Take that from the history of the rule's lines or its discriminator; a file's change count says how busy the file is, not the rule. Where the history shows a change that updated some of a rule's places and missed others, draw it as a change history under the problem: it is the strongest evidence a lead sees. Problems that one change would remove are one problem, with the cause named and the others as its evidence. A problem in code nobody changes stays in the map with *no action* as its fix.
+**Behavior to decide** is what the component does that may be wrong or unwanted: a possible defect, two sites that give different results for the same input, a fallback that changes what a consumer sees. It is not a structure problem and gets no structure name. Its fix is the handoff to [fix-bug](../fix-bug/SKILL.md) or [plan-change](../plan-change/SKILL.md) with the question that decides it. These problems come last: the map is for restructuring, and a possible bug is a side result of reading the code closely. One whose recommended answer keeps today's behavior is titled as its question.
+
+Rank the structure problems and corner cases by what they cost today: how many places one change to the rule must touch, and how often the rule itself has changed. Take that from the history of the rule's lines or its discriminator; a file's change count says how busy the file is, not the rule. Where the history shows a change that updated some of a rule's places and missed others, draw it as a change history under the problem: it is the strongest evidence a lead sees. Problems that one change would remove are one problem, with the cause named and the others as its evidence. A problem in code nobody changes stays in the map with *no action* as its fix.
 
 **What is sound** records what works and should be kept, and what a reader would flag and the reason the user or the history gave, so that the next run does not raise it again. The reason is about structure or intent: a decision the code makes, a requirement, an incident. "The tests pass" says the code works; it does not say its shape is right.
 
-Done when every capability with more than one decision site for a rule, every difference the user called drift, and every special case with a row is a problem, part of one, or under *What is sound* with its reason; and every problem has its kind, how sure, what is wrong, and its decision.
+Done when every behavior with more than one decision site, every difference the user called drift, and every special case with a row is a problem, part of one, or under *What is sound* with its reason; and every problem has its kind, how sure, what is wrong, and its decision.
 
 ## 6. Propose the rework
 
-When the deliverable includes a proposal, follow [rework](references/rework.md): group the findings under the change that removes them, worked out as if the system had known today's requirements from the start; describe the recommended **target** in full and each alternative in a few sentences, one of which leaves the structure as it is; and give for the recommended target the ordered steps, each behavior-preserving, each with the **pin** that protects it. A pin is a test that fails when the behavior changes, seen failing once against a deliberate break. The breaks of step 3 already show which behaviors have one.
+When the deliverable includes a proposal, follow [rework](references/rework.md): group the findings under the change that removes them, worked out as if the system had known today's requirements from the start; describe the recommended **target** in full and each alternative in a few sentences, one of which leaves the structure as it is; and give for the recommended target its **flow**, the one direction calls and state move in, and its **module changes**: each module to rename, remove, merge, split, or move, with the reason, as [map format](references/map-format.md#the-plan-and-the-reference) says. Name a module after the decision it owns; remove or merge a module that owns none; split one that changes for two reasons. Then give the ordered steps, each behavior-preserving, each with the **pin** that protects it. A pin is a test that fails when the behavior changes, seen failing once against a deliberate break. The breaks of step 3 already show which behaviors have one.
 
 When the findings do not justify a restructuring, recommend leaving the structure as it is. The proposal is then the pins for the behavior no test protects, and the check that keeps the stated design true; step 7 still writes those pins.
 
@@ -125,7 +129,7 @@ Done when the user has chosen a target, or the choice is listed as open with the
 
 With a rework proposal, write the lock tests into the project's tests now, before anyone moves code. A request for a rework, or no answer, does not stop them: they change no behavior, and the rework is unsafe without them. Only when the user said the project must not change, write them at the investigation location and say in the delivery that they are not in the project. Follow [lock tests](references/lock-tests.md):
 
-1. **List what to lock.** Every behavior a step of the chosen target moves, and every behavior the deliberate breaks showed no test protects. Behavior already pinned by a test that the breaks turned red needs nothing new.
+1. **List what to lock.** Every behavior of the spec that a step of the chosen target moves and that is *untested*. Mark it *locked* in the spec once its lock test is written. Behavior already pinned by a test that the breaks turned red needs nothing new.
 2. **Write each test at a seam the rework keeps,** in the project's own test framework, layout, and naming, so the test still runs once the code behind the seam has moved. A probe from the census is its starting point. Assert what the code returns today, including behavior listed under behavior to decide: name such a test after what it records, such as "records that a gold quote is 38.00", and mark it as recording a value under decision, so the decision changes the test on purpose.
 3. **See each one fail.** In a scratch worktree, make the break the test is meant to catch and run the test; record the break and the red result. Restore, run the whole suite, and record it green. A test that stays green under its break locks nothing: rewrite it at another seam, or record the gap.
 

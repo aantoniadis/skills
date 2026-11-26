@@ -1902,7 +1902,8 @@ PROBLEM_FIELDS = ("Kind", "How sure", "What is wrong", "Decision")
 VERIFIED = ("tested", "locked", "untested")
 MODULE_CHANGES = ("Rename", "Remove", "Merge", "Split", "Move")
 PRINCIPLES = ("Single responsibility", "Open–closed", "Liskov substitution", "Interface segregation", "Dependency inversion",
-              "YAGNI", "Minimal shared state", "One-way flow", "Intention-revealing names", "Readable functions")  # CLEAN-STRUCTURE.md
+              "YAGNI", "Minimal shared state", "One-way flow", "Intention-revealing names", "Readable functions",
+              "Decisions with their data")  # CLEAN-STRUCTURE.md
 
 
 def spec_behaviors(document):

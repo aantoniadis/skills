@@ -355,6 +355,7 @@ The files by design part, the dependencies the code has, and where each rule is 
 - **One-way flow:** today the serializer reads customer records, against the order of the parts; proposed, calls move from API and quotes to pricing to storage.
 - **Intention-revealing names:** today `discounts.py` also names coupons, which it does not decide; proposed, it is renamed `loyalty.py`.
 - **Readable functions:** today the quote builder decides the tier rate inline, beside its layout code ([builder.py:27](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L27)); proposed, it calls `loyalty_discount` and keeps only layout.
+- **Decisions with their data:** today the serializer reads the customer's tier and decides the rate for it ([serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44)); proposed, `loyalty.py` decides it from the tier it is given.
 
 ### Lock tests
 

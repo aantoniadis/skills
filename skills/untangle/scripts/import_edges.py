@@ -19,6 +19,12 @@ directories then depend on each other. These are leads to read, not findings.
 With --cycles, it prints each group of files that depend on each other in a circle, with one path that
 closes it, and each pair of directories that depend on each other: where calls do not move one way.
 
+With --coupling, it prints the files that depend on the most others (fan-out) and that the most others
+depend on (fan-in), each directory's instability, the share of its outside dependencies that point
+outward (Ce / (Ca + Ce), 0 when only others depend on it), and each dependency of a directory on a
+less stable one. A stable directory changes least easily, so one that depends on a directory that
+changes more often is where a change ripples against the flow. These are leads for where to read.
+
 Run from the repository root, or pass --repo. Exit 2 for invalid inputs or failed Git
 operations. Output goes to stdout; no files are written.
 """
@@ -295,6 +301,26 @@ def cycles(pairs):
     return sorted(groups, key=lambda g: (-len(g), g)), graph
 
 
+def coupling(pairs):
+    """(fan_out, fan_in, instability, against): per file the files it depends on and the files that depend on
+    it; per directory (Ce, Ca, I); and each directory dependency on a less stable directory, as (from, to)."""
+    directory = lambda path: str(PurePosixPath(path).parent)
+    fan_out, fan_in, outward, inward = {}, {}, {}, {}
+    for source, target in pairs:
+        fan_out.setdefault(source, set()).add(target)
+        fan_in.setdefault(target, set()).add(source)
+        a, b = directory(source), directory(target)
+        if a != b:
+            outward.setdefault(a, set()).add(b)
+            inward.setdefault(b, set()).add(a)
+    instability = {}
+    for name in sorted(set(outward) | set(inward)):
+        ce, ca = len(outward.get(name, ())), len(inward.get(name, ()))
+        instability[name] = (ce, ca, ce / (ca + ce))
+    against = sorted((a, b) for a, targets in outward.items() for b in targets if instability[b][2] > instability[a][2])
+    return fan_out, fan_in, instability, against
+
+
 def added(base_edges, head_edges):
     """(from, to, notes) for each edge the head has and the base lacks."""
     graph, directory = {}, lambda path: str(PurePosixPath(path).parent)
@@ -329,6 +355,8 @@ def main():
     parser.add_argument("--base", help="print only the edges added since this commit")
     parser.add_argument("--head", help="with --base: the commit that holds the change; default is the working tree")
     parser.add_argument("--cycles", action="store_true", help="print the groups of files and the directories that depend on each other")
+    parser.add_argument("--coupling", action="store_true", help="print fan-out, fan-in, directory instability, and dependencies on less stable directories")
+    parser.add_argument("--top", type=int, default=10, help="with --coupling: how many files to list for fan-out and fan-in")
     args = parser.parse_args()
     if args.head and not args.base:
         parser.error("--head needs --base")
@@ -369,6 +397,20 @@ def main():
             print("\nDirectories that depend on each other:")
             for a, b in mutual:
                 print(f"{a}/ <-> {b}/")
+        return 0
+    if args.coupling:
+        fan_out, fan_in, instability, against = coupling(rows)
+        print("Coupling: leads for where to read, not findings (static imports; an absent edge proves nothing).")
+        for title, counts in (("Files with the most dependencies (fan-out)", fan_out), ("Files the most files depend on (fan-in)", fan_in)):
+            print(f"\n{title}:")
+            for name, linked in sorted(counts.items(), key=lambda item: (-len(item[1]), item[0]))[:args.top]:
+                print(f"{len(linked)}\t{name}")
+        print("\nDirectories (Ce = directories it depends on, Ca = directories that depend on it, I = Ce / (Ca + Ce)):")
+        for name, (ce, ca, value) in instability.items():
+            print(f"{name}/\tCe {ce}\tCa {ca}\tI {value:.2f}")
+        print(f"\nDependencies on a less stable directory: {len(against)}")
+        for a, b in against:
+            print(f"{a}/ ({instability[a][2]:.2f}) -> {b}/ ({instability[b][2]:.2f})")
         return 0
     if args.base:
         rows = added(before, rows)

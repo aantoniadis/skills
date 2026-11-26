@@ -86,9 +86,9 @@ kind: rework-map
 
 ### Design principles
 
-- **{{Single_responsibility_Open–closed_Liskov_substitution_Interface_segregation_Dependency_inversion_YAGNI_Minimal_shared_state_One-way_flow_or_Intention-revealing_names_or_Readable_functions}}:** {{today_the_check_result_with_its_evidence_then_proposed_the_result_for_the_target_or_not_applicable_with_the_reason}}
+- **{{Single_responsibility_Open–closed_Liskov_substitution_Interface_segregation_Dependency_inversion_YAGNI_Minimal_shared_state_One-way_flow_or_Intention-revealing_names_Readable_functions_or_Decisions_with_their_data}}:** {{today_the_check_result_with_its_evidence_then_proposed_the_result_for_the_target_or_not_applicable_with_the_reason}}
 
-{{one_item_per_principle_all_ten_in_this_order}}
+{{one_item_per_principle_all_eleven_in_this_order}}
 
 ### Lock tests
 

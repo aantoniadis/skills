@@ -136,8 +136,8 @@ worth it, and the author who carries it out.
   change is split. The whole structure has a switch between today and the
   proposal, which shows renamed, removed, and added modules. Then the
   **design principles**: single responsibility, the rest of SOLID, YAGNI,
-  minimal shared state, one-way flow, intention-revealing names, and
-  readable functions, each
+  minimal shared state, one-way flow, intention-revealing names,
+  readable functions, and decisions with their data, each
   checked on the code today and on the target, so a lead sees what the
   rework buys. The [clean structure](../skills/CLEAN-STRUCTURE.md) guide
   holds the check for each. Then come the lock tests and the steps.
@@ -190,7 +190,7 @@ writes files: its run logs, in the directory you give it.
 | Script | Prints |
 | --- | --- |
 | `change_coupling.py` | The most changed files in scope, and the pairs of files that change in the same commits, including partners outside the scope, marked when no dependency links them. With `--functions`, the same for functions, which finds a rule scattered inside one large file. It warns on a shallow clone. |
-| `import_edges.py` | Static import edges between tracked files in Python, JavaScript, TypeScript, and Java, and in Ruby `require_relative` and references to a constant one file defines, as `from<TAB>to`. With `--rev`, at a commit. With `--base`, only the edges a change adds, each with the cycle it closes and the first dependency of one directory on another. With `--cycles`, every group of files that depend on each other, with an example loop, and every pair of directories that do. A floor: use the ecosystem's own resolver when there is one. |
+| `import_edges.py` | Static import edges between tracked files in Python, JavaScript, TypeScript, and Java, and in Ruby `require_relative` and references to a constant one file defines, as `from<TAB>to`. With `--rev`, at a commit. With `--base`, only the edges a change adds, each with the cycle it closes and the first dependency of one directory on another. With `--cycles`, every group of files that depend on each other, with an example loop, and every pair of directories that do. With `--coupling`, fan-out and fan-in per file, instability per directory, and each dependency of a directory on a less stable one. A floor: use the ecosystem's own resolver when there is one. |
 | `design_conformance.py` | Each dependency of a stated design, given as JSON, against those edges: *as stated*, *not stated*, or *not found*. |
 | `special_cases.py` | Lines that handle one situation apart from the main path: broad error handlers, errors turned into values, defaults for missing values, early returns, retries, status and version branches, compatibility paths, suppressed checks. |
 | `shared_data.py` | Globals, class-level variables, module-level collections, contexts, and memos; and a ledger of hash and dict keys: the files that write each key, the files that read it, and the reads that supply a default. With `--base`, only the state lines a change adds and the keys it uses on an added line. |

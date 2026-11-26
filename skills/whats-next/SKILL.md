@@ -52,6 +52,7 @@ context window: a new session in the host, or its clear command.
 | A plan whose Readiness line says ready, and no spec or tickets | `plan-change` to draft the spec and tickets, or Matt's `to-spec` then `to-tickets` | The same planning session, unbroken |
 | A plan with open decisions or blocked slices | `plan-change` on the open choices | The same planning session |
 | A rework map with a chosen target, and no plan for it | `plan-change`, with the map path and the target's name | A new session |
+| A rework map with a chosen target, and commits since its revision that carry out the rework | `untangle` on the same map, to re-measure the rework | A new session |
 | A rework map with unanswered questions for the user | `untangle` on the same map, with the answers | A new session; the map holds the earlier answers |
 | An understanding note, and no plan | `plan-change`, with the note path | The same session |
 | A change with consequences beyond its own function, and no note or plan | `explain` for one concrete question about today's behavior, or `plan-change` when the flow is already known | Start the planning session here |

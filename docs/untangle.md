@@ -87,6 +87,15 @@ Prompt shape:
 /aantoniadis-skills:untangle <component, directory, or flow> <what hurts about it, if you know>
 ```
 
+## After the rework
+
+`plan-change` takes the map's chosen target and your answers as decisions
+already made, plans one slice per rework step, and puts the lock tests
+first. Once the rework lands, run `untangle` again on the same map. It
+reruns the lock tests and the census for the rules the target names, and
+reports each target measure before and now, such as decision sites for a
+rule going from 3 to 1, as met or not met.
+
 ## What it asks you, and what it does not
 
 It answers from the code, its history, and runs whatever those can answer. It

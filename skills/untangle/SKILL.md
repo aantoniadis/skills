@@ -165,4 +165,6 @@ When nobody answers, as in an unattended run, hold no checkpoint: continue throu
 - A special case stays.
 - Rework steps include only moves that keep behavior and hold under either answer. A move that depends on an open answer is listed as waiting for it.
 
+After the rework lands, a follow-up re-measures it against the same map. At the new revision, run the lock tests and the conformance check again, and take the census again for the rules and data the target names. Fill the map's *After the rework* section: for each line of the target's **Measure**, the value before, the value now, and *met* or *not met* with the run. A rule still decided in more than one file, or a dependency still *not stated*, is a finding of the rework, and its step is reopened. A lock test that changed without a decision behind it is behavior to decide.
+
 A follow-up, such as "the guard in the importer came from an outage", resumes the same map: recheck the revision, record the answer beside its claim, and update the findings, targets, and steps it changes.

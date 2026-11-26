@@ -147,6 +147,10 @@ kind: rework-map
 
 {{steps_that_wait_for_an_open_answer_named_with_the_question}}
 
+## After the rework
+
+{{only_in_a_follow_up_after_the_rework_landed_one_line_per_measure_before_now_and_met_or_not_met_with_the_run_else_remove}}
+
 ## Limits and open questions
 
 {{capabilities_partly_or_not_inspected_scenarios_not_run_leads_not_followed_edge_source_limits_history_depth_and_the_check_that_would_settle_each}}

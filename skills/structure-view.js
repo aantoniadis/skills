@@ -15,11 +15,24 @@
       return files.find(f => { const r = f.querySelector("rect"), rx = +r.getAttribute("x"), ry = +r.getAttribute("y");
         return x >= rx && x <= rx + +r.getAttribute("width") && y >= ry && y <= ry + +r.getAttribute("height"); });
     };
+    function backLabels() {  // a fitted backing behind each lane caption, so edges never show through its words
+      for (const t of fig.querySelectorAll(".sv-labels text")) {
+        let bg = t.previousElementSibling;
+        if (!bg || !bg.classList.contains("sv-label-bg")) {
+          bg = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+          bg.setAttribute("class", "sv-label-bg"); bg.setAttribute("rx", "4"); t.before(bg);
+        }
+        const b = t.getBBox();
+        bg.setAttribute("x", b.x - 5); bg.setAttribute("y", b.y - 2);
+        bg.setAttribute("width", b.width ? b.width + 10 : 0); bg.setAttribute("height", b.height + 4);
+      }
+    }
     function render() {
       fig.dataset.view = view;
       switcher.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.view === view));
       facts.innerHTML = facts.dataset[view];
       if (sideLabel) sideLabel.textContent = sideLabel.dataset[view];
+      backLabels();
       for (const e of edges) {
         const status = e.dataset[view];
         e.style.display = status ? "" : "none";

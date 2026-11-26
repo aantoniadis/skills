@@ -195,7 +195,7 @@ def summary(soup, overview):
         if (label and paragraph.contents and paragraph.contents[0] is label
                 and not paragraph.get_text().startswith(("Scope:", "Inspected source:", "Reviewed:"))):
             block = soup.new_tag("div", attrs={"class": "wb-summary-item"})
-            title = soup.new_tag("p", attrs={"class": "wb-summary-label"})
+            title = soup.new_tag("h2", attrs={"class": "wb-summary-label"})
             title.string = label.get_text().rstrip(":")
             block.append(title)
             text = clone(soup, paragraph)

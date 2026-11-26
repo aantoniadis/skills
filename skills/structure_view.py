@@ -17,7 +17,8 @@ RESULTS = ("as stated", "not stated", "not found")
 OUTCOMES = {"moves": "moves to its owner", "stays": "stays where it is", "waits": "waits for your answer"}
 PARTLY = "partly waits for your answer"
 PIN = re.compile(r"^(?:proposed\b.*|[\w./@+-]+\.\w{1,6}:\d+(?:-\d+)?(?:,\s*[\w./@+-]+\.\w{1,6}:\d+(?:-\d+)?)*)$")
-COLORS = ("#2f7f86", "#b07a1f", "#6b5aa6", "#4f8a5b", "#b0527a", "#5b6f7d", "#9a5a3c", "#3d6fa8")
+# Each carries a white letter at 6:1 or better.
+COLORS = ("#1d6d73", "#8a5508", "#5a48a3", "#2c6e44", "#a03a66", "#475a6c", "#8f3f22", "#2a5ea8")
 BOX_W, GAP, LANE_PAD, HEAD, CHANNEL, SIDE_GAP, SIDE_W, DOT, PER_ROW = 196, 34, 16, 32, 50, 56, 188, 26, 6
 LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
@@ -332,14 +333,16 @@ def figure(data, index):
         f'<span>{escape(r["name"])}</span><span class="sv-count" data-today="{len({s["file"] for s in r["sites"]})}" '
         f'data-proposed="{len({h for i, _, h in site_homes(data, "proposed") if i == ri})}"></span></button></li>' for ri, r in enumerate(rules))
     details = "".join(
-        f'<div class="sv-detail" data-rule="{ri}" hidden><h4>{escape(r["name"])}</h4><span class="sv-state">{escape(state_of(r))}</span><ul>'
+        f'<div class="sv-detail" data-rule="{ri}" hidden><h3>{escape(r["name"])}</h3><span class="sv-state">{escape(state_of(r))}</span><ul>'
         + "".join(f'<li><span class="sv-code">{escape(s["at"])}</span> {escape(s.get("what", ""))}'
                   + ('' if r["outcome"] != "moves" or s.get("waits") or s["file"] == r["owner"]
                      else f' <span class="sv-moves">→ moves to <span class="sv-code">{escape(files[r["owner"]]["path"])}</span></span>') + '</li>' for s in r["sites"])
         + f'</ul><p>{escape(r.get("note", ""))}</p></div>' for ri, r in enumerate(rules))
-    legend = ('<p class="sv-legend"><span><i class="as-stated"></i>dependency the design allows</span><span><i class="not-stated"></i>dependency the design does not allow</span>'
-              '<span><i class="not-found"></i>the design expects it; the code lacks it</span><span><i class="dot"></i>a file that decides a rule</span>'
-              '<span><i class="dot waits"></i>waits for your answer</span></p>')
+    legend = ('<p class="sv-legend"><span><span class="sv-key-line as-stated"></span>dependency the design allows</span>'
+              '<span><span class="sv-key-line not-stated"></span>dependency the design does not allow</span>'
+              '<span><span class="sv-key-line not-found"></span>the design expects it; the code lacks it</span>'
+              '<span><span class="sv-key-dot"></span>a file that decides a rule</span>'
+              '<span><span class="sv-key-dot waits"></span>waits for your answer</span></p>')
     table = ('<details class="sv-table-box"><summary>The rules as a table</summary><table class="sv-table"><thead><tr><th>Rule</th><th>Decided today in</th><th>Proposed owner</th><th>Under the proposal</th></tr></thead><tbody>'
              + "".join(f'<tr><td><b>{LETTERS[ri]}</b> {escape(r["name"])}</td><td>' + "<br>".join(f'<span class="sv-code">{escape(s["at"])}</span> {escape(s.get("what", ""))}' for s in r["sites"])
                        + f'</td><td><span class="sv-code">{escape(files[r["owner"]]["path"])}</span></td><td>{escape(state_of(r))}. {escape(r.get("note", ""))}</td></tr>' for ri, r in enumerate(rules))
@@ -349,7 +352,7 @@ def figure(data, index):
                 f'<button type="button" data-view="today" aria-pressed="true">{escape(names["today"])}</button>'
                 f'<button type="button" data-view="proposed" aria-pressed="false">{escape(names["proposed"])}</button></div>'
                 f'<div class="sv-facts" aria-live="polite" data-today="{escape(facts(data, "today"))}" data-proposed="{escape(facts(data, "proposed"))}">{facts(data, "today")}</div></div>')
-    panel = (f'<aside class="sv-panel"><h4 class="sv-panel-title">Rules, and where each is decided</h4><ul class="sv-rules">{buttons}</ul>'
+    panel = (f'<aside class="sv-panel"><h3 class="sv-panel-title">Rules, and where each is decided</h3><ul class="sv-rules">{buttons}</ul>'
              f'<div class="sv-details" aria-live="polite"><p class="sv-hint">Select a rule to follow it across files.</p>{details}</div></aside>') if rules else ""
     html = [f'<figure class="structure-view" data-view="today" role="region" aria-label="Structure view {index}">', controls,
             f'<div class="sv-grid">{svg}{panel}</div>', legend, table, data_view(data, files), '</figure>']
@@ -380,10 +383,10 @@ def data_view(data, files):
             rows.append(f'<tr data-files="{escape(" ".join(sorted(writers | {s["file"] for s in k.get("reads", [])})))}"><th scope="row"><span class="sv-code">{escape(str(k.get("key")))}</span></th>'
                         + "".join(cells) + f'<td class="sv-signs">{escape("; ".join(signs)) or "—"}</td></tr>')
         proposed = f'<p class="sv-proposed-shape"><b>Proposed:</b> {escape(item["proposed"])}</p>' if item.get("proposed") else ""
-        blocks.append(f'<div class="sv-data"><h4>{escape(item.get("name", "Data"))}: who writes and reads each key</h4>'
+        blocks.append(f'<div class="sv-data"><h3>{escape(item.get("name", "Data"))}: who writes and reads each key</h3>'
                       f'<p class="sv-hint">W writes the key. R reads it; R·x reads it with the default x. Select a row to see its files above.</p>'
-                      f'<div class="table-scroll" tabindex="0"><table class="sv-matrix"><thead><tr><th scope="col">Key</th>{head}<th scope="col">Signs</th></tr></thead>'
-                      f'<tbody>{"".join(rows)}</tbody></table></div>{proposed}</div>')
+                      f'<table class="sv-matrix"><thead><tr><th scope="col">Key</th>{head}<th scope="col">Signs</th></tr></thead>'
+                      f'<tbody>{"".join(rows)}</tbody></table>{proposed}</div>')
     return "".join(blocks)
 
 

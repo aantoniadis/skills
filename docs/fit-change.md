@@ -49,7 +49,12 @@ to you, on evidence, before the code is written.
 
 **Check**, after the change:
 
-1. **Pin** the base and head and run the tests at the head.
+1. **Pin** the base and head, ask whether to report only or also apply the
+   fixes that keep behavior, and run the tests at the head. When they fail,
+   the card says so first, on a **Blocks merging** line, and the structure
+   check goes on. When its folder already holds a card, the skill reads it
+   before it writes: the same head is updated in place, and a new head is a
+   re-check.
 2. **Take leads on the added lines:** the guards, defaults, handlers, and
    retries the change adds; the classes, modules, and files it adds with
    what each holds, its wrappers, its options nothing sets, and its
@@ -109,6 +114,14 @@ many changed files were read and name any that were not. When you ask it to appl
 reuses, or returns a value in place of changing one; it adds no abstraction,
 no check, and no test for a state nothing produces.
 
+**Re-check**, when the change moved after a check: the skill lists the
+commits that arrived, keeps the earlier card under the earlier head's name,
+runs the check again at the new head, and gives each earlier problem a
+resolution with the commit that changed it: *Resolved*, with the line that
+shows it; *Open*, with what remains; or *Accepted tradeoff*, with the
+author's decision quoted. A commit written before the earlier card did not
+answer it: the card says only that the two agree.
+
 Prompt shapes:
 
 ```text
@@ -150,11 +163,13 @@ Prompt shapes:
 A run on its own writes a change card, `change-card.md`, and its page, in the
 same shape as `untangle`'s map: *In short* with the problem, what we propose,
 and what you decide; then one section per problem (why the change does not
-fit, each corner case, each finding of a check) with its picture before and
-after the change, its evidence side by side, its fix, and its decision; then
+fit, each corner case, each finding of a check) with its picture, its evidence side by side, its fix, and its decision; then
 the plan for the implementer, with any module it renames, removes,
 merges, splits, or moves. Problems are ranked by what the structure costs;
-a possible bug comes last, as a behavior to decide. Called from `plan-change` or `fix-bug`, the
+a possible bug comes last, as a behavior to decide. The picture of a
+placement shows the files before and after the change; the picture of a
+check shows the head beside the head with the proposed fixes, and a card with
+problems scores the design principles the same way. Called from `plan-change` or `fix-bug`, the
 placement goes into the slice or the fix instead, with no page.
 
 ## Called by other skills

@@ -146,6 +146,20 @@ The display copy of the rate moves to its owner (source, at the pinned lines in 
 
 **Failure behavior:** the change meets no new failure: an unknown customer still gets no discount ([pricing.py:11](https://github.com/acme/shop/blob/eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/shop/pricing.py#L11)).
 
+### Design principles
+
+- **Single responsibility:** met → met: today `pricing` decides rates ([pricing.py:9](https://github.com/acme/shop/blob/eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/shop/pricing.py#L9)) and the serializer formats the order; proposed, unchanged.
+- **Open–closed:** broken → met: today a new tier edits the rate table and the serializer's chain ([serializers.py:9](https://github.com/acme/shop/blob/eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/shop/api/serializers.py#L9)); after the reshape it is one table entry (proposed).
+- **Liskov substitution:** not applicable: we ran `git grep -n "class .*(" shop/`, and it found no subclass in scope.
+- **Interface segregation:** met → met: today `loyalty_discount` takes the tier and the subtotal it reads ([pricing.py:9](https://github.com/acme/shop/blob/eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/shop/pricing.py#L9)).
+- **Dependency inversion:** met → met: today `pricing` imports no storage or framework code ([pricing.py:6](https://github.com/acme/shop/blob/eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/shop/pricing.py#L6)); proposed, unchanged.
+- **YAGNI:** met → met: today nothing in scope lacks a caller; proposed, the change adds no unit, option, or extension point.
+- **Minimal shared state:** met → met: today the rate table is a constant ([pricing.py:6](https://github.com/acme/shop/blob/eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/shop/pricing.py#L6)); proposed, no state is added.
+- **One-way flow:** met → met: today the serializer calls nothing back ([serializers.py:9](https://github.com/acme/shop/blob/eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/shop/api/serializers.py#L9)); proposed, it calls `pricing`, and nothing calls back.
+- **Intention-revealing names:** met → met: today `loyalty_discount` is named for the value it returns ([pricing.py:9](https://github.com/acme/shop/blob/eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/shop/pricing.py#L9)); proposed, unchanged.
+- **Readable functions:** broken → met: today the serializer's `if tier == ...` chain repeats the table as branches ([serializers.py:9-11](https://github.com/acme/shop/blob/eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/shop/api/serializers.py#L9-L11)); the reshape replaces it with one call (proposed).
+- **Decisions with their data:** broken → met: today the serializer decides a rate from the tier ([serializers.py:9](https://github.com/acme/shop/blob/eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/shop/api/serializers.py#L9)), which is `pricing`'s data; proposed, it asks `pricing`.
+
 ### Steps
 
 1. Lock, proposed: a test that the order JSON shows a 4.00 discount for a gold 40.00 basket, seen failing with the serializer's rate changed.
@@ -167,6 +181,7 @@ These labels describe separate judgments. Read each against its stated scope and
 | as stated | The design allows the relationship and the extracted dependencies show it. The result is as complete as the dependency source named beside it. |
 | not stated | The code has the relationship and the stated design does not allow it. It is drift or an intended relationship the design never recorded; the user's answer says which. |
 | not found | The design names the relationship and no extracted dependency shows it. The dependency may run through something the source of the edges cannot see. |
+| not compared | The project states no design that covers the relationship, so it was drawn and not judged. It neither follows the design nor breaks it. |
 
 ### Key: Kinds of problem
 

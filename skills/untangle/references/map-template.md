@@ -124,7 +124,7 @@ kind: rework-map
 
 | Relationship | Result | Evidence | What the user said |
 | --- | --- | --- | --- |
-| {{from_component_to_component}} | {{as_stated_not_stated_or_not_found}} | {{edge_source_command_and_the_decisive_file_edges_pinned}} | {{intended_drift_or_open}} |
+| {{from_component_to_component}} | {{as_stated_not_stated_not_found_or_not_compared_for_a_file_the_design_does_not_name}} | {{edge_source_command_and_the_decisive_file_edges_pinned}} | {{intended_drift_or_open}} |
 
 | Stated rule | Result | Evidence | What the user said |
 | --- | --- | --- | --- |

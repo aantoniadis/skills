@@ -44,6 +44,13 @@ if __name__ == "__main__":
     parser.add_argument("project", nargs="?", default=".", help="project directory (default: current directory)")
     args = parser.parse_args()
     try:
-        print(investigation_dir(args.project, args.topic))
+        path = investigation_dir(args.project, args.topic)
     except (OSError, ValueError) as error:
         parser.exit(1, f"{error}\n")
+    print(path)
+    # An earlier session may have left notes here; a write over them loses them. Stderr keeps stdout one path.
+    held = sorted(entry.name for entry in path.iterdir())
+    if held:
+        print(f"investigation_dir: {path} already holds {len(held)} {'entry' if len(held) == 1 else 'entries'}: {', '.join(held[:12])}"
+              f"{', …' if len(held) > 12 else ''}. Read its notes before you write; update a note in place, "
+              "or pass a new topic.", file=sys.stderr)

@@ -24,7 +24,7 @@ For a new note, start from the calling skill's Markdown template:
 | Acceptance report | [report-template.md](check-acceptance/references/report-template.md) | [Report format](check-acceptance/references/report-format.md) |
 | Bug diagnosis | [diagnosis-template.md](fix-bug/references/diagnosis-template.md) | [Diagnosis-page guidance](fix-bug/references/diagnosis-page.md) and the calling skill |
 | Rework map | [map-template.md](untangle/references/map-template.md) | [Map format](untangle/references/map-format.md) and the calling skill |
-| Change card | [card-template.md](fit-change/references/card-template.md) | The calling skill; the structure view as the [map format](untangle/references/map-format.md#pictures) says |
+| Change card | [card-template.md](fit-change/references/card-template.md) | The calling skill; the structure view and the design principles as the [map format](untangle/references/map-format.md#pictures) says |
 
 Replace every `{{...}}` prompt with supported content. Keep the front matter's
 `kind` line: whats-next classifies the note by it, and `--check` rejects any
@@ -117,6 +117,9 @@ Keep proposed behavior, agreement, source inference, and runtime evidence distin
 Preserve useful anchors as the report develops.
 
 Deliver one portable HTML file with styles, diagrams, and required scripts inline.
+The page embeds every file it cites whole, for its code previews, not only the
+cited lines. Before the page leaves the machine, as a published or shared page,
+tell the user so and name the embedded files.
 The renderer embeds the bundled Manrope font and its license. The shared
 [diagram theme](diagram-theme.json) supplies Mermaid colors and typography.
 Shared assets are authoring inputs; the delivered page must work without those

@@ -185,7 +185,7 @@ def in_short(soup, found):
     holder["class"] = holder.get("class", []) + ["in-short"]
     for paragraph in holder.find_all("p", recursive=False):
         label = label_of(paragraph)
-        if label in ("The problem", "What we propose", "What you decide"):
+        if label in ("The problem", "What we propose", "What you decide", "Blocks merging"):
             paragraph["class"] = paragraph.get("class", []) + ["field", f"field-{slug(label)}"]
     waiting = [f for f in found if f["status"] in WAITING and f["decision"] is not None]
     if not waiting:
@@ -247,8 +247,9 @@ def spec(soup):
 RESULTS = ("not applicable", "broken", "met")
 
 
-def scorecard(soup):
-    """The design principles as a grid of today against proposed; each item's evidence folds beneath it."""
+def scorecard(soup, kind):
+    """The design principles as a grid of today against proposed; each item's evidence folds beneath it.
+    The columns take the structure view's own labels, so a change card's "At the head" reads the same in both."""
     heading = soup.main.find("h3", id="design-principles")
     listing = heading.find_next_sibling() if heading else None
     if getattr(listing, "name", None) not in ("ul", "ol"):
@@ -256,20 +257,23 @@ def scorecard(soup):
     table = soup.new_tag("table", attrs={"class": "scorecard"})
     head = soup.new_tag("thead")
     row = soup.new_tag("tr")
-    for text in ("Principle", "Today", "Proposed"):
+    views = [soup.main.select_one(f'.sv-switch button[data-view="{view}"]') for view in ("today", "proposed")]
+    names = [button.get_text(strip=True) if button else default for button, default in zip(views, ("Today", "Proposed"))]
+    for text in ("Principle", *names):
         cell = soup.new_tag("th", attrs={"scope": "col"})
         cell.string = text
         row.append(cell)
     head.append(row)
     table.append(head)
     body = soup.new_tag("tbody")
-    fixed = 0
+    fixed = broken = 0
     for item in listing.find_all("li", recursive=False):
         name = item.strong.get_text(strip=True).rstrip(":") if item.strong else ""
         rest = item.get_text(" ", strip=True).split(":", 1)[-1].strip().lower()
         pair = re.match(r"(not applicable|broken|met)\s*(?:→|->)\s*(not applicable|broken|met)", rest)
         today, proposed = pair.groups() if pair else (("not applicable",) * 2 if rest.startswith("not applicable") else ("", ""))
         fixed += today == "broken" and proposed == "met"
+        broken += today == "broken"
         row = soup.new_tag("tr")
         cell = soup.new_tag("th", attrs={"scope": "row"})
         cell.string = name
@@ -283,7 +287,9 @@ def scorecard(soup):
         body.append(row)
     table.append(body)
     caption = soup.new_tag("caption")
-    caption.string = f"The rework restores {fixed} of {len(listing.find_all('li', recursive=False))} principles."
+    total = len(listing.find_all("li", recursive=False))
+    caption.string = (f"The rework restores {fixed} of {total} principles." if kind == "rework-map"
+                      else f"{broken} of {total} principles broken; the proposal restores {fixed}.")
     table.insert(0, caption)
     holder = soup.new_tag("div", attrs={"class": "table-scroll scorecard-box", "tabindex": "0", "role": "region",
                                          "aria-label": "Design principles scorecard"})
@@ -310,7 +316,7 @@ def build(soup, kind):
     soup.body["class"] = soup.body.get("class", []) + ["report", kind]
     found = problems(soup)
     spec(soup)
-    scorecard(soup)
+    scorecard(soup, kind)
     problem_links(soup, found)
     rail(soup, found)
     header(soup, found)

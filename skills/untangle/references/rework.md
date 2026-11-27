@@ -120,13 +120,16 @@ Write every step with:
   step: it belongs under behavior to decide. A step that holds only under one
   answer to an open question is listed as waiting for that answer;
 - the files it touches, and every call site of a moved or changed symbol,
-  enumerated with a resolver. Call sites left behind are the most common
-  failure of a rework across files;
+  enumerated with a resolver, with the tests and test doubles that name it.
+  Call sites left behind are the most common failure of a rework across
+  files;
 - its pin;
 - its proof that behavior is unchanged: the pins green, and for a step that
   moves a decision, the old and the new output compared on the same inputs.
   A step that changes only a document or a check has no pin; its proof is the
-  check itself.
+  check itself. The proof has to run after the step: a probe that calls
+  code the step removes is rewritten before the step, and its output kept
+  for the comparison.
 
 The steps are a plan. Carrying them out is a separate task that the user
 starts, through [plan-change](../../plan-change/SKILL.md) for the whole

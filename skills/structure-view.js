@@ -45,9 +45,9 @@
         e.style.display = status ? "" : "none";
         if (status) {
           const cls = status.replace(" ", "-");
-          e.classList.remove("as-stated", "not-stated", "not-found"); e.classList.add(cls);
+          e.classList.remove("as-stated", "not-stated", "not-found", "not-compared"); e.classList.add(cls);
           const line = e.querySelector(".sv-line"), marker = line.getAttribute("marker-end");
-          line.setAttribute("marker-end", marker.replace(/-(as-stated|not-stated|not-found)\)$/, "-" + cls + ")"));
+          line.setAttribute("marker-end", marker.replace(/-(as-stated|not-stated|not-found|not-compared)\)$/, "-" + cls + ")"));
         }
         e.classList.toggle("dim", selected !== null);
       }

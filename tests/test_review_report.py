@@ -441,8 +441,10 @@ class ReviewReportTests(unittest.TestCase):
                 self.assertEqual(review.returncode != 0, refused, review.stderr)
                 if refused:
                     self.assertIn("'diagram renderer unavailable' to '## Evidence and record'", review.stderr)
-                plain = subprocess.run(command, capture_output=True, text=True)
-                self.assertEqual(plain.returncode, 0, plain.stderr)
+                plain = subprocess.run(command, capture_output=True, text=True)  # every kind of page records it, anywhere in the note
+                self.assertEqual(plain.returncode != 0, refused, plain.stderr)
+                if refused:
+                    self.assertIn("A diagram is left as source", plain.stderr)
 
     def test_html_cannot_silently_change_fulfillment_or_results(self):
         html = page.render(REPORT, self.note.name)

@@ -26,7 +26,9 @@ from html import escape
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
-RESULTS = ("as stated", "not stated", "not found")
+RESULTS = ("as stated", "not stated", "not found", "not compared")
+# The arrow and line style of each result, as a class name.
+STYLES = tuple(r.replace(" ", "-") for r in RESULTS)
 OUTCOMES = {"moves": "moves to its owner", "stays": "stays where it is", "waits": "waits for your answer"}
 PARTLY = "partly waits for your answer"
 PIN = re.compile(r"^(?:proposed\b.*|[\w./@+-]+\.\w{1,6}:\d+(?:-\d+)?(?:,\s*[\w./@+-]+\.\w{1,6}:\d+(?:-\d+)?)*)$")
@@ -42,8 +44,8 @@ def problems(data):
     if not isinstance(data, dict):
         return ["the fence holds no JSON object"]
     parts, files = data.get("parts"), data.get("files")
-    if not isinstance(parts, list) or not parts or not isinstance(files, list) or not files:
-        return ["give `parts` (the design's parts, in the direction dependencies may point) and `files`"]
+    if not isinstance(parts, list) or not isinstance(files, list) or not files:
+        return ["give `parts` (the design's parts, in the direction dependencies may point, or [] when the project states none) and `files`"]
     part_ids = [p.get("id") for p in parts]
     file_ids = [f.get("id") for f in files]
     for label, ids in (("part", part_ids), ("file", file_ids)):
@@ -136,8 +138,10 @@ def dot_positions(data, boxes, view):
 
 def layout(data):
     """Boxes, lanes, edges, and dot positions for both views."""
-    parts = data["parts"]
     files = data["files"]
+    # No stated design, or a focus whose files are all outside it: one unnamed lane holds every file.
+    unnamed = not data["parts"]
+    parts = [{"id": "outside", "label": data.get("lane", "No stated design")}] if unnamed else data["parts"]
     per_file = {}
     for view in ("today", "proposed"):
         counts = {}
@@ -163,7 +167,7 @@ def layout(data):
         lanes.append({"id": p["id"], "label": p.get("label", p["id"]), "said": p.get("said", ""), "x": 16, "y": top, "w": lane_w, "h": row_y - top - 4})
         y = row_y - 4 + CHANNEL
     total_h = y - CHANNEL + 16
-    outside = [f for f in files if f["part"] == "outside"]
+    outside = [] if unnamed else [f for f in files if f["part"] == "outside"]
     side = None
     if outside:
         sx = 16 + lane_w + SIDE_GAP
@@ -276,12 +280,16 @@ def route(data, boxes, lanes, side):
 
 def follows(present, view):
     """How many drawn dependencies follow the documented design, and how the others break it, in plain words."""
-    ok = sum(1 for d in present if d[view] == "as stated")
-    forbidden = sum(1 for d in present if d[view] == "not stated")
-    missing = sum(1 for d in present if d[view] == "not found")
-    text = f'<b>{ok} of {len(present)}</b> {"dependency follows" if len(present) == 1 else "dependencies follow"} the documented design'
+    compared = [d for d in present if d[view] != "not compared"]
+    if not compared:
+        return f'<b>{len(present)}</b> {"dependency" if len(present) == 1 else "dependencies"} drawn; no stated design to compare with'
+    ok = sum(1 for d in compared if d[view] == "as stated")
+    forbidden = sum(1 for d in compared if d[view] == "not stated")
+    missing = sum(1 for d in compared if d[view] == "not found")
+    text = f'<b>{ok} of {len(compared)}</b> {"dependency follows" if len(compared) == 1 else "dependencies follow"} the documented design'
     breaks = ([f'{forbidden} the design forbids'] if forbidden else []) + ([f'{missing} it expects {"is" if missing == 1 else "are"} missing'] if missing else [])
-    return text + (": " + ", ".join(breaks) if breaks else "")
+    unchecked = len(present) - len(compared)
+    return text + (": " + ", ".join(breaks) if breaks else "") + (f"; {unchecked} not compared" if unchecked else "")
 
 
 def module_changes(data):
@@ -308,13 +316,13 @@ def file_state(f, view):
 
 def facts(data, view):
     present = [d for d in data.get("dependencies", []) if d.get(view)]
-    ok = sum(1 for d in present if d[view] == "as stated")
+    off_design = sum(1 for d in present if d[view] in ("not stated", "not found"))
     spread = 0
     for ri, r in enumerate(data.get("rules", [])):
         homes = {home for i, _, home in site_homes(data, view) if i == ri}
         spread += len(homes) > 1
     waiting = sum(1 for r in data.get("rules", []) if r["outcome"] == "waits" or any(s.get("waits") for s in r["sites"]))
-    deps = (f'<span class="sv-fact {"good" if ok == len(present) else "bad"}">{follows(present, view)}</span>'
+    deps = (f'<span class="sv-fact {"bad" if off_design else "good"}">{follows(present, view)}</span>'
             if present else '<span class="sv-fact"><b>0</b> dependencies drawn in this view</span>')
     changes = module_changes(data)
     moved = ""
@@ -341,7 +349,7 @@ def figure(data, index):
     out = [f'<div class="sv-svg"><svg viewBox="0 0 {plan["width"]:.0f} {plan["height"]:.0f}" width="{plan["width"]:.0f}" role="img" '
            f'aria-label="Structure: files by design part, their dependencies, and where each rule is decided. The tables below hold the same content.">'
            '<defs>' + "".join(f'<marker id="sv{index}-{c}" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto">'
-                              f'<path d="M0 0L10 5L0 10z" class="sv-head-{c}"/></marker>' for c in ("as-stated", "not-stated", "not-found")) + '</defs>']
+                              f'<path d="M0 0L10 5L0 10z" class="sv-head-{c}"/></marker>' for c in STYLES) + '</defs>']
     out.append('<g class="sv-lanes">')
     for lane in plan["lanes"]:
         out.append(f'<rect class="sv-lane" x="{lane["x"]}" y="{lane["y"]}" width="{lane["w"]}" height="{lane["h"]}" rx="12"/>')
@@ -403,6 +411,7 @@ def figure(data, index):
     legend = ('<p class="sv-legend"><span><span class="sv-key-line as-stated"></span>dependency the design allows</span>'
               '<span><span class="sv-key-line not-stated"></span>dependency the design does not allow</span>'
               '<span><span class="sv-key-line not-found"></span>the design expects it; the code lacks it</span>'
+              '<span><span class="sv-key-line not-compared"></span>dependency not compared with a design</span>'
               '<span><span class="sv-key-dot"></span>a file that decides a rule</span>'
               '<span><span class="sv-key-dot waits"></span>waits for your answer</span></p>')
     table = ('<details class="sv-table-box"><summary>The rules as a table</summary><table class="sv-table"><thead><tr><th>Rule</th><th>Decided today in</th><th>Proposed owner</th><th>Under the proposal</th></tr></thead><tbody>'
@@ -433,7 +442,9 @@ def focus(data, spec):
     parts = [p for p in data["parts"] if any(f["part"] == p["id"] for f in files)]
     deps = [d for d in data.get("dependencies", []) if d["from"] in keep and d["to"] in keep]
     rules = [{**r, "index": i} for i, r in chosen]
-    return {**data, "parts": parts, "files": files, "dependencies": deps, "rules": rules, "data": []}
+    # Every file of the focus outside a design that exists: its one lane says so, not "No stated design".
+    lane = data.get("outside", {}).get("today", "Not named in the design") if data["parts"] and not parts else "No stated design"
+    return {**data, "parts": parts, "files": files, "dependencies": deps, "rules": rules, "data": [], "lane": lane}
 
 
 def view_svg(data, index, view):
@@ -444,7 +455,7 @@ def view_svg(data, index, view):
     out = [f'<svg viewBox="0 0 {plan["width"]:.0f} {plan["height"]:.0f}" role="img" aria-label="{"Today" if view == "today" else "Proposed"}: '
            f'the files of this problem, their dependencies, and where each rule is decided.">'
            '<defs>' + "".join(f'<marker id="{name}-{c}" viewBox="0 0 10 10" refX="9" refY="5" markerUnits="userSpaceOnUse" markerWidth="10" markerHeight="10" orient="auto">'
-                              f'<path d="M0 0L10 5L0 10z" class="sv-head-{c}"/></marker>' for c in ("as-stated", "not-stated", "not-found")) + '</defs>']
+                              f'<path d="M0 0L10 5L0 10z" class="sv-head-{c}"/></marker>' for c in STYLES) + '</defs>']
     for lane in plan["lanes"]:
         out.append(f'<rect class="sv-lane" x="{lane["x"]}" y="{lane["y"]}" width="{lane["w"]}" height="{lane["h"]}" rx="12"/>')
     if plan["side"]:
@@ -505,7 +516,8 @@ def focus_figure(data, spec, index):
     legend = ('<figcaption class="sv-legend"><span><span class="sv-key-dot"></span>a place that decides the rule; the letter names it</span>'
               '<span><span class="sv-key-line as-stated"></span>dependency the design allows</span>'
               '<span><span class="sv-key-line not-stated"></span>dependency the design does not allow</span>'
-              '<span><span class="sv-key-line not-found"></span>the design expects it; the code lacks it</span></figcaption>')
+              '<span><span class="sv-key-line not-found"></span>the design expects it; the code lacks it</span>'
+              '<span><span class="sv-key-line not-compared"></span>dependency not compared with a design</span></figcaption>')
     return f'<figure class="sv-focus" role="group" aria-label="Today and proposed">{panels}{legend}</figure>'
 
 
@@ -736,4 +748,4 @@ def check(source):
             continue
         messages.extend(f"Change history at line {line}: {message}." for message in history_problems(data))
     if messages:
-        raise ValueError(" ".join(messages[:8]) + (f" …and {len(messages) - 8} more." if len(messages) > 8 else ""))
+        raise ValueError(" ".join(messages))

@@ -43,6 +43,7 @@ Check each before a skill change ships:
 Bump the version in `package.json`, `.claude-plugin/plugin.json`, and
 `.codex-plugin/plugin.json` in the PR; the namespace test fails when they
 differ. Run `python3 -m unittest discover -s tests -q` and the two validate
-commands; the report fixture test renders a diagram, so run
+commands; the report and rework-map fixture tests render a diagram, and the
+check refuses a page that leaves one as source, so run
 `npm ci --prefix skills/diagram-renderer` once in a fresh checkout. Every merge
 to `main` is a release: tag the merge commit `v<version>`.

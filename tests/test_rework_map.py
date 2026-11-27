@@ -88,6 +88,15 @@ class ReworkMapTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("Problems: behavior to decide comes last; move '1. Changing a loyalty rate takes three edits' (scattered rule)", result.stderr + result.stdout)
 
+    def test_in_short_names_the_target_the_plan_recommends(self):
+        # A summary written at an earlier checkpoint and left as it was says nothing is proposed while the plan proposes.
+        stale = self.source.replace("**What we propose:** *Pricing owns discounts*:", "**What we propose:** nothing yet; the proposal comes after this checkpoint:")
+        self.assertNotEqual(stale, self.source)
+        self.note.write_text(stale)
+        result = run(self.note, "--check", "--markdown-only")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("In short: **What we propose:** names the target the plan recommends, *Pricing owns discounts*", result.stderr)
+
     def test_not_reached_is_not_read_as_reached_and_empty_cells_fail(self):
         page.check_rework_map("| Special case | Kind | Reach | Why it exists | Points to |\n| --- | --- | --- | --- | --- |\n"
                               "| `a.py:3` | default | not reached: callers enumerated, probe failed | none found | nothing found |\n")

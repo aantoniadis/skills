@@ -430,6 +430,49 @@ class BreakProbeTests(Repository):
         self.assertEqual(len(self.git("worktree", "list").splitlines()), 1, "the scratch worktree is removed")
         self.assertTrue((self.repo / "runs/02-full.log").exists())
 
+    LOCK_TEST = "import unittest\nfrom app import rates\n\nclass T(unittest.TestCase):\n    def test_gold(self):\n        self.assertEqual(rates.GOLD, 10)\n"
+
+    def lock_test_left_uncommitted(self):
+        self.commit({"app/__init__.py": "", "app/rates.py": "GOLD = 10\n", "tests/__init__.py": "",
+                     "tests/test_helper.py": "VALUE = 1\n"})
+        self.write({"tests/test_lock.py": self.LOCK_TEST, "tests/test_helper.py": "VALUE = 2\n"})  # a new file and an edited one
+        breaks = self.repo / "breaks.tsv"
+        breaks.write_text("gold\tapp/rates.py\t1\tGOLD = 11\tpython3 -m unittest tests.test_lock -q\n")
+        return [sys.executable, str(SCRIPTS / "break_probe.py"), str(breaks), "--full", "python3 -m unittest discover -s tests -q",
+                "--out", str(self.repo / "runs")]
+
+    def test_a_focused_command_that_fails_before_the_break_is_not_a_pin(self):
+        command = self.lock_test_left_uncommitted()
+        result = subprocess.run(command, cwd=self.repo, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("red before the break\tgold\tapp/rates.py:1", result.stdout)
+        self.assertNotIn("focused red", result.stdout, "the worktree of HEAD has no lock test, so its failure says nothing")
+        self.assertTrue((self.repo / "runs/control-01.log").exists())
+
+    def test_a_full_command_that_fails_before_the_break_cannot_report_a_pin(self):
+        self.commit({"app/__init__.py": "", "app/rates.py": "GOLD = 10\nSILVER = 5\n", "tests/__init__.py": "",
+                     "tests/test_gold.py": self.LOCK_TEST,
+                     "tests/test_known_failure.py": "import unittest\n\nclass T(unittest.TestCase):\n    def test_fails(self):\n        self.fail('fails before any break')\n"})
+        breaks = self.repo / "breaks.tsv"
+        breaks.write_text("silver\tapp/rates.py\t2\tSILVER = 6\tpython3 -m unittest tests.test_gold -q\n")
+        result = subprocess.run([sys.executable, str(SCRIPTS / "break_probe.py"), str(breaks), "--full", "python3 -m unittest discover -s tests -q",
+                                 "--out", str(self.repo / "runs")], cwd=self.repo, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("full red before the break\tsilver\tapp/rates.py:2", result.stdout)
+        self.assertNotIn("full red\tsilver", result.stdout, "a suite that fails unbroken would call every break pinned")
+        self.assertTrue((self.repo / "runs/control-full.log").exists())
+        self.assertEqual((self.repo / "app/rates.py").read_text(), "GOLD = 10\nSILVER = 5\n")
+
+    def test_local_changes_bring_an_uncommitted_lock_test_into_the_scratch_worktree(self):
+        command = self.lock_test_left_uncommitted()
+        result = subprocess.run(command + ["--with-local-changes"], cwd=self.repo, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("focused red\tgold\tapp/rates.py:1", result.stdout)
+        self.assertIn("with the checkout's uncommitted changes", result.stdout)
+        self.assertEqual((self.repo / "app/rates.py").read_text(), "GOLD = 10\n", "the checkout is never touched")
+        self.assertEqual([line.strip() for line in self.git("status", "--short").splitlines()],
+                         ["M tests/test_helper.py", "?? breaks.tsv", "?? runs/", "?? tests/test_lock.py"], "the checkout keeps its changes")
+
 
 class SharedDataTests(Repository):
     RUBY = {

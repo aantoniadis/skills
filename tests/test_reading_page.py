@@ -310,6 +310,22 @@ A parse error becomes a 400 response, and the endpoint never runs. Observed with
     dashed = components.replace("**Origins** · *you decide*", "**Origins — one rule** · *you decide*")  # an em dash inside the part name
     assert page.attention_gaps(dashed) == [], page.attention_gaps(dashed)
     assert page.claim_gaps("# N\n\n## Answers\n\n- Next the queue drains before the flush completes here.\n")[0][0] == 5
+    # The labels the map format teaches count; a lead-in that ends with a colon takes its evidence from its list.
+    assert page.claim_gaps("# N\n\n## Answers\n\nThe serializer decides the gold rate on its own (source, at the pinned lines).\n") == []
+    lead = "# N\n\n## Answers\n\nThe discount for a tier is decided in two places today:\n\n- the pricing table ([p.py:6](https://x/blob/a/p.py#L6));\n- the serializer chain ([s.py:9](https://x/blob/a/s.py#L9)).\n"
+    assert page.claim_gaps(lead) == [], page.claim_gaps(lead)
+    bare = lead.replace(" ([p.py:6](https://x/blob/a/p.py#L6))", "").replace(" ([s.py:9](https://x/blob/a/s.py#L9))", "")
+    assert [n for n, _ in page.claim_gaps(bare)] == [5], page.claim_gaps(bare)
+    # The labels a skill prescribes count where they stand as a label, in brackets: how far a part was read, read at the
+    # source, and the user's answer as the evidence of intent. The bare words say nothing about evidence.
+    for label in ("partly inspected", "inspected", "source", "answered 2026-11-27", "source, and the history of the lines"):
+        text = f"# N\n\n## Answers\n\nEach caller keeps its present argument through the whole of the step ({label}).\n"
+        assert page.claim_gaps(text) == [], (label, page.claim_gaps(text))
+    assert len(page.claim_gaps("# N\n\n## Answers\n\nThe source map of the page was answered and then inspected by nobody at all.\n")) == 1
+    # A re-check: an Open resolution is a status and points at the problem that holds it; a Resolved one needs its line.
+    since = "# N\n\n## Since the previous check\n\n- **The kinds are listed twice.** Resolution: {state}\n"
+    assert page.claim_gaps(since.format(state="Open. Commit `99d7476` left a second list, and problem 1 holds it.")) == []
+    assert len(page.claim_gaps(since.format(state="Resolved in `99d7476`, which merges the two lists into one."))) == 1
     # The opening of a review report: a bottom line under the title, then 'What the change does' (report-format.md).
     opening = "# G\n\n**Bottom line:** one rule.\n\n## What the change does\n\nThe change adds a mode.\n\n## What to look at\n\n1. x\n"
     assert page.opening_gaps(opening) == []

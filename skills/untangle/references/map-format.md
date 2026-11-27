@@ -147,7 +147,11 @@ the paragraph in bold; the checker reads the first four.
   project's language right after the label: the owner's new signature or
   type, the moved decision, and one caller, in about 25 lines or fewer,
   with bodies that do not matter elided. Label it proposed. It shows the
-  author what the fix means; the code itself comes with the steps.
+  author what the fix means; the code itself comes with the steps. Write a
+  sketch that replaces a function from that function's whole body: it keeps
+  every statement, such as a log line, an assigned field, or a raised
+  error, or names the one it drops and why. It is valid at the step that
+  makes it, so it calls nothing a later step adds.
 - **Cost and risk:** the files, call sites, and lock tests the fix needs, and
   what can go wrong.
 - **What you get:** the measure, before and after, such as the decision
@@ -290,11 +294,21 @@ states the takeaway and the evidence kind, as
 
 - **parts** are the stated design's parts, in the direction dependencies may
   point, first to last. A file the design does not name has the part
-  `outside`.
+  `outside`. A design that untangle inferred in its step 2 keeps its parts,
+  each with a `said` that starts *inferred*. A note that compares with no
+  design, such as a change card for a project that states none, writes
+  `"parts": []` and gives every file the part `outside`; the page draws one
+  lane named *No stated design*. Group files under a part only when a design
+  names it, stated or inferred and shown to the user: the page reports a
+  dependency between invented parts as one the design forbids.
 - **files** are the files that hold a decision site, a dependency, or a key
   a problem names. A picture of every file reads like none.
 - **dependencies** have `today` and `proposed`, each *as stated*, *not
-  stated*, *not found*, or `null` where it does not exist in that view.
+  stated*, *not found*, *not compared*, or `null` where it does not exist in
+  that view. *Not compared* is a dependency the design says nothing about,
+  such as one that touches a file the design does not name, or every
+  dependency when there is no design; the page draws it dotted and counts it
+  neither as following the design nor as breaking it.
 - A file can carry the module change the plan proposes: `"renamed": "<new
   path>"`, `"removed": true`, or `"added": true` for a file the target
   creates. The proposal draws a renamed file under its new name and a
@@ -306,8 +320,10 @@ states the takeaway and the evidence kind, as
   `"waits": true` keeps its place until the user answers.
 - **data** is one entry per piece of shapeless data a problem names.
 - Every `at` is a pinned line, as `path.ext:12`, or starts with `proposed`.
-  The check rejects one that is neither. A change card labels its views with
-  `"labels": {"today": "Before", "proposed": "After the change"}`.
+  The check rejects one that is neither. A change card for a placement labels
+  its views `"labels": {"today": "Before", "proposed": "After the change"}`;
+  one for a check, `{"today": "At the head", "proposed": "With the proposed fixes"}`.
+  The scorecard of the design principles takes the same two labels.
 
 **A focus.** Under a problem, a `structure-focus` fence names part of that
 data, and the page draws only that part, today and proposed side by side:
@@ -353,7 +369,6 @@ problem holds.
 - **Modules** names each module of the target with its responsibility in one
   sentence with no *and*, its one reason to change, and the rules and state
   it owns.
-
 - **Flow** states the one direction calls and state move in the target, in
   the order of the parts, and each edge against it that the target removes:
   a cycle, a call from a later part back to an earlier one, a callback or
@@ -377,15 +392,20 @@ problem holds.
   proposed result. *Not applicable* with its reason is a result. The checker
   reads the names and requires all eleven. A lead reads this list to see what
   the rework buys: each principle broken today and met after is a reason to
-  do it. *What is sound* lists what works and should
-be kept, and what looks wrong and is fine, each with its reason.
+  do it. Write *met* for the proposal only when the count that showed the
+  principle broken is zero after it. When some of it remains, the result is
+  *broken → broken* with both counts, and the cost names the rest.
+
+*What is sound* lists what works and should be kept, and what looks wrong and
+is fine, each with its reason.
 
 *How it works today* is the reference the problems cite. Two tables keep
 their columns exactly, because the checker reads them:
 
 - **Stated design and the code.** Dependencies have *Result* one of *as
-  stated*, *not stated*, *not found*, and *Evidence* names the edge source
-  and pins the decisive file edges. Stated rules have *Result* one of
+  stated*, *not stated*, *not found*, or *not compared* for a dependency
+  that touches a file the design does not name, and *Evidence* names the edge
+  source and pins the decisive file edges. Stated rules have *Result* one of
   *holds*, *broken*, *not checked*. When every dependency is as stated, one
   sentence with the count replaces the rows.
 - **Special cases.** One row per classified case, with *Reach* one of

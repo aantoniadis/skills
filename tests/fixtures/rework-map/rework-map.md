@@ -464,6 +464,7 @@ These labels describe separate judgments. Read each against its stated scope and
 | as stated | The design allows the relationship and the extracted dependencies show it. The result is as complete as the dependency source named beside it. |
 | not stated | The code has the relationship and the stated design does not allow it. It is drift or an intended relationship the design never recorded; the user's answer says which. |
 | not found | The design names the relationship and no extracted dependency shows it. The dependency may run through something the source of the edges cannot see. |
+| not compared | The project states no design that covers the relationship, so it was drawn and not judged. It neither follows the design nor breaks it. |
 
 ### Key: Stated rules against the code
 

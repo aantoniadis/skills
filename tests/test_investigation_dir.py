@@ -49,6 +49,14 @@ class InvestigationDirTests(unittest.TestCase):
         plain.mkdir()
         self.assertEqual(Path(run("x", cwd=plain)), plain.resolve() / ".scratch/x")
 
+    def test_a_folder_in_use_is_named_on_stderr(self):
+        first = subprocess.run([sys.executable, str(SCRIPT), "bug"], cwd=self.repo, capture_output=True, text=True, check=True)
+        self.assertEqual(first.stderr, "", "a new folder says nothing")
+        (Path(first.stdout.strip()) / "change-card.md").write_text("earlier\n")
+        again = subprocess.run([sys.executable, str(SCRIPT), "bug"], cwd=self.repo, capture_output=True, text=True, check=True)
+        self.assertEqual(again.stdout.strip(), first.stdout.strip(), "stdout stays the path alone")
+        self.assertIn("already holds 1 entry: change-card.md", again.stderr)
+
 
 if __name__ == "__main__":
     unittest.main()

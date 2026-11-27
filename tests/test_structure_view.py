@@ -99,6 +99,22 @@ class FocusAndHistoryTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "no structure-view fence"):
             sv.check(bad[:bad.index("```structure-view")])
 
+    def test_a_project_with_no_stated_design_draws_one_lane_and_reports_no_forbidden_dependency(self):
+        data = json.loads(json.dumps(self.data))
+        data["parts"] = []
+        for f in data["files"]:
+            f["part"] = "outside"
+        for d in data["dependencies"]:
+            for v in ("today", "proposed"):
+                d[v] = d[v] and "not compared"
+        self.assertEqual(sv.problems(data), [])
+        html = sv.figure(data, 1)
+        self.assertIn("No stated design", html)
+        self.assertIn("drawn; no stated design to compare with", html)
+        self.assertNotIn("the design forbids", html)
+        rule = data["rules"][0]["name"]
+        self.assertEqual(sv.focus_figure(data, {"rules": [rule]}, 1).count("<svg"), 2, "a focus with no parts draws too")
+
     def test_history_counts_changes_that_missed_a_place_and_not_the_one_that_added_it(self):
         history = json.loads(sv.fences(self.source, "change-history")[0][1])
         html = sv.history_figure(history, 1)

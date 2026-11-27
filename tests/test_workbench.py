@@ -81,6 +81,10 @@ class WorkbenchTests(unittest.TestCase):
         self.assertEqual(len(main.select("section#in-short .waiting li")), 2, "a default applied waits for the reader too")
         self.assertEqual([p.get_text(" ", strip=True).split(":")[0] for p in main.select("section#in-short > p.field")],
                          ["The problem", "What we propose", "What you decide"])
+        grid = main.select_one("table.scorecard")
+        self.assertIsNotNone(grid, "the card's design principles draw as a scorecard")
+        self.assertEqual(grid.caption.get_text(), "3 of 11 principles broken; the proposal restores 3.", "a card says what it found, not a rework")
+        self.assertEqual([th.get_text() for th in grid.select("thead th")], ["Principle", "Before", "After the change"], "the columns follow the view's labels")
 
     def test_committed_card_fixture_carries_a_current_label_key(self):
         source = (ROOT / "tests/fixtures/change-card/change-card.md").read_text()
@@ -91,6 +95,21 @@ class WorkbenchTests(unittest.TestCase):
         result = subprocess.run([sys.executable, str(SCRIPT), str(copy), "--check", "--markdown-only", "--sync-labels"], capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(copy.read_text(), source, "run --sync-labels on the fixture and commit the key")
+
+    def test_a_card_whose_principles_draw_no_scorecard_fails_its_check(self):
+        source = (ROOT / "tests/fixtures/change-card/change-card.md").read_text()
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        copy = Path(directory.name) / "change-card.md"
+        heading = "### Design principles\n\n"
+        liskov = next(line for line in source.splitlines() if line.startswith("- **Liskov substitution:**")) + "\n"
+        for changed, message in ((source.replace(heading, "**Design principles:**\n\n"), "not from a bold field"),
+                                 (source.replace(liskov, ""), "today's result and the proposed one for: Liskov substitution")):
+            with self.subTest(message=message):
+                copy.write_text(changed)
+                result = subprocess.run([sys.executable, str(SCRIPT), str(copy), "--check", "--markdown-only"], capture_output=True, text=True)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertIn(message, result.stderr + result.stdout)
 
 
 if __name__ == "__main__":

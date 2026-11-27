@@ -251,7 +251,7 @@ CHECK_RESULTS = ("Passed", "Failed", "Mixed", "Not run", "Blocked")
 CHECK_ORIGINS = ("Executed here", "Recorded run", "Source inspected", "Proposed")
 # A rework map (untangle): the stated dependencies and rules against the code, the special cases, and the findings.
 DESIGN_COLUMNS = ("Relationship", "Result", "Evidence", "What the user said")
-DESIGN_RESULTS = ("as stated", "not stated", "not found")
+DESIGN_RESULTS = ("as stated", "not stated", "not found", "not compared")
 RULE_COLUMNS = ("Stated rule", "Result", "Evidence", "What the user said")
 RULE_RESULTS = ("holds", "broken", "not checked")
 SPECIAL_CASE_COLUMNS = ("Special case", "Kind", "Reach", "Why it exists", "Points to")
@@ -592,12 +592,16 @@ def beautiful_mermaid_runs():
 SOURCE_ONLY_RECORD = "diagram renderer unavailable"
 
 
-def check_source_diagrams(source, html):
-    """A review page that leaves a diagram as source must record why in Evidence and record."""
-    if (parse(html).select("pre.mermaid-source")
-            and SOURCE_ONLY_RECORD not in dict(markdown_sections(source, 2)).get("Evidence and record", "").lower()):
+def check_source_diagrams(source, html, in_record=True):
+    """A page that leaves a diagram as source records why: a review or an acceptance report in Evidence and record,
+    any other note anywhere in it."""
+    if not parse(html).select("pre.mermaid-source"):
+        return
+    record = dict(markdown_sections(source, 2)).get("Evidence and record", "") if in_record else source
+    if SOURCE_ONLY_RECORD not in record.lower():
+        where = "'## Evidence and record'" if in_record else "the note, where it records its limits"
         raise ValueError("A diagram is left as source: render it with Beautiful Mermaid or the Mermaid CLI, or add a line"
-                         f" containing '{SOURCE_ONLY_RECORD}' to '## Evidence and record'.")
+                         f" containing '{SOURCE_ONLY_RECORD}' to {where}.")
 
 
 def render(source, source_name, diagram_renderer="auto", repo=None, directory=None):
@@ -1138,9 +1142,12 @@ CLAIM_FREE = re.compile(r"question|scope|boundar|condition|revision|provenance|w
 EVIDENCE_WORDS = re.compile(r"\b(?:observed|executed|inferred|proposed|not (?:yet )?(?:inspected|run|checked|probed|verified)|unknown|background|documented"
                             r"|quoted|agreed|accepted|empty|ran|run|supported|partial|contradicted|unresolved|intent-unconfirmed|pending|prepared|usable"
                             r"|unavailable|declined|broken|absent|substitute|confirmed|reproduced|measured|probe[sd]?|benchmark|see"
-                            r"|not read|reasoned|read at the line|contradicts|intent unclear|nobody asked for this"
+                            r"|not read|reasoned|read at the lines?|at the (?:pinned )?lines?|contradicts|intent unclear|nobody asked for this"
                             r"|recorded|passed|fail(?:s|ed)?|returned|emits|installed|not needed|when chosen|verify when|optional|alternative"
-                            r"|self-checked|matches|differs|no evidence|trap)\b", re.I)
+                            r"|self-checked|matches|differs|no evidence|trap|resolution:\s*open)\b", re.I)  # an Open resolution is a status, as unresolved is
+# A label a skill prescribes, counted only where it stands as one, in brackets: read at the source, how far a part
+# was read, and the user's answer as the evidence of intent. Bare, each is an ordinary word ("the source map").
+BRACKET_LABEL = re.compile(r"\((?:source|(?:partly )?inspected|answered)\b[^()]*\)", re.I)
 COMMAND = re.compile(r"`[^`\n]{24,}`")  # a reproducible command or recipe line
 # A pinned link, or the bare `path.ext:12` / `path.ext:12-20` form a note uses for a local snapshot.
 PINNED = re.compile(r"\]\([^)\s]*#L\d+|\b[\w./-]+\.\w{1,4}:\d+(?:-\d+)?\b")
@@ -1154,31 +1161,37 @@ def claim_gaps(source):
     The title section is read as a summary; sections named in CLAIM_FREE hold questions, scope, conditions, or records.
     """
     lines = source.split("\n")
-    gaps = []
+    records = []  # (line, text, is a list item, "exempt" | "pass" | "gap", carries evidence), in order
     skipping = True  # until the first section heading
     bugs = False  # inside '## Possible bugs'
     fence = None
     block, start = [], 0
 
+    def evidenced(text):
+        return bool(PINNED.search(text) or EVIDENCE_WORDS.search(text) or BRACKET_LABEL.search(text) or QUOTED_LINK.search(text)
+                    or COMMAND.search(text))
+
+    def status(text):
+        # Prose under eight words is a title or a pointer; a table row under four is a legend entry.
+        words = len(text.replace("|", " ").split())
+        if skipping or words < (4 if text.lstrip().startswith("|") else 8) or text.lstrip().startswith(">"):
+            return "exempt"
+        if text.startswith("**Open question:**") and text.endswith("?"):
+            return "exempt"  # A question asks for evidence; it does not assert an answer.
+        if re.match(r"^\s*(?:[-*+]|\d+[.)])\s+\**(?:Action|Next(?: action)?|Fix|Recommendation):", block[0]):
+            return "exempt"  # a recommendation, not a claim
+        if re.match(r"^\*\*(?:Decision|What you decide):\*\*", text):
+            return "exempt"  # a decision and its state, not a claim; check_rework_map checks the state word
+        if re.match(r"^\*\*Kind:\*\*.*·\s*\*\*How sure:\*\*", text):
+            return "exempt"  # a problem's tags: its How sure labels the problem, and check_rework_map checks it
+        return "pass" if evidenced(text) else "gap"
+
     def flush():
         if not block:
             return
         text = " ".join(line.strip() for line in block)
-        # Prose under eight words is a title or a pointer; a table row under four is a legend entry.
-        words = len(text.replace("|", " ").split())
-        if skipping or words < (4 if text.lstrip().startswith("|") else 8) or text.lstrip().startswith(">"):
-            return
-        if text.startswith("**Open question:**") and text.endswith("?"):
-            return  # A question asks for evidence; it does not assert an answer.
-        if re.match(r"^\s*(?:[-*+]|\d+[.)])\s+\**(?:Action|Next(?: action)?|Fix|Recommendation):", block[0]):
-            return  # a recommendation, not a claim
-        if re.match(r"^\*\*(?:Decision|What you decide):\*\*", text):
-            return  # a decision and its state, not a claim; check_rework_map checks the state word
-        if re.match(r"^\*\*Kind:\*\*.*·\s*\*\*How sure:\*\*", text):
-            return  # a problem's tags: its How sure labels the problem, and check_rework_map checks it
-        if PINNED.search(text) or EVIDENCE_WORDS.search(text) or QUOTED_LINK.search(text) or COMMAND.search(text):
-            return
-        gaps.append((start + 1, text[:80]))
+        is_item = bool(re.match(r"^\s*(?:[-*+]|\d+[.)])\s+", block[0]))
+        records.append((start + 1, text, is_item, status(text), evidenced(text)))
 
     for i, line in enumerate(lines):
         if fence:
@@ -1228,6 +1241,21 @@ def claim_gaps(source):
             start = i
         block.append(line)
     flush()
+    # A lead-in that ends with a colon introduces the list after it, and takes its evidence from that list,
+    # as a nested item takes its evidence from its parent.
+    gaps = []
+    for index, (number, text, is_item, state, _) in enumerate(records):
+        if state != "gap":
+            continue
+        if not is_item and text.rstrip().endswith(":"):
+            following = []
+            for later in records[index + 1:]:
+                if not later[2]:
+                    break
+                following.append(later[4])
+            if any(following):
+                continue
+        gaps.append((number, text[:80]))
     return gaps
 
 
@@ -1235,8 +1263,8 @@ def check_claims(source):
     """Every claim block carries a pinned line, an observation, a quote, or a label (EVIDENCE.md)."""
     gaps = claim_gaps(split_label_key(source)[0])
     if gaps:
-        shown = "; ".join(f"line {n}: {text!r}" for n, text in gaps[:5])
-        raise ValueError(f"{len(gaps)} claim block(s) without evidence — {shown}. Add a pinned line (`path.py:12` or a #L link), a quoted source with its link, a command, or a label word that is true of the claim, such as observed, ran, inferred, not inspected, not verified, not confirmed, or unknown (EVIDENCE.md).")
+        shown = "".join(f"\n  line {n}: {text!r}" for n, text in gaps)
+        raise ValueError(f"{len(gaps)} claim block(s) without evidence:{shown}\nAdd a pinned line (`path.py:12` or a #L link), a quoted source with its link, a command, or a label word that is true of the claim, such as observed, ran, inferred, not inspected, not verified, not confirmed, or unknown, or in brackets (source), (partly inspected), or (answered <date>) (EVIDENCE.md).")
 
 
 def attention_items(source):
@@ -1988,10 +2016,26 @@ def check_rework_map(source):
         if not re.match(rf"(?:not applicable\b|(?:{results})\s*(?:→|->)\s*(?:{results})\b)", rest):
             problems.append(f"Design principles: after **{label}:** write today's result and the proposed one, such as "
                             f"*broken → met*, from {', '.join(PRINCIPLE_RESULTS)}, or *not applicable* — {rest[:50]!r}.")
-    if document.find("h3", string="Lock tests"):  # a rework map's plan; its front matter is blanked by now
+    # The page draws the scorecard only from the heading; a bold field of that name draws nothing and says nothing.
+    if any(p.contents and p.contents[0].name == "strong" and p.strong.get_text(strip=True).rstrip(":") == "Design principles"
+           for p in document.find_all("p")):
+        problems.append("The plan: write the design principles as a list under the heading `### Design principles`; "
+                        "the page draws the scorecard from that heading, not from a bold field.")
+    # A rework map's plan always holds them (its front matter is blanked by now); any note that lists some lists all.
+    if principles or document.find("h3", string="Lock tests"):
         missing = [p for p in PRINCIPLES if p not in labels]
         if missing:
             problems.append(f"The plan: list under ### Design principles today's result and the proposed one for: {', '.join(missing)}.")
+    # Bookkeeping between two fields: a summary left from an earlier checkpoint still says nothing is proposed.
+    field = lambda name: next((p for p in document.find_all("p") if p.contents and p.contents[0].name == "strong"
+                               and p.strong.get_text(strip=True).rstrip(":") == name), None)
+    proposal, recommended = field("What we propose"), field("Recommended")
+    target = recommended.find("em") if recommended is not None else None
+    if proposal is not None and target is not None:
+        name = target.get_text(" ", strip=True)
+        if name.casefold() not in proposal.get_text(" ", strip=True).casefold():
+            problems.append(f"In short: **What we propose:** names the target the plan recommends, *{name}*; "
+                            "rewrite In short for the map as it now stands.")
     sections = problem_sections(document)
     kinds = [problem_fields(elements).get("Kind", "").lower() for _, elements in sections]
     first_bug = next((i for i, kind in enumerate(kinds) if kind.startswith("behavior to decide")), None)
@@ -2288,13 +2332,19 @@ def main():
             print(f"Markdown checks passed: {scope}; evidence markers, names, structure, template prompts, local links, and diagram source maps checked. Meaning is not checked.")
             return
         repo = args.repo or note.parent
+        if not args.check:
+            # A structure-view fence the renderer cannot draw would crash it; report the fence's own message first.
+            # Stop early only for the view: the other findings wait for the full page check, as before.
+            view_problems = []
+            keep(view_problems, structure_view.check, source)
+            if view_problems:
+                raise_all(problems + view_problems)
         html = output.read_text() if args.check else render(with_front_matter(original, source), note.name,
                                                              args.diagram_renderer, repo=repo, directory=note.parent)
         problems += page_problems(with_front_matter(original, source), html, note, repo=repo)
         if args.check:
             keep(problems, check_label_key, source, require=True)
-            if args.review or args.acceptance:
-                keep(problems, check_source_diagrams, source, html)
+            keep(problems, check_source_diagrams, source, html, bool(args.review or args.acceptance))
         raise_all(problems)
         if args.sync_labels:
             note.write_text(with_front_matter(original, source))

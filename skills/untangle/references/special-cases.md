@@ -93,6 +93,12 @@ Propose removing a special case only when one of these holds, and say which:
 - It duplicates a check that demonstrably runs earlier on every path to it:
   cite the earlier check and the paths.
 
+A search that finds no caller covers the file that defines the code and the
+tests. A caller in the same file, such as the negated form of a predicate,
+is found nowhere else, and so is a test double that names the code. Some
+test frameworks let a stub of a missing method pass, so list each double
+with the removal.
+
 These stay, whatever their coverage:
 
 - A check at a trust boundary: user input, an external service, stored data,

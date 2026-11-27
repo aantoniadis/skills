@@ -15,14 +15,21 @@ Breaks file, tab-separated, one break per line, `#` for comments:
 
     name<TAB>path<TAB>line<TAB>replacement line<TAB>focused test command
 
-The worktree holds HEAD; uncommitted changes in the checkout are not in it. Commands run with
-the worktree as their working directory, through the shell. Logs go under --out, one per run.
-The worktree is removed at the end. Exit 1 when a line does not match its file, 2 for invalid
-inputs or failed Git operations.
+The worktree holds HEAD. Pass --with-local-changes to bring the checkout's uncommitted changes
+into it, tracked edits and untracked files that Git does not ignore: a lock test is written
+before it is committed, and without it the worktree has no such test. Line numbers are then those
+of the working tree. Each focused command runs once on the unbroken worktree first, as a control,
+and so does the full command the first time a break reaches it: a command that already fails
+there, because its test is missing, the setup is incomplete, or a test fails before any break, is
+reported as *red before the break* and pins nothing. Commands run with the worktree as their
+working directory, through the shell. Logs go under --out, one per run. The worktree is removed
+at the end. Exit 1 when a line does not match its file or a control fails, 2 for invalid inputs
+or failed Git operations.
 """
 import argparse
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -36,6 +43,25 @@ def git(repo, *args):
     if result.returncode:
         raise ValueError(result.stderr.strip() or f"git failed with exit {result.returncode}")
     return result.stdout
+
+
+def copy_local_changes(root, worktree, skip):
+    """Apply the checkout's tracked edits to the worktree and copy its untracked files, except those under `skip`."""
+    env = {key: value for key, value in os.environ.items() if not key.startswith("GIT_")}
+    patch = subprocess.run(["git", "-C", root, "diff", "HEAD", "--binary"], env=env, capture_output=True)
+    if patch.returncode:
+        raise ValueError(patch.stderr.decode(errors="replace").strip())
+    if patch.stdout:
+        applied = subprocess.run(["git", "-C", str(worktree), "apply", "--binary", "-"], env=env, input=patch.stdout, capture_output=True)
+        if applied.returncode:
+            raise ValueError(applied.stderr.decode(errors="replace").strip())
+    for name in git(root, "ls-files", "--others", "--exclude-standard", "-z").split("\0"):
+        source = Path(root) / name
+        if not name or not source.is_file() or skip in source.resolve().parents:
+            continue
+        target = worktree / name
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, target)
 
 
 def read_breaks(path):
@@ -82,6 +108,8 @@ def main():
     parser.add_argument("--setup", help="a command to run once in the worktree first, such as installing dependencies")
     parser.add_argument("--out", required=True, help="directory for the run logs")
     parser.add_argument("--timeout", type=int, default=1800, help="seconds per command")
+    parser.add_argument("--with-local-changes", action="store_true",
+                        help="bring the checkout's uncommitted changes into the worktree, such as lock tests not yet committed")
     args = parser.parse_args()
     out = Path(args.out).resolve()
     try:
@@ -98,8 +126,14 @@ def main():
     except ValueError as error:
         print(f"break_probe: {error}", file=sys.stderr)
         return 2
-    mismatched, rows = 0, []
+    mismatched, rows, controls, full_control = 0, [], {}, None  # controls: a command's exit code on the unbroken worktree
     try:
+        if args.with_local_changes:
+            try:
+                copy_local_changes(root, worktree, out)
+            except (OSError, ValueError) as error:
+                print(f"break_probe: the uncommitted changes do not apply to HEAD: {error}", file=sys.stderr)
+                return 2
         if args.setup and run(args.setup, worktree, out / "setup.log", args.timeout):
             print(f"break_probe: setup failed; see {out / 'setup.log'}", file=sys.stderr)
             return 2
@@ -115,23 +149,44 @@ def main():
                 rows.append((item, "no such line", "", "")); mismatched += 1
                 continue
             old = lines[item["line"] - 1]
+            if item["command"] not in controls:
+                controls[item["command"]] = run(item["command"], worktree, out / f"control-{index:02d}.log", args.timeout)
+            if controls[item["command"]]:
+                rows.append((item, "red before the break", old.strip(), index)); mismatched += 1
+                continue
             ending = old[len(old.rstrip("\r\n")):] or "\n"
             lines[item["line"] - 1] = item["replacement"] + ending
-            write(target, "".join(lines))
+            broken = "".join(lines)
+            write(target, broken)
             try:
                 focused = run(item["command"], worktree, out / f"{index:02d}-focused.log", args.timeout)
-                full = None if focused else run(args.full, worktree, out / f"{index:02d}-full.log", args.timeout)
+                if focused:
+                    result = "focused red"
+                else:
+                    if full_control is None:  # once, on the unbroken worktree, the first time a break reaches the full command
+                        write(target, original)
+                        full_control = run(args.full, worktree, out / "control-full.log", args.timeout)
+                        write(target, broken)
+                    if full_control:
+                        result = "full red before the break"
+                        mismatched += 1
+                    else:
+                        result = "full red" if run(args.full, worktree, out / f"{index:02d}-full.log", args.timeout) else "green"
             finally:
                 write(target, original)
-            rows.append((item, "focused red" if focused else ("full red" if full else "green"), old.strip(), index))
+            rows.append((item, result, old.strip(), index))
     finally:
         subprocess.run(["git", "-C", root, "worktree", "remove", "--force", str(worktree)], capture_output=True)
         subprocess.run(["rm", "-rf", str(worktree.parent)], capture_output=True)
     meaning = {"focused red": "pinned: the focused tests catch it",
                "full red": "pinned, but only outside the focused tests: widen the selection that protects it",
                "green": "no test protects it",
-               "missing file": "the file is not in HEAD", "no such line": "the line number is past the end of the file"}
-    print(f"Breaks at {head[:12]}: {len(rows)}. Logs: {out}\n")
+               "red before the break": "the focused command fails on the unbroken worktree, so it pins nothing: see its control log",
+               "full red before the break": "the full command fails on the unbroken worktree, so it cannot show a pin: "
+                                            "fix or leave out what already fails; see control-full.log",
+               "missing file": "the file is not in the worktree", "no such line": "the line number is past the end of the file"}
+    local = " with the checkout's uncommitted changes" if args.with_local_changes else ""
+    print(f"Breaks at {head[:12]}{local}: {len(rows)}. Logs: {out}\n")
     print("result\tbreak\tat\toriginal line\tmeaning")
     for item, result, old, index in rows:
         print(f"{result}\t{item['name']}\t{item['path']}:{item['line']}\t{old[:80]}\t{meaning[result]}")

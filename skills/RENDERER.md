@@ -103,10 +103,11 @@ rejects goes to the Mermaid CLI.
 
 When no backend renders a diagram, the renderer prints `Diagram N left as
 source` with the reason and an install command, and keeps the fence as labeled
-source. Record the backends tried in the review record. In a PR review, also
-put a line containing `diagram renderer unavailable` in `report.md` under
-`## Evidence and record`, which `render_page.py --check --review` reads; it
-refuses a page with a diagram left as source when that line is absent.
+source. Record the backends tried in the review record, and put a line
+containing `diagram renderer unavailable` in the note: under
+`## Evidence and record` in a PR review or an acceptance report, anywhere in
+any other note. `render_page.py --check` refuses a page with a diagram left
+as source when that line is absent.
 
 Beautiful Mermaid supports a subset of Mermaid syntax, including sequence,
 state, and flow diagrams. Termination-cross arrows are rejected because

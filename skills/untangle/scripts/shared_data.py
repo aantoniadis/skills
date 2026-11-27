@@ -152,8 +152,13 @@ def notes(entry):
     return found
 
 
-def sites(by_file):
-    return ", ".join(f"{path}:{','.join(map(str, lines[:4]))}{'…' if len(lines) > 4 else ''}" for path, lines in sorted(by_file.items())) or "none here"
+def sites(by_file, first=(), limit=None):
+    """The files and lines of one use of a key: the changed files first, then up to `limit` files in all, the rest as a count."""
+    ordered = sorted(by_file.items(), key=lambda item: (item[0] not in first, item[0]))
+    shown = ordered if limit is None else ordered[:limit]
+    more = len(ordered) - len(shown)
+    text = ", ".join(f"{path}:{','.join(map(str, lines[:4]))}{'…' if len(lines) > 4 else ''}" for path, lines in shown)
+    return (text + (f", and {more} more files" if more > 0 else "")) or "none here"
 
 
 def main():
@@ -210,19 +215,27 @@ def main():
             for _, path, number, text in listed:
                 print(f"{path}:{number}\t{text[:150]}")
             print()
-    touched = {key for path, uses in uses_by_file.items() for number, key, _, _ in uses if new(path, number)}
-    keys = {key: entry for key, entry in ledger(uses_by_file).items() if notes(entry) and key in touched}
-    ranked = sorted(keys.items(), key=lambda item: (-len(set(item[1]["write"]) | set(item[1]["read"]) | set(item[1]["default"])),
+    changed_by_key = {}  # key -> the files whose added lines use it
+    for path, uses in uses_by_file.items():
+        for number, key, _, _ in uses:
+            if new(path, number):
+                changed_by_key.setdefault(key, set()).add(path)
+    keys = {key: entry for key, entry in ledger(uses_by_file).items() if notes(entry) and key in changed_by_key}
+    # With --base the keys the change uses most come first; a generic key such as `id` that every file uses sinks.
+    ranked = sorted(keys.items(), key=lambda item: ((-len(changed_by_key[item[0]]) if args.base else 0),
+                                                    -len(set(item[1]["write"]) | set(item[1]["read"]) | set(item[1]["default"])),
                                                     -len(item[1]["write"]), item[0]))
     print(f"Keys of untyped data{' the change uses on an added line' if args.base else ''}: {len(keys)} keys with a sign that no one place "
           f"declares them (top {args.top}).")
     print("A key is matched by name, so unrelated hashes that share a key share a row.\n")
     for key, entry in ranked[:args.top]:
         print(f"{key}\t{'; '.join(notes(entry))}")
-        print(f"\twritten: {sites(entry['write'])}")
-        print(f"\tread: {sites(entry['read'])}")
+        # A change's leads name the files around the change; a census of a scope keeps every writer and reader.
+        first, limit = changed_by_key[key], (8 if args.base else None)
+        print(f"\twritten: {sites(entry['write'], first, limit)}")
+        print(f"\tread: {sites(entry['read'], first, limit)}")
         if entry["default"]:
-            print(f"\tread with a default: {sites(entry['default'])}")
+            print(f"\tread with a default: {sites(entry['default'], first, limit)}")
     return 0
 
 

@@ -25,8 +25,9 @@ A behavior claim carries one of these in its sentence, list item, or table row:
   inputs, and environment. Cite the original record and identify what was reused;
   reuse does not turn an earlier run into a new execution.
 - **Documented intent:** a relevant quotation and link to the requirement,
-  decision, issue, PR body, or documentation. It establishes the stated intent,
-  not implementation or execution.
+  decision, issue, PR body, or documentation, or the user's answer during
+  the work, recorded with its date as *(answered 2 June)*. It establishes
+  the stated intent, not implementation or execution.
 - **An explicit limit:** *inferred* from named evidence and reasoning,
   *proposed* behavior, *not inspected*, *unknown* with what would settle it,
   or *background* knowledge outside the repository.

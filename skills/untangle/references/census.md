@@ -103,7 +103,12 @@ the focused tests miss under `--full`, and reports one of three results:
 - *green*: no test protects the behavior. Record it in the map under
   *Behavior no test protects*; it is the first lock test a rework writes.
 
-The worktree holds HEAD, so uncommitted changes in the checkout are not in it.
+The worktree holds HEAD, so uncommitted changes in the checkout are not in
+it; `--with-local-changes` brings them in, for lock tests not yet committed.
+Each focused command runs once on the unbroken worktree first, and so does
+the full command. One that already fails there is reported as *red before
+the break* and pins nothing: its test is missing, the setup is incomplete,
+or a test fails before any break and has to be left out of the command.
 
 Break first what would hurt most if it changed silently: a check on who may
 do what, a rule about money or data, a value another system reads.
@@ -215,7 +220,8 @@ dependencies between them. Keep the quote behind each allowed dependency under
 Map only the components the design names. A file the design never mentions
 stays unmapped; the script lists it, and the map reports it as a module the
 design does not name, which is a different result from a dependency the
-design forbids.
+design forbids. A dependency that touches such a file is *not compared* in
+the map and in its structure view.
 
 A relationship reported as *not found* means no edge showed it. Before
 recording it, check whether the dependency runs through something the edge

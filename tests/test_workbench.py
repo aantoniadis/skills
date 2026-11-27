@@ -31,7 +31,7 @@ class WorkbenchTests(unittest.TestCase):
         self.assertIn("report", page.body["class"])
         main = page.main
         articles = main.select("section#problems > article.problem")
-        self.assertEqual([a.get("class") for a in articles], [["problem", "structure", "decision-decided"], ["problem", "structure", "decision-open"],
+        self.assertEqual([a.get("class") for a in articles], [["problem", "structure", "decision-decided"], ["problem", "structure", "decision-open", "brief"],
                                                               ["problem", "bug", "decision-decided"]], "structure first, the possible bug last")
         self.assertEqual(articles[0].select_one(".problem-number").get_text(), "1.")
         self.assertIsNotNone(articles[2].select_one("figure.history-view"), "the change history draws beside its problem")
@@ -53,6 +53,12 @@ class WorkbenchTests(unittest.TestCase):
         counts = {chip["class"][1]: chip.b.get_text() for chip in main.select(".report-counts .count")}
         self.assertEqual(counts, {"count-problems": "3", "count-bugs": "1", "count-waiting": "1", "count-defaults": "0"})
         self.assertEqual([s.get_text() for s in main.select(".waiting .waiting-state")], ["open"], "an index: state and title")
+        self.assertEqual([s.get_text() for s in main.select(".waiting .waiting-when")], ["can wait"], "when the answer is needed")
+        self.assertEqual(main.select_one("article.brief .brief-tag").get_text(), "in brief")
+        grid = main.select_one("table.scorecard")
+        self.assertEqual(grid.caption.get_text(), "The rework restores 9 of 11 principles.")
+        self.assertEqual([td.get_text() for td in grid.select("tbody tr")[2].select("td")], ["not applicable", "not applicable"], "Liskov")
+        self.assertIsNotNone(main.select_one("details.scorecard-evidence > ul"), "the evidence folds under the grid")
         rail = page.select_one('nav[aria-label="Sections"]')
         self.assertEqual(len(rail.select("ol.nav-problems > li")), 3)
         self.assertEqual(len(rail.select('a[href="#3-a-gold-customer-is-quoted-38-00-and-charged-36-00"]')), 1, "each problem is listed once")

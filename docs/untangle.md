@@ -119,8 +119,11 @@ worth it, and the author who carries it out.
   Each problem is one section that holds everything
   about it: what is wrong and what it costs, how sure the map is (we ran it,
   read it at the lines, or inferred it), a picture, the evidence, the
-  proposed fix with its cost and what you get, the other options with
-  *leave it* always among them, and your decision.
+  proposed fix with a sketch of the code after it, its cost and what you
+  get, the other options with *leave it* always among them, and your
+  decision. The five that cost most are written in full and the rest in
+  brief, so the map stays short enough to read. Each open decision says
+  whether a step of the rework waits for it or it can wait.
 - **The pictures** show the problem, not the whole component. A *focus*
   draws only the files and rules of that problem, today and proposed side by
   side. A *change history* draws each past change to a rule against the
@@ -139,8 +142,9 @@ worth it, and the author who carries it out.
   minimal shared state, one-way flow, intention-revealing names,
   readable functions, and decisions with their data, each
   checked on the code today and on the target, so a lead sees what the
-  rework buys. The [clean structure](../skills/CLEAN-STRUCTURE.md) guide
-  holds the check for each. Then come the lock tests and the steps.
+  rework buys, drawn as a scorecard of today against proposed. The
+  [clean structure](../skills/CLEAN-STRUCTURE.md) guide holds the check for
+  each. Then come the lock tests and the steps.
 - **What is sound**, and **How it works today** as the reference the
   problems cite, folded on the page until opened.
 

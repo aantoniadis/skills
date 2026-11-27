@@ -9,7 +9,7 @@ kind: rework-map
 
 **What we propose:** *Pricing owns discounts*: one function decides the rate, both entry points call it, and `discounts.py` is renamed `loyalty.py` for the rule it owns. Two lock tests come first; three files and two call sites change (proposed).
 
-**What you decide:** Whether `apply_legacy_rounding` is still needed: open, and it stays until you answer. Which gold rate is right, a possible bug found on the way: you answered 10% on 2 June.
+**What you decide:** Whether `apply_legacy_rounding` is still needed: open, and it can wait, because no step of the rework needs the answer; it stays until you answer. Which gold rate is right, a possible bug found on the way: you answered 10% on 2 June.
 
 **Scope:** `shop/pricing/` and the serializers and views that call it; tax is excluded. **Inspected source:** commit `ddddddd` of the fictional `acme/shop`, no local changes. **What ran:** `python -m pytest tests/pricing -q`, 42 passed ([baseline run](runs/baseline.md)).
 
@@ -82,6 +82,19 @@ elif tier == "silver":
 
 **Proposed fix:** *Pricing owns discounts*: `loyalty_discount(tier, subtotal)` at [discounts.py:12](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/discounts.py#L12) is the only place that knows a rate; the serializer and the quote builder call it. The steps are in [the plan](#the-plan).
 
+**Proposed code:** a sketch of the one owner and a caller, proposed; the final code comes with the steps.
+
+```python
+# shop/pricing/loyalty.py: the only module that knows a loyalty rate
+RATES = {"gold": Decimal("0.10"), "silver": Decimal("0.05")}
+
+def loyalty_discount(tier: str | None, subtotal: Decimal) -> Decimal:
+    return subtotal * RATES.get(tier, Decimal("0"))
+
+# shop/api/serializers.py: formats what pricing decided
+discount = loyalty_discount(order.tier, order.subtotal)
+```
+
 **Cost and risk:** 3 files and 2 call sites change; 2 lock tests come first (proposed). The quote call waits for the answer to problem 3, now given.
 
 **What you get:** the next rate change is one edit in one file; decision sites for the rule go from 3 to 1, and the stated rule "every price is decided in `pricing`" holds again (proposed).
@@ -101,7 +114,7 @@ elif tier == "silver":
 
 **Proposed fix:** Delete it once you confirm no outside caller uses it.
 
-**Decision:** open. Recommended: delete it. Until you answer, it stays.
+**Decision:** open, can wait: no step needs it. Recommended: delete it. Until you answer, it stays.
 
 ### 3. A gold customer is quoted 38.00 and charged 36.00
 
@@ -345,17 +358,17 @@ The files by design part, the dependencies the code has, and where each rule is 
 
 ### Design principles
 
-- **Single responsibility:** today `serializers.py` formats orders and decides a discount, two reasons to change ([serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44)); proposed, each module above has one.
-- **Open–closed:** today adding a tier edits three files, as the change history of problem 1 shows; proposed, it adds one row to the rate table in `loyalty.py`.
+- **Single responsibility:** broken → met: today `serializers.py` formats orders and decides a discount, two reasons to change ([serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44)); proposed, each module above has one.
+- **Open–closed:** broken → met: today adding a tier edits three files, as the change history of problem 1 shows; proposed, it adds one row to the rate table in `loyalty.py`.
 - **Liskov substitution:** not applicable: we ran `git grep -n "class .*(" shop/`, and it found no subclass or interface in scope.
-- **Interface segregation:** today `serializers.py` takes the whole `order` dict and writes its `discount` key ([serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44)); proposed, it takes the `Order` value and only reads it.
-- **Dependency inversion:** today the pricing rule imports no storage or framework code, as `import_edges.py` printed; proposed, unchanged.
-- **YAGNI:** today `apply_legacy_rounding` has no caller (problem 2); proposed, it goes once you confirm, and the target adds no interface or setting.
-- **Minimal shared state:** today two files write the `order` dict ([views.py:36](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/views.py#L36), [serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44)); proposed, `views.py` builds the `Order` value once and nothing changes it.
-- **One-way flow:** today the serializer reads customer records, against the order of the parts; proposed, calls move from API and quotes to pricing to storage.
-- **Intention-revealing names:** today `discounts.py` also names coupons, which it does not decide; proposed, it is renamed `loyalty.py`.
-- **Readable functions:** today the quote builder decides the tier rate inline, beside its layout code ([builder.py:27](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L27)); proposed, it calls `loyalty_discount` and keeps only layout.
-- **Decisions with their data:** today the serializer reads the customer's tier and decides the rate for it ([serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44)); proposed, `loyalty.py` decides it from the tier it is given.
+- **Interface segregation:** broken → met: today `serializers.py` takes the whole `order` dict and writes its `discount` key ([serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44)); proposed, it takes the `Order` value and only reads it.
+- **Dependency inversion:** met → met: today the pricing rule imports no storage or framework code, as `import_edges.py` printed; proposed, unchanged.
+- **YAGNI:** broken → met: today `apply_legacy_rounding` has no caller (problem 2); proposed, it goes once you confirm, and the target adds no interface or setting.
+- **Minimal shared state:** broken → met: today two files write the `order` dict ([views.py:36](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/views.py#L36), [serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44)); proposed, `views.py` builds the `Order` value once and nothing changes it.
+- **One-way flow:** broken → met: today the serializer reads customer records, against the order of the parts; proposed, calls move from API and quotes to pricing to storage.
+- **Intention-revealing names:** broken → met: today `discounts.py` also names coupons, which it does not decide; proposed, it is renamed `loyalty.py`.
+- **Readable functions:** broken → met: today the quote builder decides the tier rate inline, beside its layout code ([builder.py:27](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L27)); proposed, it calls `loyalty_discount` and keeps only layout.
+- **Decisions with their data:** broken → met: today the serializer reads the customer's tier and decides the rate for it ([serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44)); proposed, `loyalty.py` decides it from the tier it is given.
 
 ### Lock tests
 

@@ -142,6 +142,12 @@ the paragraph in bold; the checker reads the first four.
 - **Proposed fix:** what changes to remove the problem, labelled *proposed*,
   and where the steps are. For behavior to decide, the handoff to fix-bug or
   plan-change and the question that decides it.
+- **Proposed code:** for a fix that moves a decision or changes an
+  interface, a sketch of the code after it, as a fenced block in the
+  project's language right after the label: the owner's new signature or
+  type, the moved decision, and one caller, in about 25 lines or fewer,
+  with bodies that do not matter elided. Label it proposed. It shows the
+  author what the fix means; the code itself comes with the steps.
 - **Cost and risk:** the files, call sites, and lock tests the fix needs, and
   what can go wrong.
 - **What you get:** the measure, before and after, such as the decision
@@ -151,9 +157,21 @@ the paragraph in bold; the checker reads the first four.
   costing at its present rate. A corner case lists its options cheapest
   first, as [corner cases](../../CORNER-CASES.md) says.
 - **Decision:** one of *open*, *default applied*, *decided*, or *none
-  needed*, then the recommendation and what holds until the user answers, or
-  the answer with its date. The page gathers every open decision under *In
-  short*, so each one stands on its own.
+  needed*. After *open* or *default applied*, say when the answer is
+  needed: *blocks step 2* when a step of the plan waits for it, or *can
+  wait* when no step does. Then the recommendation and what holds until the
+  user answers, or the answer with its date. The page gathers every open
+  decision under *In short*, those that block a step first, so each one
+  stands on its own.
+
+**Write at most five problems in full.** A lead reads the first few. Write
+the five that cost most in full, with their evidence, picture, and options,
+and every other problem **in brief**: the **Kind** line, **What is wrong**
+in one or two sentences with its pinned line, **Proposed fix** in one
+sentence, and **Decision**. A brief problem keeps its rank and its number,
+and the page draws it compact. The checker counts a problem with
+**Evidence:** as written in full and rejects a sixth. In *In short*, list
+the decisions that block a step first.
 
 A behavior to decide and a corner case need no **Proposed fix:**, **Cost and
 risk:**, or **What you get:** when the decision is all there is; every other
@@ -213,7 +231,7 @@ def discount_for(customer, subtotal):
 - **Leave it:** every rate change keeps touching three files, and the next missed file is found by a customer (inferred from the history).
 - **A shared rate table the three places read:** removes the disagreement, but three places still apply the rate (proposed).
 
-**Decision:** open. Recommended: *Pricing owns discounts*. Until you answer, the structure stays as it is.
+**Decision:** open, blocks step 2. Recommended: *Pricing owns discounts*. Until you answer, the structure stays as it is.
 ````
 
 What each part does on the page:
@@ -231,7 +249,8 @@ What each part does on the page:
   the inspected revision and the lines shown, as `#L26-L28`. The lines in the
   fence are the lines at that link.
 - The **Decision:** box is coloured by its first word, and an *open* or
-  *default applied* decision is also listed under *In short*.
+  *default applied* decision is also listed under *In short*, with *blocks
+  step 2* beside it.
 
 ## Pins
 
@@ -346,13 +365,15 @@ problem holds.
   words; a module with no decision of its own is removed or merged; a module
   that changes for two reasons is split. Draw each change in the structure
   view, as [pictures](#pictures) says.
-- **Design principles** is a list of eleven items, one per principle of
+- **Design principles** is a list of eleven items, a scorecard of the
+  rework, one per principle of
   [clean structure](../../CLEAN-STRUCTURE.md), in its order. Each starts
   with the principle's name in bold, *Single responsibility*,
   *Open–closed*, *Liskov substitution*, *Interface segregation*,
   *Dependency inversion*, *YAGNI*, *Minimal shared state*, *One-way flow*,
   *Intention-revealing names*, *Readable functions*, or *Decisions with
-  their data*, then today's result with its evidence and the
+  their data*, then the result today and the proposed result, each *broken*,
+  *met*, or *not applicable*, as `broken → met`, then today's result with its evidence and the
   proposed result. *Not applicable* with its reason is a result. The checker
   reads the names and requires all eleven. A lead reads this list to see what
   the rework buys: each principle broken today and met after is a reason to

@@ -29,6 +29,8 @@ kind: change-card
 
 **Proposed fix:** {{the_reshape_the_patch_or_the_fix_proposed_or_applied_with_the_test_result}}
 
+**Proposed code:** {{when_the_fix_moves_a_decision_or_changes_an_interface_one_line_then_a_fenced_sketch_proposed_else_remove}}
+
 **Cost and risk:** {{files_call_sites_and_tests_proposed}}
 
 **What you get:** {{sites_for_the_rule_after_or_what_the_next_change_costs_proposed}}
@@ -37,7 +39,7 @@ kind: change-card
 
 - **{{option}}:** {{what_it_changes_and_costs_proposed}}
 
-**Decision:** {{open_default_applied_decided_or_none_needed_then_the_recommendation_and_what_holds_until_answered}}
+**Decision:** {{open_or_default_applied_with_blocks_step_n_or_can_wait_or_decided_or_none_needed_then_the_recommendation_and_what_holds_until_answered}}
 
 {{repeat_for_each_problem_structure_problems_by_cost_first_and_behavior_to_decide_last_or_write_one_sentence_that_none_was_found_with_what_was_checked}}
 

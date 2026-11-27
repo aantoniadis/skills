@@ -9,7 +9,7 @@ kind: rework-map
 
 **What we propose:** {{the_recommended_target_in_one_or_two_sentences_with_the_module_changes_and_what_protects_the_rework_proposed_or_leave_the_structure_as_it_is_with_the_reason}}
 
-**What you decide:** {{each_decision_that_waits_for_the_user_in_one_line_with_its_default_or_none}}
+**What you decide:** {{each_decision_that_waits_for_the_user_in_one_line_with_its_default_and_whether_it_blocks_a_step_those_that_block_first_or_none}}
 
 **Scope:** {{paths_and_capabilities_included_and_excluded}}. **Inspected source:** {{revision_local_changes_and_configuration}}. **What ran:** {{baseline_command_result_and_run_record_link_or_the_obstruction}}.
 
@@ -45,6 +45,8 @@ kind: rework-map
 
 **Proposed fix:** {{what_changes_to_remove_it_proposed_or_the_handoff_for_behavior_to_decide}}
 
+**Proposed code:** {{when_the_fix_moves_a_decision_or_changes_an_interface_one_line_then_a_fenced_sketch_of_the_owner_and_one_caller_proposed_else_remove}}
+
 **Cost and risk:** {{files_call_sites_lock_tests_and_what_can_go_wrong_proposed}}
 
 **What you get:** {{the_measure_before_and_after_such_as_decision_sites_for_the_rule_proposed}}
@@ -54,9 +56,9 @@ kind: rework-map
 - **Leave it:** {{what_the_problem_keeps_costing_at_its_present_rate_with_evidence}}
 - **{{another_option}}:** {{what_it_changes_and_costs_and_why_it_is_not_recommended}}
 
-**Decision:** {{open_default_applied_decided_or_none_needed_then_the_recommendation_and_what_holds_until_answered_or_the_answer_with_its_date}}
+**Decision:** {{open_or_default_applied_with_blocks_step_n_or_can_wait_or_decided_or_none_needed_then_the_recommendation_and_what_holds_until_answered_or_the_answer_with_its_date}}
 
-{{repeat_for_each_problem_in_rank_order_structure_problems_by_cost_first_and_behavior_to_decide_last}}
+{{repeat_for_each_problem_in_rank_order_structure_problems_by_cost_first_and_behavior_to_decide_last_at_most_five_in_full_and_the_rest_in_brief_with_kind_what_is_wrong_proposed_fix_and_decision_only}}
 
 ## The plan
 
@@ -86,7 +88,7 @@ kind: rework-map
 
 ### Design principles
 
-- **{{Single_responsibility_Open–closed_Liskov_substitution_Interface_segregation_Dependency_inversion_YAGNI_Minimal_shared_state_One-way_flow_or_Intention-revealing_names_Readable_functions_or_Decisions_with_their_data}}:** {{today_the_check_result_with_its_evidence_then_proposed_the_result_for_the_target_or_not_applicable_with_the_reason}}
+- **{{Single_responsibility_Open–closed_Liskov_substitution_Interface_segregation_Dependency_inversion_YAGNI_Minimal_shared_state_One-way_flow_or_Intention-revealing_names_Readable_functions_or_Decisions_with_their_data}}:** {{broken_or_met_→_broken_or_met_then_today_the_check_result_with_its_evidence_and_proposed_the_result_for_the_target_or_not_applicable_with_the_reason}}
 
 {{one_item_per_principle_all_eleven_in_this_order}}
 

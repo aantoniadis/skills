@@ -115,6 +115,8 @@ Rank the structure problems and corner cases by what they cost today: how many p
 
 **What is sound** records what works and should be kept, and what a reader would flag and the reason the user or the history gave, so that the next run does not raise it again. The reason is about structure or intent: a decision the code makes, a requirement, an incident. "The tests pass" says the code works; it does not say its shape is right.
 
+Write the five problems that cost most in full and the rest in brief, and give every fix that moves a decision or changes an interface a **Proposed code:** sketch, as [map format](references/map-format.md#problems) says. Each open decision says whether it blocks a step of the plan or can wait.
+
 Done when every behavior with more than one decision site, every difference the user called drift, and every special case with a row is a problem, part of one, or under *What is sound* with its reason; and every problem has its kind, how sure, what is wrong, and its decision.
 
 ## 6. Propose the rework

@@ -49,7 +49,7 @@ elif tier == "silver":
 
 - **Patch:** add platinum to the rate table and to the serializer's chain. The rule then has two places for every later change (proposed).
 
-**Decision:** default applied: reshape first, because nobody answered. Say "patch" to add the tier in both places instead.
+**Decision:** default applied, blocks step 2: reshape first, because nobody answered. Say "patch" to add the tier in both places instead.
 
 ### 2. A customer upgraded while a quote is open pays less than quoted
 
@@ -65,7 +65,7 @@ elif tier == "silver":
 
 - **Build in:** store the tier with each quote and branch on it at checkout: a new stored field in `shop/storage.py` and a branch in `shop/quotes.py` (proposed).
 
-**Decision:** open. Recommended: leave it. Until you answer, checkout uses the tier at checkout.
+**Decision:** open, can wait: no step depends on it. Recommended: leave it. Until you answer, checkout uses the tier at checkout.
 
 ## The plan
 

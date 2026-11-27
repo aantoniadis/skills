@@ -261,7 +261,9 @@ Before you recommend a target, run each check on the target as written:
 
 Change a target that fails a check before you offer it, or name the failure
 in its cost. In the plan, write one item per principle, labelled with its
-name, with today's result and the proposed one and their evidence. Write
+name, then today's result and the proposed one, each *broken*, *met*, or
+*not applicable*, as `broken → met`, then their evidence. The page draws
+the results as a scorecard. Write
 *not applicable* with the reason where the scope holds nothing the
 principle covers, such as Liskov substitution with no subtypes. For readable
 functions, name the functions read and the ones that fail. After the

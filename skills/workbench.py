@@ -7,9 +7,11 @@ decision. This module arranges the rendered page around that reading order:
 
 - the sidebar lists the problems under *Problems*, each with the state of its decision;
 - the header carries counts: problems, possible bugs, and decisions that wait for the reader;
-- *In short* gathers every decision still open, each linked to its problem;
+- *In short* gathers every decision still open, each linked to its problem, those that block a step first;
 - each problem becomes an article: its kind and how sure the note is as tags, labelled paragraphs, code
-  excerpts side by side, and the decision set apart;
+  excerpts side by side, and the decision set apart; a problem written in brief, with no evidence of its
+  own, is drawn compact;
+- the design principles become a scorecard, today against proposed, with each item's evidence folded;
 - each behavior of the spec is marked by how it is verified: tested, locked, or untested;
 - each row of the behavior map links to the problem that holds its weak point;
 - *How it works today* is reference, folded until opened.
@@ -93,7 +95,7 @@ def problems(soup):
                 text.replace_with(rest)
                 rest.insert_before(badge)
         facts = {"id": heading.get("id", ""), "title": heading.get_text(" ", strip=True), "number": number.group(1) if number else "",
-                 "kind": "", "status": "none needed", "decision": None}
+                 "kind": "", "status": "none needed", "decision": None, "when": "", "brief": True}
         grid = None
         for element in list(article.children):
             if getattr(element, "name", None) == "figure" and "code-card" in element.get("class", []):
@@ -111,14 +113,24 @@ def problems(soup):
                 element["class"] = element.get("class", []) + ["problem-facts"]
                 facts["kind"] = element.get_text(" ", strip=True).split(":", 1)[1].split(" · ")[0].strip()
             elif label == "Decision":
-                facts["status"] = status_of(element.get_text(" ", strip=True).split(":", 1)[1].strip())
+                text = element.get_text(" ", strip=True).split(":", 1)[1].strip()
+                facts["status"] = status_of(text)
+                when = re.match(r"(?:open|default applied)\b[,;:]?\s*(blocks steps? [\d, and]+\d|can wait)", text.lower())
+                facts["when"] = when.group(1) if when else ""
                 box = soup.new_tag("div", attrs={"class": f"decision {slug(facts['status'])}"})
                 element.insert_before(box)
                 box.append(element.extract())
                 facts["decision"] = box
             elif label:
                 element["class"] = element.get("class", []) + ["field", f"field-{slug(label)}"]
+                if label == "Evidence":
+                    facts["brief"] = False
         article["class"] = article.get("class", []) + [kind_class(facts["kind"]), f"decision-{slug(facts['status'])}"]
+        if facts["brief"]:
+            article["class"].append("brief")
+            tag = soup.new_tag("span", attrs={"class": "brief-tag"})
+            tag.string = "in brief"
+            heading.append(tag)
         found.append(facts)
     return found
 
@@ -183,13 +195,18 @@ def in_short(soup, found):
     head.string = "Waiting for your decision"
     box.append(head)
     listing = soup.new_tag("ul")
+    waiting.sort(key=lambda f: not f["when"].startswith("blocks"))  # what blocks the rework is answered first
     for facts in waiting:  # an index: the decision itself stands under its problem
         item = soup.new_tag("li", attrs={"class": f"decision-{slug(facts['status'])}"})
         state = soup.new_tag("span", attrs={"class": "waiting-state"})
         state.string = facts["status"]
         link = soup.new_tag("a", href=f"#{facts['id']}")
-        link.string = facts["title"]
+        link.string = facts["title"].removesuffix(" in brief")
         item.extend([state, link])
+        if facts["when"]:
+            when = soup.new_tag("span", attrs={"class": "waiting-when" + (" blocks" if facts["when"].startswith("blocks") else "")})
+            when.string = facts["when"]
+            item.append(when)
         listing.append(item)
     box.append(listing)
     anchor = holder.find("p", class_="field-what-you-decide") or holder.find_all("p", recursive=False)[-1]
@@ -227,6 +244,59 @@ def spec(soup):
             item["class"] = item.get("class", []) + ["behavior", f"verified-{verified.group(1).lower()}"]
 
 
+RESULTS = ("not applicable", "broken", "met")
+
+
+def scorecard(soup):
+    """The design principles as a grid of today against proposed; each item's evidence folds beneath it."""
+    heading = soup.main.find("h3", id="design-principles")
+    listing = heading.find_next_sibling() if heading else None
+    if getattr(listing, "name", None) not in ("ul", "ol"):
+        return
+    table = soup.new_tag("table", attrs={"class": "scorecard"})
+    head = soup.new_tag("thead")
+    row = soup.new_tag("tr")
+    for text in ("Principle", "Today", "Proposed"):
+        cell = soup.new_tag("th", attrs={"scope": "col"})
+        cell.string = text
+        row.append(cell)
+    head.append(row)
+    table.append(head)
+    body = soup.new_tag("tbody")
+    fixed = 0
+    for item in listing.find_all("li", recursive=False):
+        name = item.strong.get_text(strip=True).rstrip(":") if item.strong else ""
+        rest = item.get_text(" ", strip=True).split(":", 1)[-1].strip().lower()
+        pair = re.match(r"(not applicable|broken|met)\s*(?:→|->)\s*(not applicable|broken|met)", rest)
+        today, proposed = pair.groups() if pair else (("not applicable",) * 2 if rest.startswith("not applicable") else ("", ""))
+        fixed += today == "broken" and proposed == "met"
+        row = soup.new_tag("tr")
+        cell = soup.new_tag("th", attrs={"scope": "row"})
+        cell.string = name
+        row.append(cell)
+        for value in (today, proposed):
+            cell = soup.new_tag("td")
+            chip = soup.new_tag("span", attrs={"class": f"result result-{slug(value) or 'unknown'}"})
+            chip.string = value or "unknown"
+            cell.append(chip)
+            row.append(cell)
+        body.append(row)
+    table.append(body)
+    caption = soup.new_tag("caption")
+    caption.string = f"The rework restores {fixed} of {len(listing.find_all('li', recursive=False))} principles."
+    table.insert(0, caption)
+    holder = soup.new_tag("div", attrs={"class": "table-scroll scorecard-box", "tabindex": "0", "role": "region",
+                                         "aria-label": "Design principles scorecard"})
+    holder.append(table)
+    details = soup.new_tag("details", attrs={"class": "scorecard-evidence"})
+    summary = soup.new_tag("summary")
+    summary.string = "The evidence for each principle"
+    details.append(summary)
+    listing.insert_before(holder)
+    holder.insert_after(details)
+    details.append(listing.extract())
+
+
 def problem_links(soup, found):
     """A behavior-map row names its problem by number; point it at the problem's section."""
     by_number = {f["number"]: f["id"] for f in found}
@@ -240,6 +310,7 @@ def build(soup, kind):
     soup.body["class"] = soup.body.get("class", []) + ["report", kind]
     found = problems(soup)
     spec(soup)
+    scorecard(soup)
     problem_links(soup, found)
     rail(soup, found)
     header(soup, found)

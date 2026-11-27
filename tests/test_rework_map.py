@@ -61,12 +61,15 @@ class ReworkMapTests(unittest.TestCase):
                 ("| compatibility path | unknown: no caller", "| compatibility path | probably dead: no caller", "Special cases: start the Reach cell"),
                 ("**Kind:** unjustified special case ·", "**Kind:** dead code ·", "start **Kind:** with one of"),
                 ("**How sure:** observed, removal probe", "**How sure:** fairly sure, removal probe", "start **How sure:** with one of"),
-                ("**Decision:** open. Recommended: delete it.", "**Decision:** pending. Recommended: delete it.", "start **Decision:** with one of"),
+                ("**Decision:** open, can wait: no step", "**Decision:** pending, can wait: no step", "start **Decision:** with one of"),
+                ("**Decision:** open, can wait: no step", "**Decision:** open: no step", "say whether it blocks a step"),
+                ("- **YAGNI:** broken → met:", "- **YAGNI:** better:", "write today's result and the proposed one"),
+                ("**Cost and risk:** 3 files and 2 call sites", "**Proposed code:** none yet.\n\n**Cost and risk:** 3 files and 2 call sites", "follow **Proposed code:** with a fenced code block"),
                 ("**Proposed fix:** Delete it once you confirm", "**Fix later:** Delete it once you confirm", "needs **Proposed fix:**"),
                 ("**What is wrong:** [rounding.py:8]", "**The issue:** [rounding.py:8]", "add **What is wrong:**"),
                 ("*Verified by:* tested, `test_guest_pays_full_price`", "*Verified by:* probably, `test_guest_pays_full_price`", "start *Verified by:* with one of"),
                 ("- **Rename** `shop/pricing/discounts.py`", "- **Rework** `shop/pricing/discounts.py`", "Module changes: start each item with one of"),
-                ("- **YAGNI:** today", "- **Lean:** today", "Design principles: start each item with one of"),
+                ("- **YAGNI:** broken", "- **Lean:** broken", "Design principles: start each item with one of"),
                 ("- **Liskov substitution:** not applicable", "- **Open–closed:** also not applicable", "under ### Design principles today's result and the proposed one for: Liskov substitution")):
             with self.subTest(new=new):
                 self.assertIn(old, self.source)

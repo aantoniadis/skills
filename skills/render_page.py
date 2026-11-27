@@ -1904,6 +1904,9 @@ MODULE_CHANGES = ("Rename", "Remove", "Merge", "Split", "Move")
 PRINCIPLES = ("Single responsibility", "Open–closed", "Liskov substitution", "Interface segregation", "Dependency inversion",
               "YAGNI", "Minimal shared state", "One-way flow", "Intention-revealing names", "Readable functions",
               "Decisions with their data")  # CLEAN-STRUCTURE.md
+PRINCIPLE_RESULTS = ("broken", "met", "not applicable")
+FULL_PROBLEMS = 5  # problems written in full; the rest are written in brief
+WAITS = r"(?:open|default applied)\b[,;:]?\s*(?:blocks steps? \d|can wait)"  # a waiting decision says when it is needed
 
 
 def spec_behaviors(document):
@@ -1976,9 +1979,15 @@ def check_rework_map(source):
             problems.append(f"Module changes: start each item with one of: {', '.join(MODULE_CHANGES)} — {text[:60]!r}.")
     principles = section_items(document, "Design principles")
     labels = [item.strong.get_text(strip=True).rstrip(":") if item.strong else "" for item in principles]
+    results = "|".join(PRINCIPLE_RESULTS)
     for item, label in zip(principles, labels):
         if label not in PRINCIPLES:
             problems.append(f"Design principles: start each item with one of: {', '.join(PRINCIPLES)} in bold — {item.get_text(' ', strip=True)[:60]!r}.")
+            continue
+        rest = item.get_text(" ", strip=True).split(":", 1)[1].strip().lower()
+        if not re.match(rf"(?:not applicable\b|(?:{results})\s*(?:→|->)\s*(?:{results})\b)", rest):
+            problems.append(f"Design principles: after **{label}:** write today's result and the proposed one, such as "
+                            f"*broken → met*, from {', '.join(PRINCIPLE_RESULTS)}, or *not applicable* — {rest[:50]!r}.")
     if document.find("h3", string="Lock tests"):  # a rework map's plan; its front matter is blanked by now
         missing = [p for p in PRINCIPLES if p not in labels]
         if missing:
@@ -1991,6 +2000,10 @@ def check_rework_map(source):
             if kind and not kind.startswith("behavior to decide"):
                 problems.append(f"Problems: behavior to decide comes last; move {heading.get_text(' ', strip=True)!r} "
                                 f"({kind.split(' ·')[0]}) above {sections[first_bug][0].get_text(' ', strip=True)!r}.")
+    full = [heading.get_text(" ", strip=True) for heading, elements in sections if "Evidence" in problem_fields(elements)]
+    if len(full) > FULL_PROBLEMS:
+        problems.append(f"Problems: write at most {FULL_PROBLEMS} in full, with **Evidence:**; write the others in brief "
+                        f"(Kind, What is wrong, Proposed fix, Decision): {', '.join(repr(t) for t in full[FULL_PROBLEMS:])}.")
     for heading, elements in sections:
         name = f"Problem {heading.get_text(' ', strip=True)!r}"
         fields = problem_fields(elements)
@@ -2002,6 +2015,16 @@ def check_rework_map(source):
             value = fields[label].lower()
             if not any(re.match(rf"{re.escape(option)}\b", value) for option in sorted(values, key=len, reverse=True)):
                 problems.append(f"{name}: start **{label}:** with one of: {', '.join(values)}.")
+        decision = fields["Decision"].lower()
+        if decision.startswith(("open", "default applied")) and not re.match(WAITS, decision):
+            problems.append(f"{name}: after **Decision:** {decision.split(',')[0].split('.')[0]}, say whether it blocks a step "
+                            "(*blocks step 3*) or *can wait*.")
+        for index, element in enumerate(elements):
+            if element.name == "p" and element.find("strong") is element.contents[0] and \
+                    element.strong.get_text(strip=True).rstrip(":") == "Proposed code":
+                following = next((e for e in elements[index + 1:] if e.name), None)
+                if following is None or following.name != "pre":
+                    problems.append(f"{name}: follow **Proposed code:** with a fenced code block, the sketch itself.")
         kind = fields["Kind"].lower()
         if not kind.startswith(("behavior to decide", "corner case")) and "Proposed fix" not in fields:
             problems.append(f"{name}: a structure problem needs **Proposed fix:**, or a fix of leaving it with its reason.")

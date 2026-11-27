@@ -1,6 +1,6 @@
-# Census of a capability
+# Census of a feature
 
-Read when listing the decision sites of a capability, breaking a decision on
+Read when listing the decision sites of a feature, breaking a decision on
 purpose, or choosing how to get the edges for the dependency view. No single
 kind of evidence finds every site, and each fails in a known way, so take
 them together and read where they disagree. Label every result as
@@ -20,13 +20,13 @@ them together and read where they disagree. Label every result as
 
 | Kind | How to take it | What it misses |
 | --- | --- | --- |
-| Text | Search the scope and its callers for the capability's domain words and their synonyms, and for its discriminators: enum values, type fields, status strings, flags, configuration keys, table and column names. | Code that implements the capability under another name. |
+| Text | Search the scope and its callers for the feature's domain words and their synonyms, and for its discriminators: enum values, type fields, status strings, flags, configuration keys, table and column names. | Code that implements the feature under another name. |
 | References | From each hit, follow callers, callees, references, and implementations in both directions with native symbol navigation, the language server, or a project index. With none of those, use search and the import edges, and say so. | Dependency injection, reflection, dynamic dispatch, and lookups by string. It also reports paths nothing takes. |
-| Execution | Run the scenarios that exercise the capability and the scenarios that do not, and compare the code each set executes. | Every scenario nobody ran. Shared code that holds part of the rule looks unrelated, because both sets execute it. |
+| Execution | Run the scenarios that exercise the feature and the scenarios that do not, and compare the code each set executes. | Every scenario nobody ran. Shared code that holds part of the rule looks unrelated, because both sets execute it. |
 | History | Find the commits that introduced or changed a discriminator, and the files that change in the same commits. | Rules that have not changed inside the fetched history; work split across commits or squashed into one. |
 | A deliberate break | In a scratch copy, change one decision and run the tests that should notice. | Nothing about reach: a red test shows the behavior is protected, a green suite shows it is not. |
 
-Name the kinds taken for each capability. Mark a decision site that only one
+Name the kinds taken for each feature. Mark a decision site that only one
 kind found, because that is the site a reader is most likely to miss.
 
 ## Execution: which tests run a line
@@ -43,8 +43,8 @@ form the ecosystem has, in this order:
    ```
 
    Another ecosystem has its own per-test report; use it the same way.
-2. Coverage of one focused run, such as the tests of one capability, compared
-   with coverage of a run that leaves that capability out.
+2. Coverage of one focused run, such as the tests of one feature, compared
+   with coverage of a run that leaves that feature out.
 3. A probe: a short script under `runs/` that drives one input through the
    public boundary and prints what came back. Two entry points given the same
    input, side by side, is the probe that finds sites that disagree.
@@ -168,7 +168,7 @@ writes.
 
 | The kinds disagree like this | Read it as a lead to |
 | --- | --- |
-| A scenario executes it; no search for the capability's words finds it | A hidden part of the capability: add the site, and name what it decides. |
+| A scenario executes it; no search for the feature's words finds it | A hidden part of the feature: add the site, and name what it decides. |
 | The words find it; no scenario executes it | Dead code, or a scenario nobody wrote. Find which before recording either. |
 | Two code files change together; no dependency between them | One rule kept in two places, or an unwritten convention the two must follow. |
 | A reference reaches it; no scenario does | A path nothing takes, or a caller outside the scope. Enumerate the callers. |

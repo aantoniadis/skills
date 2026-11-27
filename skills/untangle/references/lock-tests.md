@@ -60,6 +60,6 @@ recorded in the map.
 
 ## Record
 
-List the lock tests in the map's *Lock tests* section: the test, the
+List the lock tests under *Lock tests* in the map's plan: the test, the
 behavior it locks, the break it failed under with the run, and the suite run
 that passed. The rework steps name these tests as their pins.

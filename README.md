@@ -105,8 +105,8 @@ workflow, unchanged.
 | [`pr-review-guide`](skills/pr-review-guide/SKILL.md) | You have to review a PR you did not write | A guide to a pinned snapshot: what the change means, where to look, what to skim, what to ask the author | [docs/pr-review-guide.md](docs/pr-review-guide.md) |
 | [`whats-next`](skills/whats-next/SKILL.md) | You are not sure which skill to run next, or whether to start a new session | The next step, its command for your host, and the session to run it in, from the checkout and the notes already written | [docs/whats-next.md](docs/whats-next.md) |
 | [`check-acceptance`](skills/check-acceptance/SKILL.md) | You need to know whether a set of issues, an epic, tickets, or a spec is delivered | Per-requirement status at a pinned revision with evidence, delivered behavior nobody asked for, and a search for bugs when selected | [docs/check-acceptance.md](docs/check-acceptance.md) |
-| [`fit-change`](skills/fit-change/SKILL.md) | A feature or bug fix is about to be written in existing code, or a finished change needs a structure review | Before: which module owns each rule the change touches, what to reuse, whether to reshape first, and whether a corner case is worth its complexity, as choices for you. After: rules added in a second place, misplaced decisions, and guards, fallbacks, or wrappers nobody asked for | [docs/fit-change.md](docs/fit-change.md) |
-| [`untangle`](skills/untangle/SKILL.md) | Existing code has become hard to follow or change, or you no longer trust that you know how a component is built | A map of the component as it is, checked against its documented design: behavior to decide, behavior no test protects, scattered rules, unexplained guards and fallbacks, your answers recorded in it, and a rework you choose | [docs/untangle.md](docs/untangle.md) |
+| [`fit-change`](skills/fit-change/SKILL.md) | A feature or bug fix is about to be written in existing code, or a finished change needs a structure review | Before: which module owns each rule the change touches, what to reuse, whether to reshape first, and whether a corner case is worth its complexity, as choices for you. After: rules added in a second place, misplaced decisions, unclear names, hard-to-follow functions, and guards, fallbacks, or wrappers nobody asked for | [docs/fit-change.md](docs/fit-change.md) |
+| [`untangle`](skills/untangle/SKILL.md) | Existing code has become hard to follow or change, or you no longer trust that you know how a component is built | A rework map: what the component does as a spec its tests verify, how the code carries each behavior, the problems that make it hard to change ranked by cost with possible bugs last, a code sketch of each fix, a scorecard of design principles today against proposed, and a rework you choose, down to the modules to rename, remove, merge, or split | [docs/untangle.md](docs/untangle.md) |
 
 The skills start from context and settled choices, and ask only about open
 preferences or consequential decisions. Every claim sits next to its evidence:
@@ -131,6 +131,11 @@ behavior, such as committing or pushing, including after one of our handoffs;
   setup, handoffs, and artifact locations
 - [The light path](docs/light-path.md): a shorter workflow for contained
   changes in familiar code
+- [Clean structure](skills/CLEAN-STRUCTURE.md): what a refactoring should
+  leave behind, as principles with a check for each; `untangle`,
+  `fit-change`, `plan-change`, and `fix-bug` hold code to it
+- [Corner cases](skills/CORNER-CASES.md): when a rare input is worth the
+  complexity its handling adds, and the card that puts it to you
 
 ## License
 

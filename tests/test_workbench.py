@@ -23,44 +23,64 @@ def render(fixture, name):
 
 
 class WorkbenchTests(unittest.TestCase):
-    def test_rework_map_page_puts_the_view_first_and_copies_the_tables_into_panels(self):
+    def test_rework_map_reads_problem_by_problem(self):
         directory, note, result = render("rework-map", "rework-map.md")
         self.addCleanup(directory.cleanup)
         self.assertEqual(result.returncode, 0, result.stderr)
         page = BeautifulSoup(note.with_suffix(".html").read_text(), "html.parser")
-        self.assertIn("workbench", page.body["class"])
+        self.assertIn("report", page.body["class"])
         main = page.main
-        order = [child.get("class", [None])[0] for child in main.find_all(recursive=False) if child.name != "footer"]
-        self.assertEqual(order, ["wb-top", "wb-summary", "wb-hero", "wb-panels", "wb-data", "wb-full"])
-        self.assertIsNotNone(main.select_one(".wb-hero figure.structure-view"))
-        chips = {chip["class"][1]: chip.b.get_text() for chip in main.select(".wb-chip")}
-        self.assertEqual(chips, {"decide": "1", "open": "1", "finding": "2", "lock": "2"})
-        panels = {box["aria-label"]: len(box.select(".wb-card")) for box in main.select(".wb-panel")}
-        self.assertEqual(panels, {"Decide": 3, "Findings": 2, "Rework": 5})
-        self.assertIsNotNone(main.select_one(".wb-target"), "the recommendation heads the rework panel")
-        self.assertEqual(len(main.select("section#findings")), 1, "the full text keeps each section once")
-        self.assertFalse(any(tag.get("id") for tag in main.select(".wb-panels [id]")), "panel copies carry no ids")
-        self.assertIn('data-path="shop/api/serializers.py"', str(main))
+        articles = main.select("section#problems > article.problem")
+        self.assertEqual([a.get("class") for a in articles], [["problem", "structure", "decision-decided"], ["problem", "structure", "decision-open", "brief"],
+                                                              ["problem", "bug", "decision-decided"]], "structure first, the possible bug last")
+        self.assertEqual(articles[0].select_one(".problem-number").get_text(), "1.")
+        self.assertIsNotNone(articles[2].select_one("figure.history-view"), "the change history draws beside its problem")
+        self.assertIsNotNone(articles[0].select_one("figure.sv-focus .sv-pane.today svg"))
+        self.assertIsNotNone(articles[0].select_one("figure.sv-focus .sv-pane.proposed svg"))
+        self.assertEqual(len(articles[2].select(".code-grid > figure.code-card")), 2, "excerpts that follow each other sit side by side")
+        self.assertEqual([d.get("class") for d in main.select(".decision")], [["decision", "decided"], ["decision", "open"], ["decision", "decided"]])
+        waiting = main.select("section#in-short .waiting li > a")
+        self.assertEqual([a["href"] for a in waiting], ["#2-apply_legacy_rounding-has-no-caller"], "only what waits for the reader is gathered")
+        spec = main.select("section#what-it-does li.behavior")
+        self.assertEqual([li["class"][-1] for li in spec], ["verified-tested", "verified-tested", "verified-locked", "verified-locked",
+                                                            "verified-tested", "verified-untested"])
+        rows = main.select("section#how-the-code-carries-it figure.behavior-map tbody tr:not(.bm-feature)")
+        self.assertEqual(len(rows), 4)
+        self.assertIn("bm-spread", rows[0]["class"], "a behavior decided in two files stands out")
+        self.assertEqual(rows[0].select_one("a.bm-problem")["href"], "#1-changing-a-loyalty-rate-takes-three-edits")
+        renamed = main.select_one('section#the-plan .sv-file[data-change="renamed"] text')
+        self.assertEqual((renamed["data-today"], renamed["data-proposed"]), ("…op/pricing/discounts.py", "shop/pricing/loyalty.py"), "long paths are shortened from the left")
+        counts = {chip["class"][1]: chip.b.get_text() for chip in main.select(".report-counts .count")}
+        self.assertEqual(counts, {"count-problems": "3", "count-bugs": "1", "count-waiting": "1", "count-defaults": "0"})
+        self.assertEqual([s.get_text() for s in main.select(".waiting .waiting-state")], ["open"], "an index: state and title")
+        self.assertEqual([s.get_text() for s in main.select(".waiting .waiting-when")], ["can wait"], "when the answer is needed")
+        self.assertEqual(main.select_one("article.brief .brief-tag").get_text(), "in brief")
+        grid = main.select_one("table.scorecard")
+        self.assertEqual(grid.caption.get_text(), "The rework restores 9 of 11 principles.")
+        self.assertEqual([td.get_text() for td in grid.select("tbody tr")[2].select("td")], ["not applicable", "not applicable"], "Liskov")
+        self.assertIsNotNone(main.select_one("details.scorecard-evidence > ul"), "the evidence folds under the grid")
+        rail = page.select_one('nav[aria-label="Sections"]')
+        self.assertEqual(len(rail.select("ol.nav-problems > li")), 3)
+        self.assertEqual(len(rail.select('a[href="#3-a-gold-customer-is-quoted-38-00-and-charged-36-00"]')), 1, "each problem is listed once")
+        self.assertIsNotNone(main.select_one("section#how-it-works-today > details.reference"), "the reference folds")
+        self.assertIsNotNone(page.select_one("button.theme-toggle"))
+        self.assertNotIn("prefers-color-scheme:dark", page.select_one("style.workbench-style").get_text(), "light unless the reader asks")
         checked = subprocess.run([sys.executable, str(SCRIPT), str(note), "--check", "--sync-labels"], capture_output=True, text=True)
         self.assertEqual(checked.returncode, 0, checked.stderr)
 
-    def test_change_card_has_its_own_panels_and_view_labels(self):
+    def test_change_card_has_the_same_shape_and_its_own_view_labels(self):
         directory, note, result = render("change-card", "change-card.md")
         self.addCleanup(directory.cleanup)
         self.assertEqual(result.returncode, 0, result.stderr)
         page = BeautifulSoup(note.with_suffix(".html").read_text(), "html.parser")
         main = page.main
         self.assertEqual([b.get_text() for b in main.select(".sv-switch button")], ["Before", "After the change"])
-        self.assertEqual([box["aria-label"] for box in main.select(".wb-panel")], ["Decide", "Findings", "Reshape first"])
-        self.assertEqual(len(main.select('.wb-panel[aria-label="Reshape first"] .wb-card')), 3)
-        self.assertEqual([label.get_text() for label in main.select(".wb-summary-label")], ["The change", "Fit", "Choice"])
-        self.assertIn("dependencies drawn in this view", str(main))
-        corner = main.select('.wb-panel[aria-label="Decide"] .wb-corner')
-        self.assertEqual(len(corner), 1, "a corner case is a decision for the developer")
-        self.assertIn("is-open", corner[0]["class"])
-        self.assertIn("Handling it needs:", corner[0].get_text())
-        chips = {chip["class"][1]: chip.b.get_text() for chip in main.select(".wb-chip")}
-        self.assertEqual(chips["open"], "2", "an open corner case counts as an open question")
+        self.assertEqual([p.get_text() for p in main.select(".sv-focus .sv-pane-label")], ["Before", "After the change"])
+        self.assertEqual(len(main.select("article.problem")), 2)
+        self.assertIn("corner", main.select("article.problem")[1]["class"])
+        self.assertEqual(len(main.select("section#in-short .waiting li")), 2, "a default applied waits for the reader too")
+        self.assertEqual([p.get_text(" ", strip=True).split(":")[0] for p in main.select("section#in-short > p.field")],
+                         ["The problem", "What we propose", "What you decide"])
 
     def test_committed_card_fixture_carries_a_current_label_key(self):
         source = (ROOT / "tests/fixtures/change-card/change-card.md").read_text()

@@ -32,6 +32,13 @@
       switcher.querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.view === view));
       facts.innerHTML = facts.dataset[view];
       if (sideLabel) sideLabel.textContent = sideLabel.dataset[view];
+      for (const f of files) {  // a module the plan renames, removes, or adds
+        const text = f.querySelector("text"), change = f.dataset.change;
+        if (text && text.dataset[view]) text.textContent = text.dataset[view];
+        f.classList.toggle("ghost", change === "added" && view === "today");
+        f.classList.toggle("gone", change === "removed" && view === "proposed");
+        f.classList.toggle("renamed", change === "renamed" && view === "proposed");
+      }
       backLabels();
       for (const e of edges) {
         const status = e.dataset[view];

@@ -178,6 +178,27 @@ class ImportEdgesTests(Repository):
                          "the working tree counts an untracked file")
 
 
+    def test_cycles_lists_files_and_directories_that_depend_on_each_other(self):
+        self.commit({"app/a.py": "from app import b\n", "app/b.py": "from app import a\nfrom lib import c\n",
+                     "lib/c.py": "from app import a\n", "lib/d.py": "x = 1\n"})
+        out = self.run_script("import_edges", "--cycles")
+        self.assertIn("Cycles: 1 groups of files that depend on each other; 1 pairs of directories that do.", out)
+        self.assertIn("3 files: app/a.py, app/b.py, lib/c.py", out)
+        self.assertIn("app/ <-> lib/", out)
+        self.assertNotIn("lib/d.py", out)
+
+    def test_coupling_counts_fans_and_flags_dependencies_on_less_stable_directories(self):
+        self.commit({"api/views.py": "from core import rules\nfrom core import money\n", "jobs/nightly.py": "from core import rules\n",
+                     "core/rules.py": "from core import money\nfrom db import store\n", "core/money.py": "x = 1\n",
+                     "db/store.py": "from tools import fmt\nfrom lib import io\n", "tools/fmt.py": "y = 2\n", "lib/io.py": "z = 3\n"})
+        out = self.run_script("import_edges", "--coupling")
+        self.assertIn("Files with the most dependencies (fan-out):\n2\tapi/views.py\n2\tcore/rules.py\n2\tdb/store.py", out)
+        self.assertIn("Files the most files depend on (fan-in):\n2\tcore/money.py\n2\tcore/rules.py", out)
+        self.assertIn("core/\tCe 1\tCa 2\tI 0.33", out)
+        self.assertIn("db/\tCe 2\tCa 1\tI 0.67", out)
+        self.assertIn("Dependencies on a less stable directory: 1\ncore/ (0.33) -> db/ (0.67)", out, "a stable directory leans on a volatile one")
+
+
 class DesignConformanceTests(unittest.TestCase):
     def test_every_relationship_gets_one_result_and_unmapped_files_are_listed(self):
         components = {name: [conformance.pattern_regex(p) for p in patterns] for name, patterns in

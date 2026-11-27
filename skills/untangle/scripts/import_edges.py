@@ -16,6 +16,15 @@ printed, from that commit to --head, or to the working tree with its untracked f
 between files, and the first dependency of one directory on another, with a note when the two
 directories then depend on each other. These are leads to read, not findings.
 
+With --cycles, it prints each group of files that depend on each other in a circle, with one path that
+closes it, and each pair of directories that depend on each other: where calls do not move one way.
+
+With --coupling, it prints the files that depend on the most others (fan-out) and that the most others
+depend on (fan-in), each directory's instability, the share of its outside dependencies that point
+outward (Ce / (Ca + Ce), 0 when only others depend on it), and each dependency of a directory on a
+less stable one. A stable directory changes least easily, so one that depends on a directory that
+changes more often is where a change ripples against the flow. These are leads for where to read.
+
 Run from the repository root, or pass --repo. Exit 2 for invalid inputs or failed Git
 operations. Output goes to stdout; no files are written.
 """
@@ -257,6 +266,61 @@ def chain(start, goal, graph):
     return None
 
 
+def cycles(pairs):
+    """Groups of two or more files that reach each other (strongly connected components), largest first."""
+    graph = {}
+    for source, target in pairs:
+        graph.setdefault(source, set()).add(target)
+        graph.setdefault(target, set())
+    index, low, stack, on_stack, groups, counter = {}, {}, [], set(), [], [0]
+    for start in sorted(graph):
+        if start in index:
+            continue
+        work = [(start, iter(sorted(graph[start])))]
+        index[start] = low[start] = counter[0]; counter[0] += 1; stack.append(start); on_stack.add(start)
+        while work:
+            node, children = work[-1]
+            child = next(children, None)
+            if child is None:
+                work.pop()
+                if work:
+                    low[work[-1][0]] = min(low[work[-1][0]], low[node])
+                if low[node] == index[node]:
+                    group = []
+                    while True:
+                        member = stack.pop(); on_stack.discard(member); group.append(member)
+                        if member == node:
+                            break
+                    if len(group) > 1:
+                        groups.append(sorted(group))
+            elif child not in index:
+                index[child] = low[child] = counter[0]; counter[0] += 1; stack.append(child); on_stack.add(child)
+                work.append((child, iter(sorted(graph[child]))))
+            elif child in on_stack:
+                low[node] = min(low[node], index[child])
+    return sorted(groups, key=lambda g: (-len(g), g)), graph
+
+
+def coupling(pairs):
+    """(fan_out, fan_in, instability, against): per file the files it depends on and the files that depend on
+    it; per directory (Ce, Ca, I); and each directory dependency on a less stable directory, as (from, to)."""
+    directory = lambda path: str(PurePosixPath(path).parent)
+    fan_out, fan_in, outward, inward = {}, {}, {}, {}
+    for source, target in pairs:
+        fan_out.setdefault(source, set()).add(target)
+        fan_in.setdefault(target, set()).add(source)
+        a, b = directory(source), directory(target)
+        if a != b:
+            outward.setdefault(a, set()).add(b)
+            inward.setdefault(b, set()).add(a)
+    instability = {}
+    for name in sorted(set(outward) | set(inward)):
+        ce, ca = len(outward.get(name, ())), len(inward.get(name, ()))
+        instability[name] = (ce, ca, ce / (ca + ce))
+    against = sorted((a, b) for a, targets in outward.items() for b in targets if instability[b][2] > instability[a][2])
+    return fan_out, fan_in, instability, against
+
+
 def added(base_edges, head_edges):
     """(from, to, notes) for each edge the head has and the base lacks."""
     graph, directory = {}, lambda path: str(PurePosixPath(path).parent)
@@ -290,6 +354,9 @@ def main():
     parser.add_argument("--rev", help="read the edges at this commit; default is the working tree")
     parser.add_argument("--base", help="print only the edges added since this commit")
     parser.add_argument("--head", help="with --base: the commit that holds the change; default is the working tree")
+    parser.add_argument("--cycles", action="store_true", help="print the groups of files and the directories that depend on each other")
+    parser.add_argument("--coupling", action="store_true", help="print fan-out, fan-in, directory instability, and dependencies on less stable directories")
+    parser.add_argument("--top", type=int, default=10, help="with --coupling: how many files to list for fan-out and fan-in")
     args = parser.parse_args()
     if args.head and not args.base:
         parser.error("--head needs --base")
@@ -314,6 +381,37 @@ def main():
     except ValueError as error:
         print(f"import_edges: {error}", file=sys.stderr)
         return 2
+    if args.cycles:
+        groups, graph = cycles(rows)
+        directory = lambda path: str(PurePosixPath(path).parent)
+        between = {(directory(a), directory(b)) for a, b in rows if directory(a) != directory(b)}
+        mutual = sorted({tuple(sorted(pair)) for pair in between if pair[::-1] in between})
+        print(f"Cycles: {len(groups)} groups of files that depend on each other; {len(mutual)} pairs of directories that do.")
+        for group in groups:
+            members = set(group)
+            first = group[0]
+            back = next((chain(t, first, {n: graph[n] & members for n in members}) for t in sorted(graph[first] & members)), None)
+            loop = " -> ".join([first, *back]) if back else ""
+            print(f"\n{len(group)} files: {', '.join(group)}\n\tfor example {loop}")
+        if mutual:
+            print("\nDirectories that depend on each other:")
+            for a, b in mutual:
+                print(f"{a}/ <-> {b}/")
+        return 0
+    if args.coupling:
+        fan_out, fan_in, instability, against = coupling(rows)
+        print("Coupling: leads for where to read, not findings (static imports; an absent edge proves nothing).")
+        for title, counts in (("Files with the most dependencies (fan-out)", fan_out), ("Files the most files depend on (fan-in)", fan_in)):
+            print(f"\n{title}:")
+            for name, linked in sorted(counts.items(), key=lambda item: (-len(item[1]), item[0]))[:args.top]:
+                print(f"{len(linked)}\t{name}")
+        print("\nDirectories (Ce = directories it depends on, Ca = directories that depend on it, I = Ce / (Ca + Ce)):")
+        for name, (ce, ca, value) in instability.items():
+            print(f"{name}/\tCe {ce}\tCa {ca}\tI {value:.2f}")
+        print(f"\nDependencies on a less stable directory: {len(against)}")
+        for a, b in against:
+            print(f"{a}/ ({instability[a][2]:.2f}) -> {b}/ ({instability[b][2]:.2f})")
+        return 0
     if args.base:
         rows = added(before, rows)
         print(f"# from\tto\twhat the edge changes  (edges added since {args.base}; an absent edge proves nothing)")

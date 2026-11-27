@@ -82,7 +82,10 @@ to you, on evidence, before the code is written.
 6. **Look at added dependencies.** Against a stated design, a dependency
    the design does not allow is a needless link. With no stated design, the
    skill reads each added dependency that closes a cycle or is the first of
-   one part on another, and asks why the two must change together.
+   one part on another, and asks why the two must change together. A
+   dependency that closes a cycle, or a call or write that goes back up to
+   the code that called it, is two-way flow: calls and state should move one
+   way.
 7. **Look for added surplus.** For each module, class, type, or file the
    change adds, the skill names the decision only it makes. One with none,
    because it only delegates, only holds a constant, or only renames another,
@@ -129,6 +132,11 @@ Prompt shapes:
   with declared fields and returns a result. It does not add keys to a hash
   another module built, change an argument, or write state another module
   owns.
+- **New code meets [clean structure](../skills/CLEAN-STRUCTURE.md).** A
+  unit the change adds has one responsibility and a name that says what it
+  is for, adds no abstraction without a second user today, and writes no
+  state another module owns. A name that says less than the body does, or
+  is generic, is an unclear name.
 - **A corner case that bends the design is your call.** The skill shows
   you its reach and its price, and recommends; building it into the general
   design needs your answer. The [corner cases](../skills/CORNER-CASES.md)
@@ -139,12 +147,15 @@ Prompt shapes:
 
 ## The change card
 
-A run on its own writes a change card, `change-card.md`, and its page. The
-page uses the same workbench as `untangle`'s map: the change, the fit, and the
-choice at the top; a structure view whose switch moves between before and
-after the change; and panels for what you decide, the findings of a check,
-and the reshape steps. Called from `plan-change` or `fix-bug`, the placement
-goes into the slice or the fix instead, with no page.
+A run on its own writes a change card, `change-card.md`, and its page, in the
+same shape as `untangle`'s map: *In short* with the problem, what we propose,
+and what you decide; then one section per problem (why the change does not
+fit, each corner case, each finding of a check) with its picture before and
+after the change, its evidence side by side, its fix, and its decision; then
+the plan for the implementer, with any module it renames, removes,
+merges, splits, or moves. Problems are ranked by what the structure costs;
+a possible bug comes last, as a behavior to decide. Called from `plan-change` or `fix-bug`, the
+placement goes into the slice or the fix instead, with no page.
 
 ## Called by other skills
 

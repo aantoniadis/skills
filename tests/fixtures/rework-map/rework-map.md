@@ -1,83 +1,169 @@
 ---
 kind: rework-map
 ---
-# Pricing: how it works today
+# Pricing: what to fix, and how
 
-**What it does:** Pricing turns a basket into a total for checkout and for quotes: it applies the loyalty discount, applies a coupon, and rounds to the currency (observed in the [baseline run](runs/baseline.md)).
+## In short
 
-**What differs from the stated design:** 2 of 4 stated dependencies differ and 1 of 2 stated rules is broken: the API layer decides the loyalty discount itself (source, pinned below; observed in the [probe](runs/probe_loyalty.py)).
+**The problem:** The loyalty discount is decided in three files that disagree, so a gold customer is quoted 38.00 and charged 36.00 for the same basket, and every change to a rate must find all three (observed in the [probe](runs/probe_loyalty.py)).
 
-**Recommended rework:** *Pricing owns discounts*: one function decides the loyalty discount, and both entry points call it. It is proposed because the rate changed 4 times in the fetched history and its three sites already disagree.
+**What we propose:** *Pricing owns discounts*: one function decides the rate, both entry points call it, and `discounts.py` is renamed `loyalty.py` for the rule it owns. Two lock tests come first; three files and two call sites change (proposed).
+
+**What you decide:** Whether `apply_legacy_rounding` is still needed: open, and it can wait, because no step of the rework needs the answer; it stays until you answer. Which gold rate is right, a possible bug found on the way: you answered 10% on 2 June.
 
 **Scope:** `shop/pricing/` and the serializers and views that call it; tax is excluded. **Inspected source:** commit `ddddddd` of the fictional `acme/shop`, no local changes. **What ran:** `python -m pytest tests/pricing -q`, 42 passed ([baseline run](runs/baseline.md)).
 
 > **Fictional example.** This note demonstrates the rework-map template. Its shop, files, and runs are invented.
 
-## Behavior to decide
+## What it does
 
-| What happens | Evidence | Handoff |
-| --- | --- | --- |
-| A gold customer pays 36.00 at checkout and is quoted 38.00 for the same 40.00 basket. | [discounts.py:12](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/discounts.py#L12), [builder.py:27](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L27); we ran both ([probe](runs/probe_loyalty.py)) | fix-bug, once the user says which rate is right |
-
-## Questions for the user
-
-| Question | Why it matters | Default until answered | Answer |
-| --- | --- | --- | --- |
-| Which loyalty discount is right for gold customers, 10% or 5%? | The two sites disagree; the rework keeps one. | Keep both as they are; the rework is blocked on this rule. | "10%. The quote path was never updated." (2 June) |
-| Is `apply_legacy_rounding` still needed for any currency? | It decides whether the function is removed. | It stays. | open |
-
-## Capabilities
-
-| Capability | Entry points | Decision sites | Evidence |
-| --- | --- | --- | --- |
-| [Loyalty discount](#loyalty-discount) | [views.py:31](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/views.py#L31), [views.py:58](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/views.py#L58) | 3, in `pricing`, `api`, and `quotes` | text, references, execution, history; [baseline run](runs/baseline.md) |
-| Coupon | [views.py:31](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/views.py#L31) | not inspected: the user ranked it second | none taken |
+This is the behavior the rework keeps. The tests named verify it, as observed in the [baseline run](runs/baseline.md), and a lock test records what no test did.
 
 ### Loyalty discount
 
-A gold or silver customer gets a percentage off the subtotal at checkout and in quotes; source at the pinned lines below, and both paths ran in the [probe](runs/probe_loyalty.py).
+- **A gold customer gets 10% off at checkout.** When a gold customer checks out, the total is the subtotal less 10%, from [views.py:31](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/views.py#L31). *Verified by:* tested, 3 tests turned red when the rate at [discounts.py:12](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/discounts.py#L12) was broken ([baseline run](runs/baseline.md)).
+- **A silver customer gets 5% off.** When a silver customer checks out, the total is the subtotal less 5%. *Verified by:* tested, by the same 3 tests ([baseline run](runs/baseline.md)).
+- **A quote shows the total a customer would pay.** When a customer asks for a quote, the response holds a total; for a gold customer it is the subtotal less 5% today, from [views.py:58](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/views.py#L58). *Verified by:* locked, `test_gold_quote_records_38` (problem 3 questions the rate).
+- **The order JSON shows the discount.** When a customer checks out, the JSON holds the discount it applied. *Verified by:* locked, `test_checkout_discount_shown`.
+- **A guest pays full price.** When a customer has no tier, no discount applies, from [discounts.py:20](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/discounts.py#L20). *Verified by:* tested, `test_guest_pays_full_price`.
 
-- [discounts.py:12](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/discounts.py#L12) decides the rate by tier: gold 10%, silver 5%. Found by text, references, and execution.
-- [serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44) recomputes the discount for display with its own `if tier == "gold"`. Found by execution and history only: it never names "discount".
-- [builder.py:27](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L27) applies 5% to gold customers. Found by text and history.
+### Coupon
 
-The three sites disagree. For a gold customer with a 40.00 basket, checkout charges 36.00 and a quote shows 38.00; we ran both ([probe](runs/probe_loyalty.py)).
+- **Coupons are not described here.** The user ranked them second; their behavior was not inspected. *Verified by:* untested, not inspected.
 
-## Behavior no test protects
+## How the code carries it
 
-- The quote rate for gold customers: with [builder.py:27](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L27) changed from 5% to 50% in a scratch worktree, all 42 tests stayed green; we ran it ([baseline run](runs/baseline.md)).
+One of the four behaviors drawn is decided in more than one file: the gold rate, at `discounts.py:12` and again at `serializers.py:44`; quotes keep a third copy at `builder.py:27`.
 
-The break of the checkout rate at `discounts.py:12` turned 3 tests red, so that behavior is pinned ([baseline run](runs/baseline.md)).
+```behavior-map
+{"files": [{"id": "views", "path": "shop/api/views.py"}, {"id": "serializers", "path": "shop/api/serializers.py"},
+           {"id": "builder", "path": "shop/quotes/builder.py"}, {"id": "discounts", "path": "shop/pricing/discounts.py"}],
+ "behaviors": [
+  {"feature": "Loyalty discount", "name": "A gold customer gets 10% off at checkout",
+   "sites": [{"file": "views", "at": "shop/api/views.py:31", "role": "calls"}, {"file": "discounts", "at": "shop/pricing/discounts.py:12", "role": "decides"},
+             {"file": "serializers", "at": "shop/api/serializers.py:44", "role": "decides"}],
+   "weak": "the rate is decided again for display", "problem": 1},
+  {"feature": "Loyalty discount", "name": "A quote shows the total a customer would pay",
+   "sites": [{"file": "views", "at": "shop/api/views.py:58", "role": "calls"}, {"file": "builder", "at": "shop/quotes/builder.py:27", "role": "decides"}],
+   "weak": "quotes keep their own copy of the rate", "problem": 1},
+  {"feature": "Loyalty discount", "name": "The order JSON shows the discount",
+   "sites": [{"file": "views", "at": "shop/api/views.py:36", "role": "stores"}, {"file": "serializers", "at": "shop/api/serializers.py:44", "role": "decides"}]},
+  {"feature": "Loyalty discount", "name": "A guest pays full price",
+   "sites": [{"file": "discounts", "at": "shop/pricing/discounts.py:20", "role": "decides"}]}
+ ]}
+```
 
-## Stated design and the code
+## Problems
 
-The design is stated in the project's architecture page: "The API layer only translates requests; every price is decided in `pricing`" ([architecture.md](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/docs/architecture.md#L18)).
+### 1. Changing a loyalty rate takes three edits
 
-| Relationship | Result | Evidence | What the user said |
-| --- | --- | --- | --- |
-| `api` to `pricing` | as stated | `import_edges.py`; [views.py:4](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/views.py#L4) | intended |
-| `quotes` to `pricing` | not found | `import_edges.py` shows no edge; `builder.py` computes the discount itself at [builder.py:27](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L27) | drift |
-| `api` to `storage` | not stated | [serializers.py:9](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L9) imports the tier table | drift |
-| `pricing` to `storage` | as stated | `import_edges.py`; [discounts.py:3](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/discounts.py#L3) | intended |
+**Kind:** scattered rule · **How sure:** source, read at the lines, and history · **Cost today:** 3 files per rate change; the rate changed 4 times, and 2 of those changes missed a file
 
-| Stated rule | Result | Evidence | What the user said |
-| --- | --- | --- | --- |
-| "The API layer only translates requests; every price is decided in `pricing`" ([architecture.md](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/docs/architecture.md#L18)) | broken | [serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44) computes the discount; [builder.py:27](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L27) does too | drift |
-| "Totals are rounded to the currency once, in `pricing`" ([architecture.md](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/docs/architecture.md#L21)) | holds | search for `quantize` and `round(` in `shop/`: one site, [rounding.py:3](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/rounding.py#L3) | intended |
+**What is wrong:** One rule, the discount for each tier, is decided in `pricing`, again in the API serializer for display, and again in quotes. Nothing in the code ties the three together, so a person changing a rate must know all of them. Two of the four changes in the history missed one, and that is how problem 3 began (source, at the pinned lines; history from `git log -L`).
 
-## State and data
+```structure-focus
+{"rules": ["Loyalty discount rate"]}
+```
 
-| State | Written by | Read by | Evidence |
-| --- | --- | --- | --- |
-| `customer.tier` | [accounts.py:70](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/accounts.py#L70) | the three decision sites above | search for `tier`, read at the lines; writers outside `shop/` not inspected |
+**Evidence:**
 
-| Data and key | Built or written at | Read at | Signs |
-| --- | --- | --- | --- |
-| the `order` dict, key `discount` | [views.py:36](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/views.py#L36), [serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44) | [views.py:41](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/views.py#L41) with the default 0 | written in 2 files; read with a default; changed after it is handed over: with the dict frozen in `views.py`, 2 tests failed ([baseline run](runs/baseline.md)) |
+```python url="https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/discounts.py#L12-L13"
+RATES = {"gold": Decimal("0.10"), "silver": Decimal("0.05")}
+return subtotal * RATES.get(tier, Decimal("0"))
+```
 
-## Structure today and proposed
+```python url="https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44-L46"
+if tier == "gold":
+    discount = subtotal * Decimal("0.10")
+elif tier == "silver":
+```
 
-The files by design part, the dependencies the code has, and where each rule is decided (source, at the pinned lines in the data; the loyalty paths ran in the [probe](runs/probe_loyalty.py)). The page draws it; switch to the proposal to see the rate move to `pricing`.
+- `discounts.py` and `builder.py` changed together in 6 commits with no dependency between them (`change_coupling.py --edges`).
+
+**Proposed fix:** *Pricing owns discounts*: `loyalty_discount(tier, subtotal)` at [discounts.py:12](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/discounts.py#L12) is the only place that knows a rate; the serializer and the quote builder call it. The steps are in [the plan](#the-plan).
+
+**Proposed code:** a sketch of the one owner and a caller, proposed; the final code comes with the steps.
+
+```python
+# shop/pricing/loyalty.py: the only module that knows a loyalty rate
+RATES = {"gold": Decimal("0.10"), "silver": Decimal("0.05")}
+
+def loyalty_discount(tier: str | None, subtotal: Decimal) -> Decimal:
+    return subtotal * RATES.get(tier, Decimal("0"))
+
+# shop/api/serializers.py: formats what pricing decided
+discount = loyalty_discount(order.tier, order.subtotal)
+```
+
+**Cost and risk:** 3 files and 2 call sites change; 2 lock tests come first (proposed). The quote call waits for the answer to problem 3, now given.
+
+**What you get:** the next rate change is one edit in one file; decision sites for the rule go from 3 to 1, and the stated rule "every price is decided in `pricing`" holds again (proposed).
+
+**Other options:**
+
+- **Leave it:** every rate change keeps touching three files, and the next missed file is found by a customer (inferred from the history).
+- **A shared rate table that the three sites read:** removes the disagreement, but three places still apply the rate (proposed).
+
+**Decision:** decided: *Pricing owns discounts* (the user, 2 June).
+
+### 2. `apply_legacy_rounding` has no caller
+
+**Kind:** unjustified special case · **How sure:** observed, removal probe · **Cost today:** none: the file changed once
+
+**What is wrong:** [rounding.py:8](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/rounding.py#L8) defines `apply_legacy_rounding`, nothing in the repository calls it, and no test fails without it; we ran the removal probe ([baseline run](runs/baseline.md)). A caller outside the repository is not excluded, so it stays until you say.
+
+**Proposed fix:** Delete it once you confirm no outside caller uses it.
+
+**Decision:** open, can wait: no step needs it. Recommended: delete it. Until you answer, it stays.
+
+### 3. A gold customer is quoted 38.00 and charged 36.00
+
+**Kind:** behavior to decide · **How sure:** observed, we ran both paths · **Cost today:** every gold quote is wrong by 5% of the basket
+
+**What is wrong:** Checkout takes 10% off for a gold customer and a quote takes 5%, so the quote promises a price the customer is never charged. The quote path copied the rate in 2023, while gold was 5%, and the change to 10% reached only `pricing` ([probe](runs/probe_loyalty.py)).
+
+```change-history
+{
+ "rule": "Loyalty discount rate",
+ "sites": [
+  {"id": "discounts", "label": "pricing/discounts.py:12"},
+  {"id": "serializers", "label": "api/serializers.py:44"},
+  {"id": "builder", "label": "quotes/builder.py:27", "since": "3be62b3"}
+ ],
+ "commits": [
+  {"sha": "1a2b3c4", "date": "2022-11-04", "subject": "Silver tier at 5%", "changed": ["discounts", "serializers"]},
+  {"sha": "3be62b3", "date": "2023-02-17", "subject": "Quotes compute the discount locally", "changed": ["builder"]},
+  {"sha": "93548a8", "date": "2023-09-01", "subject": "Raise gold to 10%", "changed": ["discounts", "serializers"]},
+  {"sha": "c0ffee1", "date": "2024-01-12", "subject": "Round the display discount", "changed": ["serializers"]}
+ ]
+}
+```
+
+**Evidence:**
+
+```python url="https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/discounts.py#L12-L13"
+RATES = {"gold": Decimal("0.10"), "silver": Decimal("0.05")}
+return subtotal * RATES.get(tier, Decimal("0"))
+```
+
+```python url="https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L26-L28"
+def discount_for(customer, subtotal):
+    if customer.tier == "gold":
+        return subtotal * Decimal("0.05")
+```
+
+- The probe ran a 40.00 basket for a gold customer through both entry points: checkout 36.00, quote 38.00 ([probe](runs/probe_loyalty.py)).
+- No test protects the quote rate: changed to 50% in a scratch worktree, all 42 tests stayed green ([baseline run](runs/baseline.md)).
+
+**Proposed fix:** Hand it to fix-bug with your answer: quotes call `loyalty_discount` and charge 10%. It is a behavior change, so it is not a rework step.
+
+**Decision:** decided: 10% is right; "the quote path was never updated" (the user, 2 June).
+
+## The plan
+
+**Recommended:** *Pricing owns discounts*, proposed because the rule changes often and its places already disagree. **Chosen:** *Pricing owns discounts* (the user, 2 June).
+
+The files by design part, the dependencies the code has, and where each rule is decided, today and under the plan (source, at the pinned lines in the data; the loyalty paths ran in the [probe](runs/probe_loyalty.py)).
 
 ```structure-view
 {
@@ -122,7 +208,8 @@ The files by design part, the dependencies the code has, and where each rule is 
   {
    "id": "discounts",
    "path": "shop/pricing/discounts.py",
-   "part": "pricing"
+   "part": "pricing",
+   "renamed": "shop/pricing/loyalty.py"
   },
   {
    "id": "rounding",
@@ -247,7 +334,88 @@ The files by design part, the dependencies the code has, and where each rule is 
 }
 ```
 
-## Main flows
+
+### Pricing owns discounts
+
+**Modules:** proposed: `shop/pricing/loyalty.py` decides the loyalty discount for a tier and changes when a loyalty rate changes; `shop/api/serializers.py` turns an order into JSON and changes when the API's format changes; `shop/quotes/builder.py` assembles a quote from priced lines and changes when the quote's layout changes.
+
+**Interface:** proposed: `loyalty_discount(tier, subtotal) -> Decimal`, the function that exists today at [discounts.py:12](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/discounts.py#L12).
+
+**Guarantees at the boundary:** proposed: none new; the guest default stays where it is.
+
+**Data and state:** proposed: an `Order` value with declared fields, built once in `views.py`, in place of the `order` dict two files write.
+
+**Flow:** proposed: calls move one way, API and quotes to pricing to storage; the serializer's read of customer records, against that order, goes.
+
+**Failure behavior:** proposed: unchanged. No fallback is in scope.
+
+**Measure:** decision sites for the loyalty rate go from 3 to 1; the stated rule "every price is decided in `pricing`" holds (proposed).
+
+### Module changes
+
+- **Rename** `shop/pricing/discounts.py` to `shop/pricing/loyalty.py` (proposed): it owns the loyalty rule, and "discounts" also names coupons, which it does not decide. Problem 1.
+- **Move** the tier lookup out of `shop/api/serializers.py` into `shop/pricing/loyalty.py` (proposed): the API translates requests and decides nothing about money, as the design states. Problem 1.
+
+### Design principles
+
+- **Single responsibility:** broken → met: today `serializers.py` formats orders and decides a discount, two reasons to change ([serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44)); proposed, each module above has one.
+- **Open–closed:** broken → met: today adding a tier edits three files, as the change history of problem 1 shows; proposed, it adds one row to the rate table in `loyalty.py`.
+- **Liskov substitution:** not applicable: we ran `git grep -n "class .*(" shop/`, and it found no subclass or interface in scope.
+- **Interface segregation:** broken → met: today `serializers.py` takes the whole `order` dict and writes its `discount` key ([serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44)); proposed, it takes the `Order` value and only reads it.
+- **Dependency inversion:** met → met: today the pricing rule imports no storage or framework code, as `import_edges.py` printed; proposed, unchanged.
+- **YAGNI:** broken → met: today `apply_legacy_rounding` has no caller (problem 2); proposed, it goes once you confirm, and the target adds no interface or setting.
+- **Minimal shared state:** broken → met: today two files write the `order` dict ([views.py:36](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/views.py#L36), [serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44)); proposed, `views.py` builds the `Order` value once and nothing changes it.
+- **One-way flow:** broken → met: today the serializer reads customer records, against the order of the parts; proposed, calls move from API and quotes to pricing to storage.
+- **Intention-revealing names:** broken → met: today `discounts.py` also names coupons, which it does not decide; proposed, it is renamed `loyalty.py`.
+- **Readable functions:** broken → met: today the quote builder decides the tier rate inline, beside its layout code ([builder.py:27](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L27)); proposed, it calls `loyalty_discount` and keeps only layout.
+- **Decisions with their data:** broken → met: today the serializer reads the customer's tier and decides the rate for it ([serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44)); proposed, `loyalty.py` decides it from the tier it is given.
+
+### Lock tests
+
+- `test_gold_quote_records_38` in `tests/quotes/test_lock.py` locks that a gold quote for a 40.00 basket is 38.00, a value under decision. It failed with the quote rate changed to 50% at [builder.py:27](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L27); the suite then passed, 43 tests ([baseline run](runs/baseline.md)).
+- `test_checkout_discount_shown` in `tests/api/test_lock.py` locks that the order JSON shows a 4.00 discount for a gold 40.00 basket. It failed with the display rate changed at [serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44); the suite then passed, 43 tests ([baseline run](runs/baseline.md)).
+
+### Steps
+
+1. Pin, proposed, structural: the two lock tests above.
+2. Gather, proposed, structural: make `serializers.py` call `loyalty_discount` in place of its own condition; 1 call site; proof is the pins green and the same checkout total, 36.00.
+3. Lock in, proposed, structural: add `quotes` to `pricing` to the stated design file and run `design_conformance.py` in the project's checks.
+
+Waiting for fix-bug, not a rework step: moving `builder.py` to `loyalty_discount` changes the quote total from 38.00 to 36.00, as problem 3 says (proposed).
+
+## What is sound
+
+- Rounding happens once, in [rounding.py:3](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/rounding.py#L3), as the design says; a search for `quantize` and `round(` found no other site.
+- [discounts.py:20](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/discounts.py#L20) returns 0 for a missing tier. It looks like a swallowed case and is the guest-checkout rule, documented in its commit and pinned by a test.
+
+## How it works today
+
+### Deliberate breaks
+
+- The quote rate for gold customers: with [builder.py:27](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L27) changed from 5% to 50% in a scratch worktree, all 42 tests stayed green; we ran it ([baseline run](runs/baseline.md)).
+- The checkout rate at `discounts.py:12`: the break turned 3 tests red ([baseline run](runs/baseline.md)).
+
+### Stated design and the code
+
+The design is stated in the project's architecture page: "The API layer only translates requests; every price is decided in `pricing`" ([architecture.md](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/docs/architecture.md#L18)).
+
+| Relationship | Result | Evidence | What the user said |
+| --- | --- | --- | --- |
+| `api` to `pricing` | as stated | `import_edges.py`; [views.py:4](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/views.py#L4) | intended |
+| `quotes` to `pricing` | not found | `import_edges.py` shows no edge; `builder.py` computes the discount itself at [builder.py:27](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L27) | drift |
+| `api` to `storage` | not stated | [serializers.py:9](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L9) imports the tier table | drift |
+| `pricing` to `storage` | as stated | `import_edges.py`; [discounts.py:3](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/discounts.py#L3) | intended |
+
+| Stated rule | Result | Evidence | What the user said |
+| --- | --- | --- | --- |
+| "The API layer only translates requests; every price is decided in `pricing`" ([architecture.md](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/docs/architecture.md#L18)) | broken | [serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44) computes the discount; [builder.py:27](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L27) does too | drift |
+| "Totals are rounded to the currency once, in `pricing`" ([architecture.md](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/docs/architecture.md#L21)) | holds | search for `quantize` and `round(` in `shop/`: one site, [rounding.py:3](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/rounding.py#L3) | intended |
+
+### State and data
+
+`customer.tier` is written at [accounts.py:70](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/accounts.py#L70) and read by the three decision sites above (search for `tier`; writers outside `shop/` not inspected). The `order` dict's `discount` key is written at [views.py:36](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/views.py#L36) and [serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44) and read at [views.py:41](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/views.py#L41) with the default 0; frozen in `views.py`, 2 tests failed, so it changes after it is handed over ([baseline run](runs/baseline.md)). The table of keys is drawn with the structure view in [the plan](#the-plan).
+
+### Main flows
 
 Checkout and quotes reach the discount by different paths (source; the [probe](runs/probe_loyalty.py) executed both paths end to end):
 
@@ -268,80 +436,16 @@ Source map:
 - Checkout view to Serializer recomputes — [views.py:41](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/views.py#L41).
 - Quote view to quotes.builder — [views.py:60](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/views.py#L60).
 
-## Special cases
+### Special cases
 
 | Special case | Kind | Reach | Why it exists | Points to |
 | --- | --- | --- | --- | --- |
 | [discounts.py:20](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/discounts.py#L20) returns 0 when `tier` is missing | default | reached: guest checkout has no tier, `test_guest_pays_full_price` | commit "guest checkout", found with `git log -S` | real outcome: a guest has no discount |
-| [rounding.py:8](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/rounding.py#L8) `apply_legacy_rounding` | compatibility path | unknown: no caller in the repository, removal probe left 42 tests green | no reason found in the fetched history | nothing found; asked the user |
+| [rounding.py:8](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/rounding.py#L8) `apply_legacy_rounding` | compatibility path | unknown: no caller in the repository, removal probe left 42 tests green | no reason found in the fetched history | nothing found; problem 2 |
 
 2 further defaults in `shop/pricing/coupons.py` were counted and not inspected one by one.
 
-## Findings
-
-| Finding | Kind | Where | Cost today | Removed by |
-| --- | --- | --- | --- | --- |
-| [Loyalty discount decided in three places](#loyalty-discount-decided-in-three-places) | scattered rule | [discounts.py:12](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/discounts.py#L12), [serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44), [builder.py:27](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L27) | 3 sites per change; the rate changed 4 times, from `git log -S` on the rate constants | [Pricing owns discounts](#pricing-owns-discounts) |
-| [Legacy rounding has no caller](#legacy-rounding-has-no-caller) | unjustified special case | [rounding.py:8](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/rounding.py#L8) | no action: the file changed once | kept until the user answers |
-
-### Loyalty discount decided in three places
-
-One rule has three decision sites that do not agree, and nothing in the code ties them: `discounts.py` and `builder.py` changed together in 6 commits with no dependency between them, from `change_coupling.py --edges`. A person changing the rate must know all three; the quote path was missed once already, which the user confirmed.
-
-```python url="https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L26-L28"
-def discount_for(customer, subtotal):
-    if customer.tier == "gold":
-        return subtotal * Decimal("0.05")
-```
-
-### Legacy rounding has no caller
-
-`apply_legacy_rounding` has no caller in the repository and no test fails without it; we ran the removal probe ([baseline run](runs/baseline.md)). Its reach is unknown, because a caller outside the repository is not excluded.
-
-## Looks wrong, is fine
-
-- [discounts.py:20](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/discounts.py#L20) returns 0 for a missing tier. It is the guest-checkout rule, documented in its commit and pinned by a test.
-
-## Targets
-
-**Recommendation:** *Pricing owns discounts*, proposed because the rule changes often and its sites already disagree. **Chosen:** *Pricing owns discounts* (the user, 2 June).
-
-### Pricing owns discounts
-
-**Owners:** proposed: `shop/pricing/discounts.py` decides the loyalty rate; `api` and `quotes` call it.
-
-**Interface:** proposed: `loyalty_discount(tier, subtotal) -> Decimal`, the function that exists today at [discounts.py:12](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/pricing/discounts.py#L12).
-
-**Guarantees at the boundary:** proposed: none new; the guest default stays where it is.
-
-**Failure behavior:** proposed: unchanged. No fallback is in scope.
-
-**Cost and risk:** proposed: 3 files, 2 call sites, 1 pin to write for quotes.
-
-**Measure:** decision sites for the loyalty rate go from 3 to 2 with these steps, and to 1 once the quote rate is decided; the broken rule then holds (proposed).
-
-### Leave it as it is
-
-Each rate change keeps touching three files, 4 times in the fetched history, and the two totals stay different until someone notices again (inferred from the history and the probe). Still worth doing under this choice: the pin for the quote rate.
-
-A shared rate table that the three sites read is the smaller alternative (proposed). It removes the disagreement and leaves three places that apply the rate, so it is not recommended.
-
-## Lock tests
-
-| Lock test | Behavior it locks | Failed under | Suite |
-| --- | --- | --- | --- |
-| `test_gold_quote_records_38` in `tests/quotes/test_lock.py` | a gold quote for a 40.00 basket is 38.00; records a value under decision | quote rate changed to 50% at [builder.py:27](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/quotes/builder.py#L27): failed, we ran it ([baseline run](runs/baseline.md)) | 43 passed ([baseline run](runs/baseline.md)) |
-| `test_checkout_discount_shown` in `tests/api/test_lock.py` | the order JSON shows a 4.00 discount for a gold 40.00 basket | display rate changed at [serializers.py:44](https://github.com/acme/shop/blob/dddddddddddddddddddddddddddddddddddddddd/shop/api/serializers.py#L44): failed, we ran it ([baseline run](runs/baseline.md)) | 43 passed ([baseline run](runs/baseline.md)) |
-
-## Rework steps
-
-1. Pin, proposed, structural: add a characterization test for the quote total of a gold customer in `tests/quotes/`, from the [probe](runs/probe_loyalty.py); see it fail once with the rate changed by hand.
-2. Gather, proposed, structural: make `serializers.py` call `loyalty_discount` in place of its own condition; 1 call site; proof is the pins green and the same checkout total, 36.00.
-3. Lock in, proposed, structural: add `quotes` to `pricing` to the stated design file and run `design_conformance.py` in the project's checks.
-
-Waiting for a decision, not a rework step: moving `builder.py` to `loyalty_discount` changes the quote total from 38.00 to 36.00. It is listed under [behavior to decide](#behavior-to-decide) and proposed for fix-bug.
-
-## Limits and open questions
+## Limits
 
 The coupon capability was not inspected. Edges come from static imports only. The history holds 220 commits. Callers of `apply_legacy_rounding` outside the repository are unknown.
 
@@ -377,17 +481,22 @@ These labels describe separate judgments. Read each against its stated scope and
 | not reached | The callers were enumerated and none produces the state, and a probe through the public boundary did not reach the case. Other inputs remain possible. |
 | unknown | Nothing establishes whether the case is reached. Missing test coverage alone gives this status; the case stays. |
 
-### Key: Structure findings
+### Key: Kinds of problem
 
 | Option | Meaning |
 | --- | --- |
 | scattered rule | One rule is decided at more than one place, and nothing in the code says the places must change together. |
 | misplaced logic | A decision is made away from the module that owns the state or rule it decides. |
 | needless link | Pieces that change for different reasons are tied together. |
+| two-way flow | Calls or state move in both directions between parts: a cycle of dependencies, a call against the order of the parts, or a callback, event, or shared object through which a later step writes back into an earlier one. A reader can no longer follow the code in one direction. |
 | surplus | Code with no reason of its own to exist, such as a wrapper that only delegates, an option nothing varies, or code nothing reaches. |
 | shared mutable state | State that more than one module writes, or data a module changes after another module handed it over. What a value holds depends on every writer and the order they ran in. |
 | shapeless data | Data passed between modules with no declared shape, such as a hash or dict, so each site that reads or writes a key decides part of it. |
 | unjustified special case | Code for one situation with no caller, input, test, incident, or decision behind it. It stays until its removal has the evidence the map names. |
+| unclear name | A name that hides what the unit is for: it says less than the body does, describes the mechanism instead of the purpose, or is generic, such as manager, helper, or utils. |
+| hard-to-follow function | A function a reader cannot follow top to bottom, such as deep nesting, a compound condition with no name, blocks under heading comments, or a boolean argument that selects its behavior. Its fix stays inside its module. |
+| corner case | A rare input or state whose handling would bend the design. Whether it is worth that complexity is the developer's decision, weighed on its reach, harm, and options. |
+| behavior to decide | What the code does may be wrong or unwanted, such as two places that give different results for one input. It is not a structure problem; its fix is a behavior change that someone decides. |
 
 ### Key: Diagram evidence
 
@@ -396,3 +505,28 @@ These labels describe separate judgments. Read each against its stated scope and
 | observed | An identified current or recorded run produced the behavior shown. Retain its source snapshot, conditions, and evidence limits. |
 | source | The diagram traces inspected source at its mapped lines. It does not claim runtime execution. |
 | proposed | The diagram shows candidate behavior not established as implemented. Proposed elements map to decisions, requirements, or proposals; existing behavior still maps to source lines. Agreement is stated separately. |
+
+### Key: How sure
+
+| Option | Meaning |
+| --- | --- |
+| observed | A run showed it: a test, a probe, or a deliberate break, recorded with its command. |
+| source | Read at the pinned lines, and in the history where the problem says so. No run showed it. |
+| inferred | Concluded from the code's names, layout, or comments, or from evidence that does not settle it. A run or a read of the lines named would. |
+
+### Key: Decisions
+
+| Option | Meaning |
+| --- | --- |
+| open | Waits for your answer. The problem says what holds until then. |
+| default applied | Nobody answered, so the recommended default was applied. Say otherwise and it changes. |
+| decided | Settled by your answer, with its date, or by a policy you authorized. |
+| none needed | The problem needs no decision from you; its fix follows from the evidence. |
+
+### Key: Verified by
+
+| Option | Meaning |
+| --- | --- |
+| tested | An existing test fails when this behavior changes: a deliberate break turned it red, or it asserts the behavior at a pinned line. |
+| locked | A lock test written for this rework records the behavior, and was seen failing under a deliberate break. |
+| untested | No test protects the behavior. A rework can change it unnoticed until it is locked; the reason it is not is stated. |

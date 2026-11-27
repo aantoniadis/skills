@@ -1,10 +1,23 @@
-"""The workbench layout for the structure skills' pages: a rework map (untangle) and a change card
-(fit-change). The page renders as usual; this rearranges it around the structure view. Above the view:
-the title, counts, and the summary lines. Below it: panels for what the user must decide, the findings,
-and the rework or reshape steps, each a short copy of rows from the note's own tables. The full note
-follows as text. Hovering or focusing a panel item lights up the files it names in the view
-(workbench.js). The panels copy content and never move or drop it, so every check on the page still
-compares it with the Markdown.
+"""The page layout of the structure skills' notes: a rework map (untangle) and a change card (fit-change).
+
+The note leads with *In short* (the problem, what we propose, what you decide), then *What it does*, the
+component's behavior as a spec with the tests that verify each behavior, then the map of each behavior to
+the code, then one section per problem, each with its picture, its evidence, its proposed fix, and its
+decision. This module arranges the rendered page around that reading order:
+
+- the sidebar lists the problems under *Problems*, each with the state of its decision;
+- the header carries counts: problems, possible bugs, and decisions that wait for the reader;
+- *In short* gathers every decision still open, each linked to its problem, those that block a step first;
+- each problem becomes an article: its kind and how sure the note is as tags, labelled paragraphs, code
+  excerpts side by side, and the decision set apart; a problem written in brief, with no evidence of its
+  own, is drawn compact;
+- the design principles become a scorecard, today against proposed, with each item's evidence folded;
+- each behavior of the spec is marked by how it is verified: tested, locked, or untested;
+- each row of the behavior map links to the problem that holds its weak point;
+- *How it works today* is reference, folded until opened.
+
+It moves and copies the note's own elements; it writes no claim of its own. The theme is light; a button
+switches to dark for a reader who wants it (workbench.js remembers the choice in this browser).
 """
 import copy
 import re
@@ -12,22 +25,16 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 KINDS = ("rework-map", "change-card")
-OPEN = re.compile(r"^\s*(?:open|not answered)\b", re.I)
+DECISIONS = ("default applied", "none needed", "decided", "open")  # the longest first: "open" is a prefix of none
+WAITING = ("open", "default applied")
 
 
 def section(soup, identifier):
     return soup.main.find("section", id=identifier)
 
 
-def table_rows(soup, identifier):
-    """The cells of each body row of the first table in a section, or []."""
-    found = section(soup, identifier)
-    table = found.find("table") if found else None
-    return [row.find_all("td") for row in table.select("tbody tr")] if table else []
-
-
 def clone(soup, node):
-    """A copy of a node for a panel: no ids, no peek markers, so the page keeps one of each."""
+    """A copy of a node for the overview: no ids, so the page keeps one of each."""
     if isinstance(node, str):
         return soup.new_string(str(node))
     copied = copy.copy(node)
@@ -37,244 +44,278 @@ def clone(soup, node):
     return copied
 
 
-def cell(soup, td, name="div", cls=None):
-    holder = soup.new_tag(name, attrs={"class": cls} if cls else {})
-    for child in list(td.contents):
-        holder.append(clone(soup, child))
-    return holder
-
-
-def card(soup, cls, title, *parts):
-    item = soup.new_tag("li", attrs={"class": f"wb-card {cls}", "tabindex": "0"})
-    item.append(title)
-    for part in parts:
-        if part is not None:
-            item.append(part)
-    return item
-
-
-def small(soup, label, td):
-    line = soup.new_tag("p", attrs={"class": "wb-meta"})
-    strong = soup.new_tag("span", attrs={"class": "wb-meta-label"})
-    strong.string = label
-    line.append(strong)
-    for child in list(td.contents):
-        line.append(clone(soup, child))
-    return line
-
-
-def panel(soup, title, identifier, items, empty):
-    box = soup.new_tag("section", attrs={"class": "wb-panel", "aria-label": title})
-    head = soup.new_tag("h2", attrs={"class": "wb-panel-title"})
-    link = soup.new_tag("a", href=f"#{identifier}") if identifier and section(soup, identifier) else None
-    if link:
-        link.string = title
-        head.append(link)
-    else:
-        head.string = title
-    count = soup.new_tag("span", attrs={"class": "wb-count"})
-    count.string = str(sum(1 for item in items if "wb-card" in item.get("class", [])))
-    head.append(count)
-    box.append(head)
-    listing = soup.new_tag("ul", attrs={"class": "wb-list"})
-    for item in items:
-        listing.append(item)
-    if not items:
-        note = soup.new_tag("li", attrs={"class": "wb-empty"})
-        note.string = empty
-        listing.append(note)
-    box.append(listing)
-    return box
-
-
-def heading(soup, text, cls="wb-sub"):
-    item = soup.new_tag("li", attrs={"class": cls})
-    item.string = text
-    return item
-
-
-def decide_items(soup):
-    items = []
-    behavior = table_rows(soup, "behavior-to-decide")
-    if behavior:
-        items.append(heading(soup, "Behavior to decide"))
-    for cells in behavior:
-        if len(cells) >= 3:
-            items.append(card(soup, "wb-behavior", cell(soup, cells[0], "p", "wb-title"), small(soup, "Shown by ", cells[1]),
-                              small(soup, "Next: ", cells[2])))
-    questions = table_rows(soup, "questions-for-the-user")
-    if questions:
-        items.append(heading(soup, "Questions for you"))
-    for cells in questions:
-        if len(cells) >= 4:
-            is_open = bool(OPEN.match(cells[3].get_text()))
-            badge = soup.new_tag("span", attrs={"class": "wb-badge " + ("open" if is_open else "answered")})
-            badge.string = "open" if is_open else "answered"
-            title = cell(soup, cells[0], "p", "wb-title")
-            title.insert(0, badge)
-            items.append(card(soup, "wb-question" + (" is-open" if is_open else ""), title,
-                              small(soup, "Until answered: " if is_open else "Answer: ", cells[2] if is_open else cells[3])))
-    corner = table_rows(soup, "corner-cases")
-    if corner:
-        items.append(heading(soup, "Corner cases"))
-    for cells in corner:
-        if len(cells) >= 5:
-            is_open = bool(OPEN.match(cells[4].get_text()))
-            badge = soup.new_tag("span", attrs={"class": "wb-badge " + ("open" if is_open else "answered")})
-            badge.string = "open" if is_open else "decided"
-            title = cell(soup, cells[0], "p", "wb-title")
-            title.insert(0, badge)
-            items.append(card(soup, "wb-corner" + (" is-open" if is_open else ""), title, small(soup, "Reach and harm: ", cells[1]),
-                              small(soup, "Handling it needs: ", cells[2]), small(soup, "Decision: ", cells[4])))
-    return items
-
-
-def finding_items(soup, identifier):
-    items = []
-    for cells in table_rows(soup, identifier):
-        if len(cells) < 4:
-            continue
-        kind = cells[1].get_text(" ", strip=True)
-        chip = soup.new_tag("span", attrs={"class": "wb-kind", "data-kind": re.sub(r"\W+", "-", kind.lower()).strip("-")})
-        chip.string = kind
-        title = cell(soup, cells[0], "p", "wb-title")
-        title.insert(0, chip)
-        items.append(card(soup, "wb-finding", title, small(soup, "Where: ", cells[2]), small(soup, "", cells[3])))
-    return items
-
-
-def step_items(soup, identifier):
-    items = []
-    found = section(soup, identifier)
-    steps = found.find("ol") if found else None
-    if steps:
-        for number, li in enumerate(steps.find_all("li", recursive=False), 1):
-            body = soup.new_tag("p", attrs={"class": "wb-title"})
-            mark = soup.new_tag("span", attrs={"class": "wb-step"})
-            mark.string = str(number)
-            body.append(mark)
-            for child in list(li.contents):
-                body.append(clone(soup, child))
-            items.append(card(soup, "wb-step-card", body))
-    return items
-
-
-def lock_items(soup):
-    items = []
-    rows = table_rows(soup, "lock-tests")
-    if rows:
-        items.append(heading(soup, f"Lock tests ({len(rows)}), each red under its break"))
-    for cells in rows:
-        if len(cells) >= 4:
-            items.append(card(soup, "wb-lock", cell(soup, cells[0], "p", "wb-title"), small(soup, "Locks: ", cells[1]),
-                              small(soup, "Red under: ", cells[2])))
-    return items
-
-
-def target_line(soup):
-    found = section(soup, "targets")
-    if not found:
+def label_of(paragraph):
+    """The bold label a paragraph starts with, without its colon, or None."""
+    first = next((child for child in paragraph.children if not (isinstance(child, str) and not child.strip())), None)
+    if getattr(first, "name", None) != "strong":
         return None
-    first = next((p for p in found.find_all("p") if p.get_text().startswith("Recommendation:")), None)
-    return clone(soup, first) if first else None
+    return first.get_text(strip=True).rstrip(":")
 
 
-def chips(soup, kind):
-    """Counts for the top bar: what needs the user, what was found, what protects the rework."""
-    count = lambda identifier: len(table_rows(soup, identifier))
-    open_questions = (sum(1 for cells in table_rows(soup, "questions-for-the-user") if len(cells) >= 4 and OPEN.match(cells[3].get_text()))
-                      + sum(1 for cells in table_rows(soup, "corner-cases") if len(cells) >= 5 and OPEN.match(cells[4].get_text())))
-    findings = "findings" if kind == "rework-map" else "structure-findings"
-    values = [("decide", count("behavior-to-decide"), "to decide"), ("open", open_questions, "open questions"),
-              ("finding", count(findings), "findings"), ("lock", count("lock-tests"), "lock tests")]
-    bar = soup.new_tag("div", attrs={"class": "wb-chips", "aria-label": "Counts"})
-    for cls, value, label in values:
-        if cls == "lock" and kind != "rework-map":
-            continue
-        chip = soup.new_tag("span", attrs={"class": f"wb-chip {cls}" + (" zero" if not value else "")})
+def slug(text):
+    return re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")
+
+
+def status_of(text):
+    value = text.lower()
+    return next((option for option in DECISIONS if value.startswith(option)), "open")
+
+
+def kind_class(kind):
+    if kind.startswith("behavior to decide"):
+        return "bug"
+    if kind.startswith("corner case"):
+        return "corner"
+    return "structure"
+
+
+def problems(soup):
+    """Group each problem's heading and the elements under it into an article, and return their facts."""
+    found = []
+    holder = section(soup, "problems")
+    if not holder:
+        return found
+    for heading in holder.find_all("h3", recursive=False):
+        parts = [heading]
+        for sibling in heading.find_next_siblings():
+            if sibling.name == "h3":
+                break
+            parts.append(sibling)
+        article = soup.new_tag("article", attrs={"class": "problem", "aria-labelledby": heading.get("id", "")})
+        heading.insert_before(article)
+        for part in parts:
+            article.append(part.extract())
+        number = re.match(r"^\s*(\d+)\.\s*", heading.get_text())
+        if number:  # the number becomes a badge; the heading's text is unchanged
+            text = heading.find(string=True)
+            if text is not None and text.lstrip().startswith(number.group(1)):
+                rest = soup.new_string(text.lstrip()[len(number.group(0).lstrip()):])
+                badge = soup.new_tag("span", attrs={"class": "problem-number"})
+                badge.string = number.group(0).strip()
+                text.replace_with(rest)
+                rest.insert_before(badge)
+        facts = {"id": heading.get("id", ""), "title": heading.get_text(" ", strip=True), "number": number.group(1) if number else "",
+                 "kind": "", "status": "none needed", "decision": None, "when": "", "brief": True}
+        grid = None
+        for element in list(article.children):
+            if getattr(element, "name", None) == "figure" and "code-card" in element.get("class", []):
+                if grid is None:  # excerpts that follow each other sit side by side
+                    grid = soup.new_tag("div", attrs={"class": "code-grid"})
+                    element.insert_before(grid)
+                grid.append(element.extract())
+                continue
+            if getattr(element, "name", None) is not None:
+                grid = None
+            if getattr(element, "name", None) != "p":
+                continue
+            label = label_of(element)
+            if label == "Kind":
+                element["class"] = element.get("class", []) + ["problem-facts"]
+                facts["kind"] = element.get_text(" ", strip=True).split(":", 1)[1].split(" · ")[0].strip()
+            elif label == "Decision":
+                text = element.get_text(" ", strip=True).split(":", 1)[1].strip()
+                facts["status"] = status_of(text)
+                when = re.match(r"(?:open|default applied)\b[,;:]?\s*(blocks steps? [\d, and]+\d|can wait)", text.lower())
+                facts["when"] = when.group(1) if when else ""
+                box = soup.new_tag("div", attrs={"class": f"decision {slug(facts['status'])}"})
+                element.insert_before(box)
+                box.append(element.extract())
+                facts["decision"] = box
+            elif label:
+                element["class"] = element.get("class", []) + ["field", f"field-{slug(label)}"]
+                if label == "Evidence":
+                    facts["brief"] = False
+        article["class"] = article.get("class", []) + [kind_class(facts["kind"]), f"decision-{slug(facts['status'])}"]
+        if facts["brief"]:
+            article["class"].append("brief")
+            tag = soup.new_tag("span", attrs={"class": "brief-tag"})
+            tag.string = "in brief"
+            heading.append(tag)
+        found.append(facts)
+    return found
+
+
+def rail(soup, found):
+    """Under *Problems* in each list of sections, one link per problem with the state of its decision."""
+    for link in soup.select('nav a[href="#problems"]'):
+        listing = soup.new_tag("ol", attrs={"class": "nav-problems"})
+        for facts in found:
+            item = soup.new_tag("li", attrs={"class": f"{kind_class(facts['kind'])} decision-{slug(facts['status'])}"})
+            anchor = soup.new_tag("a", href=f"#{facts['id']}")
+            anchor.string = facts["title"]
+            mark = soup.new_tag("span", attrs={"class": "nav-status", "title": facts["status"]})
+            item.extend([mark, anchor])
+            listing.append(item)
+        if found:
+            following = link.find_next_sibling()
+            if getattr(following, "name", None) == "ul":  # the template's plain list of the same headings
+                following.decompose()
+            link.insert_after(listing)
+
+
+def header(soup, found):
+    title = soup.main.find("h1")
+    if not title:
+        return
+    opened = sum(1 for f in found if f["status"] == "open")
+    defaults = sum(1 for f in found if f["status"] == "default applied")
+    bugs = sum(1 for f in found if kind_class(f["kind"]) == "bug")
+    counts = [("count-problems", len(found), "problem" if len(found) == 1 else "problems"),
+              ("count-bugs", bugs, "possible bug" if bugs == 1 else "possible bugs"),
+              ("count-waiting", opened, "decision open" if opened == 1 else "decisions open"),
+              ("count-defaults", defaults, "default applied" if defaults == 1 else "defaults applied")]
+    bar = soup.new_tag("p", attrs={"class": "report-counts"})
+    for cls, value, words in counts:
+        chip = soup.new_tag("span", attrs={"class": f"count {cls}" + (" zero" if not value else "")})
         number = soup.new_tag("b")
         number.string = str(value)
         chip.append(number)
-        chip.append(" " + label)
+        chip.append(" " + words)
         bar.append(chip)
-    return bar
+    title.insert_after(bar)
+    toggle = soup.new_tag("button", attrs={"type": "button", "class": "theme-toggle", "aria-pressed": "false"})
+    toggle.string = "Dark theme"
+    soup.body.insert(0, toggle)
 
 
-def summary(soup, overview):
-    """The bold opening lines, side by side; the rest of the opening stays in the full text."""
-    strip = soup.new_tag("div", attrs={"class": "wb-summary"})
-    for paragraph in overview.find_all("p", recursive=False):
-        label = paragraph.find("strong")
-        if (label and paragraph.contents and paragraph.contents[0] is label
-                and not paragraph.get_text().startswith(("Scope:", "Inspected source:", "Reviewed:"))):
-            block = soup.new_tag("div", attrs={"class": "wb-summary-item"})
-            title = soup.new_tag("h2", attrs={"class": "wb-summary-label"})
-            title.string = label.get_text().rstrip(":")
-            block.append(title)
-            text = clone(soup, paragraph)
-            text.find("strong").decompose()
-            text["class"] = "wb-summary-text"
-            block.append(text)
-            strip.append(block)
-    return strip if strip.contents else None
+def in_short(soup, found):
+    holder = section(soup, "in-short")
+    if not holder:
+        return
+    holder["class"] = holder.get("class", []) + ["in-short"]
+    for paragraph in holder.find_all("p", recursive=False):
+        label = label_of(paragraph)
+        if label in ("The problem", "What we propose", "What you decide"):
+            paragraph["class"] = paragraph.get("class", []) + ["field", f"field-{slug(label)}"]
+    waiting = [f for f in found if f["status"] in WAITING and f["decision"] is not None]
+    if not waiting:
+        return
+    box = soup.new_tag("div", attrs={"class": "waiting", "role": "region", "aria-label": "Decisions that wait for you"})
+    head = soup.new_tag("h3", attrs={"class": "waiting-title"})
+    head.string = "Waiting for your decision"
+    box.append(head)
+    listing = soup.new_tag("ul")
+    waiting.sort(key=lambda f: not f["when"].startswith("blocks"))  # what blocks the rework is answered first
+    for facts in waiting:  # an index: the decision itself stands under its problem
+        item = soup.new_tag("li", attrs={"class": f"decision-{slug(facts['status'])}"})
+        state = soup.new_tag("span", attrs={"class": "waiting-state"})
+        state.string = facts["status"]
+        link = soup.new_tag("a", href=f"#{facts['id']}")
+        link.string = facts["title"].removesuffix(" in brief")
+        item.extend([state, link])
+        if facts["when"]:
+            when = soup.new_tag("span", attrs={"class": "waiting-when" + (" blocks" if facts["when"].startswith("blocks") else "")})
+            when.string = facts["when"]
+            item.append(when)
+        listing.append(item)
+    box.append(listing)
+    anchor = holder.find("p", class_="field-what-you-decide") or holder.find_all("p", recursive=False)[-1]
+    following = anchor.find_next_sibling()
+    if getattr(following, "name", None) in ("ol", "ul"):  # the note's own list of decisions comes first
+        anchor = following
+    anchor.insert_after(box)
+
+
+def reference(soup):
+    """*How it works today* folds until opened: it is the evidence behind the problems, not the argument."""
+    holder = section(soup, "how-it-works-today")
+    if not holder:
+        return
+    heading = holder.find("h2")
+    parts = [child for child in list(holder.children) if child is not heading and getattr(child, "name", None)]
+    names = [h.get_text(" ", strip=True) for h in holder.find_all("h3")]
+    details = soup.new_tag("details", attrs={"class": "reference"})
+    summary = soup.new_tag("summary")
+    summary.string = "Open the reference" + (f": {', '.join(names).lower()}" if names else "")
+    details.append(summary)
+    for part in parts:
+        details.append(part.extract())
+    holder.append(details)
+
+
+def spec(soup):
+    """Mark each behavior of *What it does* by its verification, so untested behavior stands out."""
+    holder = section(soup, "what-it-does")
+    if not holder:
+        return
+    for item in holder.find_all("li"):
+        verified = re.search(r"Verified by:\s*(tested|locked|untested)", item.get_text(" ", strip=True), re.I)
+        if verified:
+            item["class"] = item.get("class", []) + ["behavior", f"verified-{verified.group(1).lower()}"]
+
+
+RESULTS = ("not applicable", "broken", "met")
+
+
+def scorecard(soup):
+    """The design principles as a grid of today against proposed; each item's evidence folds beneath it."""
+    heading = soup.main.find("h3", id="design-principles")
+    listing = heading.find_next_sibling() if heading else None
+    if getattr(listing, "name", None) not in ("ul", "ol"):
+        return
+    table = soup.new_tag("table", attrs={"class": "scorecard"})
+    head = soup.new_tag("thead")
+    row = soup.new_tag("tr")
+    for text in ("Principle", "Today", "Proposed"):
+        cell = soup.new_tag("th", attrs={"scope": "col"})
+        cell.string = text
+        row.append(cell)
+    head.append(row)
+    table.append(head)
+    body = soup.new_tag("tbody")
+    fixed = 0
+    for item in listing.find_all("li", recursive=False):
+        name = item.strong.get_text(strip=True).rstrip(":") if item.strong else ""
+        rest = item.get_text(" ", strip=True).split(":", 1)[-1].strip().lower()
+        pair = re.match(r"(not applicable|broken|met)\s*(?:→|->)\s*(not applicable|broken|met)", rest)
+        today, proposed = pair.groups() if pair else (("not applicable",) * 2 if rest.startswith("not applicable") else ("", ""))
+        fixed += today == "broken" and proposed == "met"
+        row = soup.new_tag("tr")
+        cell = soup.new_tag("th", attrs={"scope": "row"})
+        cell.string = name
+        row.append(cell)
+        for value in (today, proposed):
+            cell = soup.new_tag("td")
+            chip = soup.new_tag("span", attrs={"class": f"result result-{slug(value) or 'unknown'}"})
+            chip.string = value or "unknown"
+            cell.append(chip)
+            row.append(cell)
+        body.append(row)
+    table.append(body)
+    caption = soup.new_tag("caption")
+    caption.string = f"The rework restores {fixed} of {len(listing.find_all('li', recursive=False))} principles."
+    table.insert(0, caption)
+    holder = soup.new_tag("div", attrs={"class": "table-scroll scorecard-box", "tabindex": "0", "role": "region",
+                                         "aria-label": "Design principles scorecard"})
+    holder.append(table)
+    details = soup.new_tag("details", attrs={"class": "scorecard-evidence"})
+    summary = soup.new_tag("summary")
+    summary.string = "The evidence for each principle"
+    details.append(summary)
+    listing.insert_before(holder)
+    holder.insert_after(details)
+    details.append(listing.extract())
+
+
+def problem_links(soup, found):
+    """A behavior-map row names its problem by number; point it at the problem's section."""
+    by_number = {f["number"]: f["id"] for f in found}
+    for link in soup.select("a.bm-problem[data-problem]"):
+        if link["data-problem"] in by_number:
+            link["href"] = f"#{by_number[link['data-problem']]}"
 
 
 def build(soup, kind):
-    """Rearrange a rendered page of a workbench kind in place."""
-    main = soup.main
-    soup.body["class"] = soup.body.get("class", []) + ["workbench"]
-    overview = main.find("section")
-    title = overview.find("h1")
-    view = main.find("figure", class_="structure-view")
-    top = soup.new_tag("header", attrs={"class": "wb-top"})
-    heading_row = soup.new_tag("div", attrs={"class": "wb-heading"})
-    heading_row.append(title.extract())
-    heading_row.append(chips(soup, kind))
-    top.append(heading_row)
-    nav = soup.find("nav", attrs={"aria-label": "Sections"})
-    if nav:
-        links = clone(soup, nav)
-        links.attrs = {"class": "wb-nav", "aria-label": "Parts of this page"}
-        top.append(links)
-    strip = summary(soup, overview)
-    hero = soup.new_tag("section", attrs={"class": "wb-hero", "aria-label": "Structure"})
-    if view:
-        place = soup.new_tag("p", attrs={"class": "wb-moved"})
-        place.string = "The structure view is at the top of the page."
-        view.insert_before(place)
-        hero.append(view.extract())
-    if kind == "rework-map":
-        rework = lock_items(soup) + ([heading(soup, "Steps of the recommended target")] if section(soup, "rework-steps") else []) + step_items(soup, "rework-steps")
-        target = target_line(soup)
-        panels = [panel(soup, "Decide", "behavior-to-decide", decide_items(soup), "Nothing waits for you."),
-                  panel(soup, "Findings", "findings", finding_items(soup, "findings"), "No structure findings."),
-                  panel(soup, "Rework", "rework-steps", rework, "No rework proposed.")]
-        if target is not None:
-            target["class"] = "wb-target"
-            panels[2].insert(1, target)
-    else:
-        panels = [panel(soup, "Decide", "questions-for-the-user", decide_items(soup), "Nothing waits for you."),
-                  panel(soup, "Findings", "structure-findings", finding_items(soup, "structure-findings"), "No structure findings."),
-                  panel(soup, "Reshape first", "reshape-first", step_items(soup, "reshape-first"), "The change fits: no reshape.")]
-    grid = soup.new_tag("div", attrs={"class": "wb-panels"})
-    for box in panels:
-        grid.append(box)
-    full = soup.new_tag("div", attrs={"class": "wb-full"})
-    label = soup.new_tag("p", attrs={"class": "wb-full-label"})
-    label.string = "The full text"
-    full.append(label)
-    for child in list(main.children):
-        if getattr(child, "name", None) != "footer":
-            full.append(child.extract())
-    footer = main.find("footer")
-    data = None
-    if view and view.find(class_="sv-data"):
-        data = soup.new_tag("section", attrs={"class": "wb-data", "aria-label": "Data and its keys"})
-        for block in view.find_all(class_="sv-data"):
-            data.append(block.extract())
-    for block in (top, strip, hero if view else None, grid, data, full):
-        if block is not None:
-            (footer.insert_before(block) if footer else main.append(block))
+    """Arrange a rendered page of a structure note in place."""
+    soup.body["class"] = soup.body.get("class", []) + ["report", kind]
+    found = problems(soup)
+    spec(soup)
+    scorecard(soup)
+    problem_links(soup, found)
+    rail(soup, found)
+    header(soup, found)
+    in_short(soup, found)
+    reference(soup)
     soup.body.extend(list(soup.__class__(assets(), "html.parser").contents))
 
 

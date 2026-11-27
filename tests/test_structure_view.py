@@ -76,5 +76,39 @@ class StructureViewTests(unittest.TestCase):
         self.assertNotIn("<code>", html, "the page check counts code elements against the Markdown")
 
 
+sv = view
+
+
+class FocusAndHistoryTests(unittest.TestCase):
+    def setUp(self):
+        self.source = (ROOT / "tests/fixtures/rework-map/rework-map.md").read_text()
+        self.data = json.loads(sv.fences(self.source)[0][1])
+
+    def test_a_focus_draws_only_its_rules_files_and_keeps_their_letters(self):
+        part = sv.focus(self.data, {"rules": ["A guest pays full price"]})
+        self.assertEqual([f["id"] for f in part["files"]], ["discounts"])
+        self.assertEqual(part["rules"][0]["index"], 1, "the rule keeps its place in the full view")
+        html = sv.focus_figure(self.data, {"rules": ["A guest pays full price"]}, 1)
+        self.assertIn(">B</text>", html)
+        self.assertEqual(html.count("<svg"), 2, "today and proposed, side by side")
+
+    def test_a_focus_names_what_the_structure_view_holds(self):
+        bad = self.source.replace('{"rules": ["Loyalty discount rate"]}', '{"rules": ["Coupon rule"], "files": ["nowhere"]}')
+        with self.assertRaisesRegex(ValueError, "rule 'Coupon rule' is not a rule.*file 'nowhere' is not a file id"):
+            sv.check(bad)
+        with self.assertRaisesRegex(ValueError, "no structure-view fence"):
+            sv.check(bad[:bad.index("```structure-view")])
+
+    def test_history_counts_changes_that_missed_a_place_and_not_the_one_that_added_it(self):
+        history = json.loads(sv.fences(self.source, "change-history")[0][1])
+        html = sv.history_figure(history, 1)
+        self.assertIn("4 commits changed Loyalty discount rate; 2 of them changed only some of its places", html)
+        self.assertEqual(html.count('class="hx-missed"'), 3)
+        broken = {**history, "commits": [{**history["commits"][0], "sha": "zz", "changed": ["nowhere"]}]}
+        found = " ".join(sv.history_problems(broken))
+        for words in ("`sha` is a commit id", "`changed` lists the site ids", "`since` must be the sha of a listed commit"):
+            self.assertIn(words, found)
+
+
 if __name__ == "__main__":
     unittest.main()

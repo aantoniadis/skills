@@ -42,10 +42,14 @@ the code does not do, and the check that locks the stated design in.
 
 For the recommended target, state:
 
-- **Owners.** For each rule and each piece of state in the findings, the one
-  module that decides or writes it. Prefer the module that already holds the
-  data the rule reads.
-- **Interface.** What callers need to know, as signatures or types. The right
+- **Modules.** For each module of the target: its name, its responsibility
+  in one sentence with no *and*, its one reason to change, and the rules and
+  state it owns. Each rule and each piece of state in the findings has one
+  owner. Prefer the module that already holds the data the rule reads.
+- **Interface.** What callers need to know, as signatures or types, each
+  named for what it returns or does. A function whose body stays complex
+  gets a one-line comment of why it exists: the requirement, incident, or
+  constraint it serves. Everything else stays private to its module. The right
   shape removes branches and states that cannot be valid; a shape that adds
   indirection and removes neither is surplus.
 - **Guarantees at the boundary.** What is checked once where data enters, and
@@ -59,12 +63,22 @@ For the recommended target, state:
   and how the others get what they need from that module.
 - **Failure behavior.** For each fallback and each error turned into a value
   in scope: the failure cannot occur under the new shape, or it fails loudly,
-  or it is a real outcome the caller receives. Each one that changes what a
+  or it is a real outcome the caller receives. An error that fails loudly
+  names what failed with the values that identify it, keeps its cause, and
+  is a type specific enough for a caller to catch. Each boundary translates
+  the errors it receives into its own words, so a caller never catches a
+  driver's or a library's error type. Each one that changes what a
   consumer sees is behavior to decide, not part of the target.
 - **Cost and risk.** Files and call sites touched, the pins that exist and the
   pins to write, and what can go wrong.
 - **Measure.** Decision sites per rule before and after, and the stated
   dependencies and rules that become true.
+- **Design principles.** One item per principle of
+  [clean structure](../../CLEAN-STRUCTURE.md): its check run on the code
+  today and on the target as written, each result with its evidence. A
+  principle the target leaves broken is named in its cost. A target that
+  adds an interface, a registry, or a setting names its second user today,
+  or leaves it out.
 
 Rank by where change is paid: a target that concentrates a rule changed every
 week is worth more than one that tidies code nobody touches. Give one

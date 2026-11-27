@@ -28,7 +28,10 @@ by whom, on what evidence.
    A corner case these steps uncover, whose handling would bend the design,
    comes to you with its reach and its price; under an autopilot policy the
    plan keeps the design and records the case as open
-   ([corner cases](../skills/CORNER-CASES.md)).
+   ([corner cases](../skills/CORNER-CASES.md)). Every unit a slice adds,
+   renames, moves, or splits meets
+   [clean structure](../skills/CLEAN-STRUCTURE.md); a plan that carries out a
+   rework map follows its module changes and design principles.
 3. **Retain evidence.** Keep decisions, material revisions, and blockers in the
    plan. Separate history and milestone copies are useful for larger changes.
    Retain source snapshots for evidence from dirty or non-Git files.

@@ -103,6 +103,16 @@ the focused tests miss under `--full`, and reports one of three results:
 - *green*: no test protects the behavior. Record it in the map under
   *Behavior no test protects*; it is the first lock test a rework writes.
 
+Three more results give no verdict, and the script exits 1:
+
+- *red before the break* or *full red before the break*: the command
+  already fails on the unbroken worktree. Fix or leave out what fails, and
+  run the break again.
+- *timed out*, or *timed out before the break* for that control: the
+  command ran past `--timeout`. It caught nothing and missed nothing. Run
+  the break again with a longer `--timeout`, alone when other suites share
+  the machine.
+
 The worktree holds HEAD, so uncommitted changes in the checkout are not in
 it; `--with-local-changes` brings them in, for lock tests not yet committed.
 Each focused command runs once on the unbroken worktree first, and so does

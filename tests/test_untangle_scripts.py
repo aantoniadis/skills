@@ -5,11 +5,13 @@ import importlib.util
 import json
 import os
 import re
+import shutil
 from pathlib import Path
 import sqlite3
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 SCRIPTS = Path(__file__).resolve().parents[1] / "skills/untangle/scripts"
@@ -473,6 +475,66 @@ class BreakProbeTests(Repository):
         self.assertEqual([line.strip() for line in self.git("status", "--short").splitlines()],
                          ["M tests/test_helper.py", "?? breaks.tsv", "?? runs/", "?? tests/test_lock.py"], "the checkout keeps its changes")
 
+
+    # A timed-out command gives no verdict: it is neither a test that caught the break nor one that stayed green.
+    def probe(self, breaks, full):
+        path = self.repo / "breaks.tsv"
+        path.write_text(breaks)
+        return subprocess.run([sys.executable, str(SCRIPTS / "break_probe.py"), str(path), "--full", full, "--timeout", "1",
+                               "--out", str(self.repo / "runs")], cwd=self.repo, capture_output=True, text=True)
+
+    def assert_no_survivor(self, marker):
+        """No process the timed-out command started is still running; `marker` is a sleep length no other test uses."""
+        if not shutil.which("pgrep"):
+            self.skipTest("pgrep is not installed")
+        time.sleep(0.5)
+        found = subprocess.run(["pgrep", "-f", marker], capture_output=True, text=True)
+        self.assertEqual(found.stdout.strip(), "", f"a process started by the command outlived its timeout: {marker}")
+
+    def once_slow(self, marker):
+        """A command that is slow the first time it runs and quick after, through a flag outside the worktree."""
+        flags = tempfile.TemporaryDirectory()
+        self.addCleanup(flags.cleanup)
+        flag = Path(flags.name) / "ran"
+        return f"if [ -e {flag} ]; then true; else touch {flag}; sleep {marker}; fi"
+
+    def test_a_focused_command_that_times_out_under_the_break_gives_no_verdict(self):
+        self.commit({"a.txt": "original\n"})
+        result = self.probe("slow focused\ta.txt\t1\tchanged\tgrep -q changed a.txt && sleep 5.41 || true\n", "true")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("timed out\tslow focused\ta.txt:1\toriginal\tno verdict: the command passed --timeout 1 s", result.stdout)
+        self.assertNotIn("focused red", result.stdout)
+        self.assertIn("1 of 1 breaks timed out; their rows carry no verdict.", result.stdout)
+        self.assertIn("timed out after 1 s", (self.repo / "runs/01-focused.log").read_text())
+        self.assert_no_survivor("sleep 5.41")
+
+    def test_a_full_command_that_times_out_under_the_break_gives_no_verdict(self):
+        self.commit({"a.txt": "original\n"})
+        result = self.probe("slow full\ta.txt\t1\tchanged\ttrue\n", "grep -q changed a.txt && sleep 5.42 || true")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("timed out\tslow full\ta.txt:1", result.stdout)
+        self.assertNotIn("full red", result.stdout)
+        self.assert_no_survivor("sleep 5.42")
+
+    def test_a_full_control_that_times_out_is_retried_by_the_next_break(self):
+        self.commit({"a.txt": "one\ntwo\n"})
+        result = self.probe("first\ta.txt\t1\tchanged\ttrue\nsecond\ta.txt\t2\tchanged\ttrue\n", self.once_slow("5.43"))
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("timed out before the break\tfirst\ta.txt:1\tone\tno verdict: the command passed --timeout 1 s "
+                      "on the unbroken worktree", result.stdout)
+        self.assertIn("green\tsecond\ta.txt:2", result.stdout, "the next break runs the control again, not its cached timeout")
+        self.assertNotIn("full red before the break", result.stdout)
+        self.assert_no_survivor("sleep 5.43")
+
+    def test_a_focused_control_that_times_out_is_retried_by_the_next_break(self):
+        self.commit({"a.txt": "one\ntwo\n"})
+        command = self.once_slow("5.44")
+        result = self.probe(f"first\ta.txt\t1\tchanged\t{command}\nsecond\ta.txt\t2\tchanged\t{command}\n", "true")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("timed out before the break\tfirst\ta.txt:1", result.stdout)
+        self.assertNotIn("red before the break\tfirst", result.stdout.replace("timed out before the break", ""))
+        self.assertIn("green\tsecond\ta.txt:2", result.stdout)
+        self.assert_no_survivor("sleep 5.44")
 
 class SharedDataTests(Repository):
     RUBY = {

@@ -21,15 +21,18 @@ before it is committed, and without it the worktree has no such test. Line numbe
 of the working tree. Each focused command runs once on the unbroken worktree first, as a control,
 and so does the full command the first time a break reaches it: a command that already fails
 there, because its test is missing, the setup is incomplete, or a test fails before any break, is
-reported as *red before the break* and pins nothing. Commands run with the worktree as their
-working directory, through the shell. Logs go under --out, one per run. The worktree is removed
-at the end. Exit 1 when a line does not match its file or a control fails, 2 for invalid inputs
-or failed Git operations.
+reported as *red before the break* and pins nothing. A command that runs past --timeout gives no
+verdict: its row reads *timed out*, or *timed out before the break* for a control, which the next
+break runs again. Commands run with the worktree as their working directory, through the shell,
+each in a process group of its own that a timeout kills whole. Logs go under --out, one per run.
+The worktree is removed at the end. Exit 1 when a line does not match its file, a control fails,
+or a command times out; 2 for invalid inputs or failed Git operations.
 """
 import argparse
 import os
 from pathlib import Path
 import shutil
+import signal
 import subprocess
 import sys
 import tempfile
@@ -89,14 +92,33 @@ def write(target, text):
     os.utime(target, (STAMP[0], STAMP[0]))
 
 
-def run(command, cwd, log, timeout):
-    env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
+def kill_group(process):
+    """Kill the command and every process it started: they share the process group the command leads."""
     try:
-        result = subprocess.run(command, shell=True, cwd=cwd, env=env, capture_output=True, text=True, timeout=timeout)
-        code, output = result.returncode, result.stdout + result.stderr
-    except subprocess.TimeoutExpired as error:
-        code, output = 124, f"timed out after {timeout} s\n{error.stdout or ''}{error.stderr or ''}"
-    log.write_text(f"$ {command}\nexit {code}\n\n{output}")
+        os.killpg(process.pid, signal.SIGKILL)
+    except (AttributeError, ProcessLookupError, PermissionError):  # no process groups here, or the group is gone
+        process.kill()
+
+
+def run(command, cwd, log, timeout):
+    """The command's exit code, or None when it ran past `timeout`: a timeout is no test result, red or green.
+    The command leads a process group of its own, so a timeout kills the processes the shell started too, and
+    none of them keeps running against the worktree while the line is restored or the worktree removed."""
+    env = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
+    process = subprocess.Popen(command, shell=True, cwd=cwd, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                               text=True, start_new_session=True)
+    try:
+        output, _ = process.communicate(timeout=timeout)
+        code, status = process.returncode, f"exit {process.returncode}"
+    except subprocess.TimeoutExpired:
+        kill_group(process)
+        try:
+            output, _ = process.communicate(timeout=10)
+        except subprocess.TimeoutExpired:  # a process that left the group still holds the output pipe
+            process.kill()
+            output = "(output not collected: a process outside the group kept the pipe open)\n"
+        code, status = None, f"timed out after {timeout} s"
+    log.write_text(f"$ {command}\n{status}\n\n{output or ''}")
     return code
 
 
@@ -134,9 +156,12 @@ def main():
             except (OSError, ValueError) as error:
                 print(f"break_probe: the uncommitted changes do not apply to HEAD: {error}", file=sys.stderr)
                 return 2
-        if args.setup and run(args.setup, worktree, out / "setup.log", args.timeout):
-            print(f"break_probe: setup failed; see {out / 'setup.log'}", file=sys.stderr)
-            return 2
+        if args.setup:
+            code = run(args.setup, worktree, out / "setup.log", args.timeout)
+            if code != 0:
+                what = f"timed out after {args.timeout} s" if code is None else "failed"
+                print(f"break_probe: setup {what}; see {out / 'setup.log'}", file=sys.stderr)
+                return 2
         for index, item in enumerate(breaks, 1):
             target = worktree / item["path"]
             try:
@@ -149,8 +174,11 @@ def main():
                 rows.append((item, "no such line", "", "")); mismatched += 1
                 continue
             old = lines[item["line"] - 1]
-            if item["command"] not in controls:
+            if controls.get(item["command"]) is None:  # never run, or timed out last time: a timeout is not kept
                 controls[item["command"]] = run(item["command"], worktree, out / f"control-{index:02d}.log", args.timeout)
+            if controls[item["command"]] is None:
+                rows.append((item, "timed out before the break", old.strip(), index)); mismatched += 1
+                continue
             if controls[item["command"]]:
                 rows.append((item, "red before the break", old.strip(), index)); mismatched += 1
                 continue
@@ -160,18 +188,27 @@ def main():
             write(target, broken)
             try:
                 focused = run(item["command"], worktree, out / f"{index:02d}-focused.log", args.timeout)
-                if focused:
+                if focused is None:
+                    result = "timed out"
+                    mismatched += 1
+                elif focused:
                     result = "focused red"
                 else:
-                    if full_control is None:  # once, on the unbroken worktree, the first time a break reaches the full command
+                    # Once, on the unbroken worktree, the first time a break reaches the full command; again after a timeout.
+                    if full_control is None:
                         write(target, original)
                         full_control = run(args.full, worktree, out / "control-full.log", args.timeout)
                         write(target, broken)
-                    if full_control:
+                    if full_control is None:
+                        result = "timed out before the break"
+                        mismatched += 1
+                    elif full_control:
                         result = "full red before the break"
                         mismatched += 1
                     else:
-                        result = "full red" if run(args.full, worktree, out / f"{index:02d}-full.log", args.timeout) else "green"
+                        full = run(args.full, worktree, out / f"{index:02d}-full.log", args.timeout)
+                        result = "timed out" if full is None else ("full red" if full else "green")
+                        mismatched += full is None
             finally:
                 write(target, original)
             rows.append((item, result, old.strip(), index))
@@ -184,6 +221,9 @@ def main():
                "red before the break": "the focused command fails on the unbroken worktree, so it pins nothing: see its control log",
                "full red before the break": "the full command fails on the unbroken worktree, so it cannot show a pin: "
                                             "fix or leave out what already fails; see control-full.log",
+               "timed out": f"no verdict: the command passed --timeout {args.timeout} s; rerun with a longer one",
+               "timed out before the break": f"no verdict: the command passed --timeout {args.timeout} s on the unbroken worktree; "
+                                             "rerun with a longer one, see its control log",
                "missing file": "the file is not in the worktree", "no such line": "the line number is past the end of the file"}
     local = " with the checkout's uncommitted changes" if args.with_local_changes else ""
     print(f"Breaks at {head[:12]}{local}: {len(rows)}. Logs: {out}\n")
@@ -192,6 +232,9 @@ def main():
         print(f"{result}\t{item['name']}\t{item['path']}:{item['line']}\t{old[:80]}\t{meaning[result]}")
     green = sum(1 for _, result, _, _ in rows if result == "green")
     print(f"\n{green} of {len(rows)} breaks left every test green under the full command.")
+    timed = sum(1 for _, result, _, _ in rows if result.startswith("timed out"))
+    if timed:
+        print(f"{timed} of {len(rows)} breaks timed out; their rows carry no verdict.")
     return 1 if mismatched else 0
 
 
